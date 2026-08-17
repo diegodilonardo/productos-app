@@ -1,0 +1,63 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="/">PRODUCTOS APP</a>
+
+    <button
+      class="navbar-toggler"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#navbarProductosApp"
+      aria-controls="navbarProductosApp"
+      aria-expanded="false"
+      aria-label="Abrir navegación"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarProductosApp">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+        <li class="nav-item">
+          <a
+            class="nav-link {{#if (eq pagina 'dashboard')}}active{{/if}}"
+            href="/"
+          >
+            Dashboard
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a
+            class="nav-link {{#if (eq pagina 'nueva-alta')}}active{{/if}}"
+            href="/altas/nueva"
+          >
+            Nueva Alta
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a
+            class="nav-link {{#if (eq pagina 'altas')}}active{{/if}}"
+            href="/altas"
+          >
+            Altas
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a
+            class="nav-link {{#if (eq pagina 'seguimiento')}}active{{/if}}"
+            href="/seguimiento"
+          >
+            Seguimiento
+          </a>
+        </li>
+
+      </ul>
+
+      <span class="navbar-text small">
+        SQL Server · Presea
+      </span>
+    </div>
+  </div>
+</nav>

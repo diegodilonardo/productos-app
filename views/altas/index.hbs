@@ -1,0 +1,118 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Altas de Productos</h1>
+    <p class="text-secondary mb-0">
+      Retomá borradores, revisá altas validadas y accedé al seguimiento ERP.
+    </p>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button id="btnActualizarAltas" type="button" class="btn btn-outline-secondary">
+      Actualizar
+    </button>
+
+    <a href="/altas/nueva" class="btn btn-primary">
+      Nueva Alta
+    </a>
+  </div>
+</div>
+
+<div id="alertaAltas" class="alert d-none" role="alert"></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Borradores</div>
+        <div id="contadorBorradores" class="display-6 fw-semibold">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Validados</div>
+        <div id="contadorValidados" class="display-6 fw-semibold">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Exportados / ERP</div>
+        <div id="contadorExportados" class="display-6 fw-semibold">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Total</div>
+        <div id="contadorTotal" class="display-6 fw-semibold">0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-white">
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-lg">
+        <h2 class="h5 mb-0">Lotes de alta</h2>
+      </div>
+
+      <div class="col-12 col-md-5 col-lg-4">
+        <input
+          id="buscarAlta"
+          type="search"
+          class="form-control"
+          placeholder="Buscar por alta, marca, rubro..."
+        >
+      </div>
+
+      <div class="col-12 col-md-4 col-lg-3">
+        <select id="filtroEstadoAlta" class="form-select">
+          <option value="">Todos los estados</option>
+          <option value="BORRADOR">BORRADOR</option>
+          <option value="VALIDADO">VALIDADO</option>
+          <option value="EXPORTADO">EXPORTADO</option>
+          <option value="PARCIAL_ERP">PARCIAL_ERP</option>
+          <option value="GENERADO_OK_EN_ERP">GENERADO_OK_EN_ERP</option>
+          <option value="ANULADO">ANULADO</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Alta</th>
+          <th>Marca</th>
+          <th>Rubro</th>
+          <th>Tipo</th>
+          <th>Año</th>
+          <th>Temporada</th>
+          <th>Productos</th>
+          <th>Estado</th>
+          <th>Creación</th>
+          <th class="text-end">Acción</th>
+        </tr>
+      </thead>
+
+      <tbody id="tablaAltas">
+        <tr>
+          <td colspan="10" class="text-center py-4 text-secondary">
+            Cargando altas...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/js/altas-index.js"></script>

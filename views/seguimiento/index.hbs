@@ -1,0 +1,98 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Seguimiento ERP</h1>
+    <p class="text-secondary mb-0">
+      Estado de las altas exportadas y su confirmación en Presea.
+    </p>
+  </div>
+
+  <button id="btnActualizarSeguimiento" type="button" class="btn btn-outline-secondary">
+    Actualizar
+  </button>
+</div>
+
+<div id="alertaSeguimiento" class="alert d-none" role="alert"></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Productos exportados</div>
+        <div id="resTotalExportados" class="display-6 fw-semibold">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Confirmados ERP</div>
+        <div id="resConfirmados" class="display-6 fw-semibold">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Pendientes ERP</div>
+        <div id="resPendientes" class="display-6 fw-semibold">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="app-info-label">Errores ERP</div>
+        <div id="resErrores" class="display-6 fw-semibold">-</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-white">
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-md">
+        <h2 class="h5 mb-0">Altas</h2>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <select id="filtroEstadoSeguimiento" class="form-select">
+          <option value="">Todos los estados</option>
+          <option value="EXPORTADO">EXPORTADO</option>
+          <option value="PARCIAL_ERP">PARCIAL_ERP</option>
+          <option value="GENERADO_OK_EN_ERP">GENERADO_OK_EN_ERP</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Alta</th>
+          <th>Marca</th>
+          <th>Rubro</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th>ERP</th>
+          <th style="min-width:180px">Avance</th>
+          <th>Archivo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tablaSeguimientoAltas">
+        <tr>
+          <td colspan="9" class="text-center py-4 text-secondary">
+            Cargando...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/js/seguimiento.js"></script>

@@ -1,0 +1,177 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+
+    <div>
+        <h1 class="h3 mb-1">
+            Dashboard
+        </h1>
+
+        <p class="text-secondary mb-0">
+            Estado general de altas y sincronización con Presea.
+        </p>
+    </div>
+
+    <div class="d-flex gap-2">
+
+        <button
+            id="btnActualizar"
+            class="btn btn-outline-secondary"
+            type="button"
+        >
+            Actualizar
+        </button>
+
+        <button
+            class="btn btn-primary"
+            type="button"
+            disabled
+        >
+            Nueva Alta
+        </button>
+
+    </div>
+
+</div>
+
+
+<div
+    id="alertaError"
+    class="alert alert-danger d-none"
+    role="alert"
+></div>
+
+
+<div class="row g-3 mb-4">
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card app-card h-100">
+            <div class="card-body">
+                <div class="app-card-label">
+                    Altas totales
+                </div>
+
+                <div
+                    id="totalAltas"
+                    class="app-card-number"
+                >
+                    -
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card app-card h-100">
+            <div class="card-body">
+                <div class="app-card-label">
+                    Generadas OK en ERP
+                </div>
+
+                <div
+                    id="altasOk"
+                    class="app-card-number"
+                >
+                    -
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card app-card h-100">
+            <div class="card-body">
+                <div class="app-card-label">
+                    Productos pendientes ERP
+                </div>
+
+                <div
+                    id="productosPendientes"
+                    class="app-card-number"
+                >
+                    -
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card app-card h-100">
+            <div class="card-body">
+                <div class="app-card-label">
+                    Productos confirmados ERP
+                </div>
+
+                <div
+                    id="productosConfirmados"
+                    class="app-card-number"
+                >
+                    -
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<div class="card shadow-sm">
+
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+        <div>
+            <h2 class="h5 mb-0">
+                Altas recientes
+            </h2>
+        </div>
+
+        <div>
+            <span
+                id="ultimaActualizacion"
+                class="text-secondary small"
+            ></span>
+        </div>
+
+    </div>
+
+
+    <div class="table-responsive">
+
+        <table class="table table-hover align-middle mb-0">
+
+            <thead class="table-light">
+
+                <tr>
+                    <th>Alta</th>
+                    <th>Marca</th>
+                    <th>Rubro</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th class="text-center">ERP</th>
+                    <th class="text-center">%</th>
+                    <th>Archivo</th>
+                </tr>
+
+            </thead>
+
+            <tbody id="tablaAltas">
+
+                <tr>
+                    <td
+                        colspan="8"
+                        class="text-center py-5 text-secondary"
+                    >
+                        Cargando información...
+                    </td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script src="/js/dashboard.js"></script>

@@ -1,0 +1,404 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+
+    <div>
+        <h1 class="h3 mb-1">
+            Nueva Alta
+        </h1>
+
+        <p class="text-secondary mb-0">
+            Definí los datos generales del lote de productos.
+        </p>
+    </div>
+
+    <a
+        class="btn btn-outline-secondary"
+        href="/"
+    >
+        Volver al dashboard
+    </a>
+
+</div>
+
+
+<div
+    id="alertaAlta"
+    class="alert d-none"
+    role="alert"
+></div>
+
+
+<div class="row g-4">
+
+    <div class="col-12 col-xl-8">
+
+        <div class="card shadow-sm">
+
+            <div class="card-header bg-white">
+
+                <h2 class="h5 mb-1">
+                    Datos generales
+                </h2>
+
+                <div class="small text-secondary">
+                    Estos datos serán comunes a todos los productos del alta.
+                </div>
+
+            </div>
+
+
+            <div class="card-body">
+
+                <form id="formNuevaAlta">
+
+                    <div class="row g-3">
+
+
+                        <div class="col-12 col-md-6">
+
+                            <label
+                                for="codigoMarca"
+                                class="form-label"
+                            >
+                                Marca
+                            </label>
+
+                            <select
+                                id="codigoMarca"
+                                class="form-select"
+                                required
+                            >
+                                <option value="">
+                                    Cargando marcas...
+                                </option>
+                            </select>
+
+                        </div>
+
+
+                        <div class="col-12 col-md-6">
+
+                            <label
+                                for="codigoRubro"
+                                class="form-label"
+                            >
+                                Rubro a generar
+                            </label>
+
+                            <select
+                                id="codigoRubro"
+                                class="form-select"
+                                required
+                            >
+                                <option value="">
+                                    Cargando rubros...
+                                </option>
+                            </select>
+
+                        </div>
+
+
+                        <div class="col-12 col-md-6">
+
+                            <label
+                                for="tipoProducto"
+                                class="form-label"
+                            >
+                                Tipo de producto
+                            </label>
+
+                            <select
+                                id="tipoProducto"
+                                class="form-select"
+                                required
+                            >
+                                <option value="">
+                                    Seleccionar...
+                                </option>
+
+                                <option value="MODULO">
+                                    MÓDULO
+                                </option>
+
+                                <option value="PAR_SUELTO">
+                                    PAR SUELTO
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="col-12 col-md-3">
+
+                            <label
+                                for="codigoAno"
+                                class="form-label"
+                            >
+                                Año
+                            </label>
+
+                            <select
+                                id="codigoAno"
+                                class="form-select"
+                                required
+                            >
+                                <option value="">
+                                    Cargando...
+                                </option>
+                            </select>
+
+                        </div>
+
+
+                        <div class="col-12 col-md-3">
+
+                            <label
+                                for="codigoTemporada"
+                                class="form-label"
+                            >
+                                Temporada
+                            </label>
+
+                            <select
+                                id="codigoTemporada"
+                                class="form-select"
+                                required
+                            >
+                                <option value="">
+                                    Cargando...
+                                </option>
+                            </select>
+
+                        </div>
+
+
+                        <div class="col-12 col-md-6">
+
+                            <label
+                                for="usuario"
+                                class="form-label"
+                            >
+                                Usuario
+                            </label>
+
+                            <input
+                                id="usuario"
+                                type="text"
+                                class="form-control text-uppercase"
+                                value="DIEGO"
+                                maxlength="50"
+                                required
+                            >
+
+                        </div>
+
+
+                    </div>
+
+
+                    <hr class="my-4">
+
+
+                    <div class="d-flex flex-wrap justify-content-end gap-2">
+
+                        <button
+                            type="reset"
+                            class="btn btn-outline-secondary"
+                            id="btnLimpiar"
+                        >
+                            Limpiar
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            id="btnCrearAlta"
+                        >
+                            Crear Alta
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-12 col-xl-4">
+
+        <div class="card shadow-sm h-100">
+
+            <div class="card-header bg-white">
+
+                <h2 class="h5 mb-0">
+                    Flujo del alta
+                </h2>
+
+            </div>
+
+
+            <div class="card-body">
+
+                <ol class="app-flow mb-0">
+
+                    <li class="app-flow-step active">
+                        <strong>Datos generales</strong>
+                        <div class="small text-secondary">
+                            Marca, rubro, tipo, año y temporada.
+                        </div>
+                    </li>
+
+                    <li class="app-flow-step">
+                        <strong>Productos</strong>
+                        <div class="small text-secondary">
+                            Modelo, color, clasificación y curva/talle.
+                        </div>
+                    </li>
+
+                    <li class="app-flow-step">
+                        <strong>Validación</strong>
+                        <div class="small text-secondary">
+                            Duplicados y consistencia del lote.
+                        </div>
+                    </li>
+
+                    <li class="app-flow-step">
+                        <strong>Exportación</strong>
+                        <div class="small text-secondary">
+                            Generación del archivo DBI para Presea.
+                        </div>
+                    </li>
+
+                    <li class="app-flow-step">
+                        <strong>Confirmación ERP</strong>
+                        <div class="small text-secondary">
+                            Conciliación automática por COD_ALFA.
+                        </div>
+                    </li>
+
+                </ol>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div
+    id="panelAltaCreada"
+    class="card shadow-sm mt-4 d-none"
+>
+
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+        <div>
+            <h2 class="h5 mb-1">
+                Alta creada
+            </h2>
+
+            <div class="small text-secondary">
+                La cabecera quedó guardada en estado BORRADOR.
+            </div>
+        </div>
+
+        <span
+            id="estadoAltaCreada"
+            class="badge text-bg-secondary"
+        >
+            BORRADOR
+        </span>
+
+    </div>
+
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="app-info-label">
+                    ID Alta
+                </div>
+                <div
+                    id="altaId"
+                    class="fw-semibold"
+                >
+                    -
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-5">
+                <div class="app-info-label">
+                    Código Alta
+                </div>
+                <div
+                    id="altaCodigo"
+                    class="fw-semibold font-monospace"
+                >
+                    -
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-2">
+                <div class="app-info-label">
+                    Marca
+                </div>
+                <div
+                    id="altaMarca"
+                    class="fw-semibold"
+                >
+                    -
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-2">
+                <div class="app-info-label">
+                    Rubro
+                </div>
+                <div
+                    id="altaRubro"
+                    class="fw-semibold"
+                >
+                    -
+                </div>
+            </div>
+
+        </div>
+
+
+        <hr class="my-4">
+
+
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+
+            <a
+                href="/"
+                class="btn btn-outline-secondary"
+            >
+                Volver al dashboard
+            </a>
+
+            <button
+                id="btnContinuarProductos"
+                type="button"
+                class="btn btn-success"
+                disabled
+            >
+                Continuar con productos
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script src="/js/nueva-alta.js"></script>

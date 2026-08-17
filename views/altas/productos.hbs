@@ -1,0 +1,262 @@
+<div id="paginaProductosAlta" data-id-alta="{{idAlta}}">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">Productos del Alta</h1>
+      <p class="text-secondary mb-0">Agregá uno o varios productos al lote.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/" class="btn btn-outline-secondary">Dashboard</a>
+      <a href="/altas/nueva" class="btn btn-outline-primary">Nueva Alta</a>
+    </div>
+  </div>
+
+  <div id="alertaProductos" class="alert d-none" role="alert"></div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <h2 class="h5 mb-1">Cabecera del Alta</h2>
+        <div id="codigoAltaCabecera" class="text-secondary small font-monospace">Cargando...</div>
+      </div>
+      <span id="estadoAltaCabecera" class="badge text-bg-secondary">-</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-6 col-md-2"><div class="app-info-label">ID</div><div id="infoIdAlta" class="fw-semibold">-</div></div>
+        <div class="col-6 col-md-2"><div class="app-info-label">Marca</div><div id="infoMarca" class="fw-semibold">-</div></div>
+        <div class="col-6 col-md-2"><div class="app-info-label">Rubro</div><div id="infoRubro" class="fw-semibold">-</div></div>
+        <div class="col-6 col-md-2"><div class="app-info-label">Tipo</div><div id="infoTipo" class="fw-semibold">-</div></div>
+        <div class="col-6 col-md-2"><div class="app-info-label">Año</div><div id="infoAno" class="fw-semibold">-</div></div>
+        <div class="col-6 col-md-2"><div class="app-info-label">Temporada</div><div id="infoTemporada" class="fw-semibold">-</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
+          <h2 class="h5 mb-1">Agregar producto</h2>
+          <div class="small text-secondary">Los productos automáticos de la familia se generan en el backend.</div>
+        </div>
+        <div class="card-body">
+          <form id="formProducto">
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="codigoModelo" class="form-label">Modelo</label>
+                <select id="codigoModelo" class="form-select" required><option value="">Cargando modelos...</option></select>
+                <div class="form-text">Filtrado por marca y rubro del alta.</div>
+              </div>
+
+              <div class="col-12 col-md-6"><label for="codigoGrupo" class="form-label">Grupo</label><select id="codigoGrupo" class="form-select" required></select></div>
+              <div class="col-12 col-md-6"><label for="codigoSubgrupo" class="form-label">Subgrupo</label><select id="codigoSubgrupo" class="form-select" required></select></div>
+              <div class="col-12 col-md-6"><label for="codigoLinea" class="form-label">Línea</label><select id="codigoLinea" class="form-select" required></select></div>
+              <div class="col-12 col-md-6"><label for="codigoDeporte" class="form-label">Deporte</label><select id="codigoDeporte" class="form-select" required></select></div>
+              <div class="col-12 col-md-4"><label for="codigoEdad" class="form-label">Edad</label><select id="codigoEdad" class="form-select" required></select></div>
+              <div class="col-12 col-md-4"><label for="sexo" class="form-label">Sexo</label><select id="sexo" class="form-select" required></select></div>
+              <div class="col-12 col-md-4"><label for="codigoPais" class="form-label">País</label><select id="codigoPais" class="form-select" required></select></div>
+
+              <div id="contenedorClasificacion" class="col-12 col-md-6">
+                <label for="codigoClasificacion" class="form-label">Clasificación</label>
+                <select id="codigoClasificacion" class="form-select"></select>
+              </div>
+
+              <div id="contenedorModulo" class="col-12 col-md-6 d-none">
+                <label for="codigoModulo" class="form-label">Curva / Módulo</label>
+                <select id="codigoModulo" class="form-select"></select>
+              </div>
+
+              <div id="contenedorTalle" class="col-12 col-md-6 d-none">
+                <label for="codigoTalle" class="form-label">Talle</label>
+                <select id="codigoTalle" class="form-select"></select>
+              </div>
+
+              <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label mb-0">Colores</label>
+                  <span id="cantidadColores" class="badge text-bg-secondary">0 seleccionados</span>
+                </div>
+                <input id="buscarColor" type="search" class="form-control mb-2" placeholder="Buscar color...">
+                <div id="listaColores" class="app-color-list border rounded p-2">
+                  <div class="text-secondary p-2">Cargando colores...</div>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label for="usuarioProducto" class="form-label">Usuario</label>
+                <input id="usuarioProducto" type="text" class="form-control text-uppercase" value="DIEGO" required>
+              </div>
+            </div>
+
+            <hr class="my-4">
+            <div class="d-flex justify-content-end">
+              <button id="btnAgregarProducto" type="submit" class="btn btn-primary">Agregar producto</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Resumen del lote</h2></div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-2"><span>Productos registrados</span><strong id="cantidadProductosAlta">0</strong></div>
+          <div class="d-flex justify-content-between mb-2"><span>Nuevos / exportables</span><strong id="cantidadProductosExportables">0</strong></div>
+          <div class="d-flex justify-content-between mb-2"><span>Ya existen en Presea</span><strong id="cantidadProductosExistentesERP">0</strong></div>
+          <div class="d-flex justify-content-between mb-2"><span>Estado</span><strong id="estadoLote">-</strong></div>
+          <div class="d-flex justify-content-between mb-3"><span>Archivo DBI</span><strong id="archivoExportadoAlta" class="text-break text-end ms-3">-</strong></div>
+
+          <div id="mensajeEstadoAlta" class="alert alert-secondary mb-3">Cargando estado...</div>
+
+          <div class="d-grid gap-2">
+            <button
+              id="btnGuardarBorrador"
+              type="button"
+              class="btn btn-outline-success d-none"
+            >
+              Guardar borrador
+            </button>
+
+            <button id="btnValidarAlta" type="button" class="btn btn-success d-none" disabled>Validar Alta</button>
+            <button id="btnPreviewAlta" type="button" class="btn btn-outline-primary d-none" disabled>Preview DBI</button>
+            <button id="btnExportarAlta" type="button" class="btn btn-primary d-none" disabled>Exportar DBI</button>
+
+            <a
+              id="btnSeguimientoAlta"
+              href="/seguimiento/{{idAlta}}"
+              class="btn btn-outline-primary d-none"
+            >
+              Ver seguimiento ERP
+            </a>
+
+            <button id="btnActualizarAlta" type="button" class="btn btn-outline-secondary">Actualizar lote</button>
+
+            <a href="/altas" class="btn btn-link text-decoration-none">
+              Volver a Altas
+            </a>
+          </div>
+
+          <hr>
+          <div class="small text-secondary">
+            MÓDULO genera módulo + PRIMERAS + SEGUNDAS por talle activo. PAR SUELTO genera PRIMERA + SEGUNDA.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mt-4">
+    <div class="card-header bg-white"><h2 class="h5 mb-0">Productos generados</h2></div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>COD_ALFA</th><th>Detalle</th><th>Tipo</th><th>Clasif.</th><th>Color</th><th>Talle / Curva</th><th>Auto</th><th>Estado</th><th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaProductosAlta">
+          <tr><td colspan="9" class="text-center py-4 text-secondary">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<div id="panelResultadoExportacion" class="card shadow-sm mt-4 d-none">
+  <div class="card-header bg-white">
+    <h2 class="h5 mb-0">Exportación generada</h2>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-12 col-md-4">
+        <div class="app-info-label">Archivo</div>
+        <div id="resultadoArchivo" class="fw-semibold font-monospace text-break">-</div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="app-info-label">Ruta</div>
+        <div id="resultadoRuta" class="font-monospace small text-break">-</div>
+      </div>
+      <div class="col-12 col-md-2">
+        <div class="app-info-label">Registros</div>
+        <div id="resultadoRegistros" class="fw-semibold">-</div>
+      </div>
+    </div>
+    <div class="alert alert-info mt-3 mb-0">
+      El archivo quedó preparado para ser importado en Presea. La conciliación posterior se realiza por COD_ALFA.
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="modalPreviewExportacion" tabindex="-1" aria-labelledby="tituloPreviewExportacion" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title fs-5" id="tituloPreviewExportacion">Preview de exportación DBI</h2>
+          <div class="small text-secondary font-monospace" id="previewCodigoAlta">-</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-3">
+              <div class="app-info-label">Productos del lote</div>
+              <div id="previewCantidadDetalles" class="fs-4 fw-semibold">0</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-3">
+              <div class="app-info-label">Ya existen Presea</div>
+              <div id="previewCantidadExistentesERP" class="fs-4 fw-semibold">0</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-3">
+              <div class="app-info-label">A exportar</div>
+              <div id="previewCantidadRegistros" class="fs-4 fw-semibold">0</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-3">
+              <div class="app-info-label">Campos ERP</div>
+              <div id="previewCantidadCampos" class="fs-4 fw-semibold">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>#</th>
+                <th>COD_ALFA</th>
+                <th>DETALLE</th>
+                <th>NIVEL</th>
+                <th>CLASIF.</th>
+                <th>COLOR</th>
+                <th>TALLE</th>
+                <th>PARES</th>
+              </tr>
+            </thead>
+            <tbody id="tablaPreviewExportacion"></tbody>
+          </table>
+        </div>
+
+        <div id="previewAvisoLimite" class="small text-secondary"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="/js/alta-productos.js"></script>
+

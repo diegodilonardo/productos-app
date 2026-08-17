@@ -1,0 +1,166 @@
+<div id="paginaSeguimientoDetalle" data-id-alta="{{idAlta}}">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">Seguimiento ERP</h1>
+      <p id="codigoAltaSeguimiento" class="text-secondary mb-0 font-monospace">
+        Cargando...
+      </p>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="/seguimiento" class="btn btn-outline-secondary">
+        Volver
+      </a>
+
+      <button id="btnActualizarDetalleSeguimiento" type="button" class="btn btn-outline-primary">
+        Actualizar
+      </button>
+    </div>
+  </div>
+
+  <div id="alertaSeguimientoDetalle" class="alert d-none"></div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-center">
+        <div class="col-6 col-md-2">
+          <div class="app-info-label">ID Alta</div>
+          <div id="detIdAlta" class="fw-semibold">-</div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <div class="app-info-label">Marca</div>
+          <div id="detMarca" class="fw-semibold">-</div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <div class="app-info-label">Rubro</div>
+          <div id="detRubro" class="fw-semibold">-</div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <div class="app-info-label">Tipo</div>
+          <div id="detTipo" class="fw-semibold">-</div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <div class="app-info-label">Estado</div>
+          <span id="detEstado" class="badge text-bg-secondary">-</span>
+        </div>
+
+        <div class="col-12 col-md-2">
+          <div class="app-info-label">Archivo</div>
+          <div id="detArchivo" class="small fw-semibold text-break">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="app-info-label">Total exportados</div>
+          <div id="detTotal" class="display-6 fw-semibold">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="app-info-label">Confirmados</div>
+          <div id="detConfirmados" class="display-6 fw-semibold">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="app-info-label">Pendientes</div>
+          <div id="detPendientes" class="display-6 fw-semibold">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="app-info-label">Errores</div>
+          <div id="detErrores" class="display-6 fw-semibold">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold">Confirmación ERP</span>
+        <strong id="detPorcentaje">0%</strong>
+      </div>
+
+      <div class="progress app-progress-lg">
+        <div
+          id="barraSeguimientoERP"
+          class="progress-bar"
+          role="progressbar"
+          style="width:0%"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          0%
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mensajeSeguimientoERP" class="alert alert-info">
+    Consultando confirmación en Presea...
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <h2 class="h5 mb-0">Productos exportados</h2>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <select id="filtroProductoERP" class="form-select">
+            <option value="">Todos</option>
+            <option value="PENDIENTE_ERP">Pendientes</option>
+            <option value="GENERADO_OK_EN_ERP">Confirmados</option>
+            <option value="ERROR_ERP">Errores</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>COD_ALFA</th>
+            <th>Código ERP</th>
+            <th>EAN ERP</th>
+            <th>Estado ERP</th>
+            <th>Confirmación</th>
+          </tr>
+        </thead>
+
+        <tbody id="tablaProductosSeguimientoERP">
+          <tr>
+            <td colspan="5" class="text-center py-4 text-secondary">
+              Cargando...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="/js/seguimiento-detalle.js"></script>

@@ -794,6 +794,212 @@ async function registrarExportacion(
 }
 
 
+
+/* ============================================================
+   OBTENER RELACIONES MODULO -> PAR SUELTO PRIMERA
+
+   Se usa para generar RELACION.DBI.
+   - El padre debe ser un MODULO nuevo/exportable (VALIDO).
+   - El hijo debe ser PAR_SUELTO clasificación 1 - PRIMERA.
+   - El hijo puede ser VALIDO o EXISTE_ERP.
+   - La relación sale de ALTAS_PRODUCTOS_FAMILIAS_DETALLE,
+     por lo que respeta familias muchos-a-muchos.
+   ============================================================ */
+
+async function obtenerRelacionesModuloPrimera(
+    idAlta
+) {
+
+    const pool =
+        await getConnection();
+
+
+    const resultado =
+        await pool
+            .request()
+
+            .input(
+                'ID_ALTA',
+                sql.Int,
+                idAlta
+            )
+
+            .query(`
+                SELECT
+                    P.ID_DETALLE AS ID_MODULO,
+                    P.CODIGO_ALFA AS COD_ALFA_MODULO,
+                    P.DETALLE_PRODUCTO AS DETALLE_PRODUCTO_MODULO,
+                    P.CODIGO_MODULO,
+
+                    H.ID_DETALLE AS ID_INSUMO,
+                    H.CODIGO_ALFA AS COD_ALFA_INSUMO,
+                    H.DETALLE_PRODUCTO AS DETALLE_PRODUCTO_INSUMO,
+                    H.CODIGO_TALLE AS CODIGO_TALLE_INSUMO,
+                    H.DETALLE_TALLE AS DETALLE_TALLE_INSUMO,
+                    H.ESTADO_VALIDACION AS ESTADO_INSUMO,
+
+                    M.*
+
+                FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE R
+
+                INNER JOIN dbo.ALTAS_PRODUCTOS_DETALLE P
+                    ON P.ID_DETALLE = R.ID_DETALLE_PADRE
+                    AND P.ID_ALTA = R.ID_ALTA
+
+                INNER JOIN dbo.ALTAS_PRODUCTOS_DETALLE H
+                    ON H.ID_DETALLE = R.ID_DETALLE_HIJO
+                    AND H.ID_ALTA = R.ID_ALTA
+
+                INNER JOIN dbo.MAESTRO_TALLES_MODULOS M
+                    ON M.CODIGO_MODULO = P.CODIGO_MODULO
+
+                WHERE
+                    R.ID_ALTA = @ID_ALTA
+
+                    AND UPPER(
+                        REPLACE(
+                            REPLACE(
+                                ISNULL(
+                                    P.TIPO_PRODUCTO_DETALLE,
+                                    ''
+                                ),
+                                ' ',
+                                '_'
+                            ),
+                            '-',
+                            '_'
+                        )
+                    ) = 'MODULO'
+
+                    AND P.ESTADO_VALIDACION = 'VALIDO'
+
+                    AND UPPER(
+                        REPLACE(
+                            REPLACE(
+                                ISNULL(
+                                    H.TIPO_PRODUCTO_DETALLE,
+                                    ''
+                                ),
+                                ' ',
+                                '_'
+                            ),
+                            '-',
+                            '_'
+                        )
+                    ) = 'PAR_SUELTO'
+
+                    AND H.CODIGO_CLASIFICACION = '1'
+
+                    AND H.ESTADO_VALIDACION IN (
+                        'VALIDO',
+                        'EXISTE_ERP'
+                    )
+
+                ORDER BY
+                    P.ID_DETALLE,
+                    H.ID_DETALLE;
+            `);
+
+
+    return resultado.recordset;
+}
+
+
+
+/* ============================================================
+   PRUEBA SIN IMPACTO:
+   OBTENER RELACIONES MODULO -> PRIMERA SIN EXIGIR ESTADO VALIDO
+
+   Solo lectura. Se usa por scripts/probar-exportacion-id.js
+   para poder probar lotes ya exportados.
+   ============================================================ */
+
+async function obtenerRelacionesModuloPrimeraPrueba(
+    idAlta
+) {
+
+    const pool =
+        await getConnection();
+
+
+    const resultado =
+        await pool
+            .request()
+
+            .input(
+                'ID_ALTA',
+                sql.Int,
+                idAlta
+            )
+
+            .query(`
+                SELECT
+                    P.ID_DETALLE AS ID_MODULO,
+                    P.CODIGO_ALFA AS COD_ALFA_MODULO,
+                    P.DETALLE_PRODUCTO AS DETALLE_PRODUCTO_MODULO,
+                    P.CODIGO_MODULO,
+
+                    H.ID_DETALLE AS ID_INSUMO,
+                    H.CODIGO_ALFA AS COD_ALFA_INSUMO,
+                    H.DETALLE_PRODUCTO AS DETALLE_PRODUCTO_INSUMO,
+                    H.CODIGO_TALLE AS CODIGO_TALLE_INSUMO,
+                    H.DETALLE_TALLE AS DETALLE_TALLE_INSUMO,
+                    H.ESTADO_VALIDACION AS ESTADO_INSUMO,
+
+                    M.*
+
+                FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE R
+
+                INNER JOIN dbo.ALTAS_PRODUCTOS_DETALLE P
+                    ON P.ID_DETALLE = R.ID_DETALLE_PADRE
+                    AND P.ID_ALTA = R.ID_ALTA
+
+                INNER JOIN dbo.ALTAS_PRODUCTOS_DETALLE H
+                    ON H.ID_DETALLE = R.ID_DETALLE_HIJO
+                    AND H.ID_ALTA = R.ID_ALTA
+
+                INNER JOIN dbo.MAESTRO_TALLES_MODULOS M
+                    ON M.CODIGO_MODULO = P.CODIGO_MODULO
+
+                WHERE
+                    R.ID_ALTA = @ID_ALTA
+
+                    AND UPPER(
+                        REPLACE(
+                            REPLACE(
+                                ISNULL(P.TIPO_PRODUCTO_DETALLE, ''),
+                                ' ',
+                                '_'
+                            ),
+                            '-',
+                            '_'
+                        )
+                    ) = 'MODULO'
+
+                    AND UPPER(
+                        REPLACE(
+                            REPLACE(
+                                ISNULL(H.TIPO_PRODUCTO_DETALLE, ''),
+                                ' ',
+                                '_'
+                            ),
+                            '-',
+                            '_'
+                        )
+                    ) = 'PAR_SUELTO'
+
+                    AND H.CODIGO_CLASIFICACION = '1'
+
+                ORDER BY
+                    P.ID_DETALLE,
+                    H.ID_DETALLE;
+            `);
+
+
+    return resultado.recordset;
+}
+
+
 /* ============================================================
    EXPORTS
    ============================================================ */
@@ -803,6 +1009,11 @@ module.exports = {
     obtenerAltaParaExportacion,
 
     obtenerDetallesParaExportacion,
+
+
+    obtenerRelacionesModuloPrimera,
+
+    obtenerRelacionesModuloPrimeraPrueba,
 
     registrarExportacion
 };

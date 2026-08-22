@@ -94,6 +94,12 @@ async function asegurarEstructura(pool) {
       COL_LENGTH('dbo.PRODUCTOS', 'CODIGO') AS P_CODIGO,
       COL_LENGTH('dbo.PRODUCTOS', 'CODIGO_EAN') AS P_EAN,
       COL_LENGTH('dbo.PRODUCTOS', 'ACTIVO') AS P_ACTIVO,
+      COL_LENGTH('dbo.PRODUCTOS', 'ID_PRODUCTO') AS P_ID,
+      COLUMNPROPERTY(
+        OBJECT_ID('dbo.PRODUCTOS'),
+        'ID_PRODUCTO',
+        'IsIdentity'
+      ) AS P_ID_IDENTITY,
       COL_LENGTH('dbo.ALTAS_PRODUCTOS_EXPORTADOS', 'COD_ALFA') AS E_ALFA;
   `);
 
@@ -102,13 +108,21 @@ async function asegurarEstructura(pool) {
     throw new Error('Falta alguna tabla requerida para sincronizar PRODUCTOS ERP.');
   }
 
-  if (!x.P_TIPO || !x.P_ALFA || !x.P_CODIGO || !x.P_EAN || !x.P_ACTIVO) {
-    throw new Error('dbo.PRODUCTOS no tiene la estructura esperada: TIPO_PRODUCTO, CODIGO_ALFA, CODIGO, CODIGO_EAN, ACTIVO.');
+  if (!x.P_ID || !x.P_TIPO || !x.P_ALFA || !x.P_CODIGO || !x.P_EAN || !x.P_ACTIVO) {
+    throw new Error(
+      'dbo.PRODUCTOS no tiene la estructura esperada: ' +
+      'ID_PRODUCTO, TIPO_PRODUCTO, CODIGO_ALFA, CODIGO, CODIGO_EAN, ACTIVO.'
+    );
   }
 
   if (!x.E_ALFA) {
     throw new Error('ALTAS_PRODUCTOS_EXPORTADOS no contiene COD_ALFA.');
   }
+
+  return {
+    idProductoEsIdentity:
+      Number(x.P_ID_IDENTITY || 0) === 1
+  };
 }
 
 async function sincronizarProductosErp(opciones = {}) {
@@ -126,7 +140,7 @@ async function sincronizarProductosErp(opciones = {}) {
   }
 
   const pool = await getConnection();
-  await asegurarEstructura(pool);
+  const estructura = await asegurarEstructura(pool);
 
   const transaction = new sql.Transaction(pool);
   await transaction.begin();
@@ -135,25 +149,89 @@ async function sincronizarProductosErp(opciones = {}) {
     await new sql.Request(transaction).query('TRUNCATE TABLE dbo.PRODUCTOS_ERP_STAGING;');
     await new sql.Request(transaction).bulk(crearTablaBulk(registros));
 
+    /*
+      dbo.PRODUCTOS puede existir en instalaciones antiguas con
+      ID_PRODUCTO como PK NO IDENTITY. En ese caso, si su DEFAULT es 1,
+      cada INSERT intenta reutilizar la clave 1 y SQL Server devuelve:
+      "Cannot insert duplicate key ... (1)".
+
+      Si ID_PRODUCTO es IDENTITY dejamos que SQL Server lo genere.
+      Si NO es IDENTITY calculamos IDs únicos a partir de MAX(ID_PRODUCTO).
+    */
+    const insertarIdProducto =
+      !estructura.idProductoEsIdentity;
+
+    const columnasInsert =
+      insertarIdProducto
+        ? `
+          ID_PRODUCTO,
+          TIPO_PRODUCTO,
+          CODIGO_ALFA,
+          CODIGO,
+          CODIGO_EAN,
+          ACTIVO
+        `
+        : `
+          TIPO_PRODUCTO,
+          CODIGO_ALFA,
+          CODIGO,
+          CODIGO_EAN,
+          ACTIVO
+        `;
+
+    const valoresInsert =
+      insertarIdProducto
+        ? `
+          S.ID_PRODUCTO_NUEVO,
+          S.TIPO_PRODUCTO_NUEVO,
+          S.CODIGO_ALFA,
+          S.CODIGO,
+          S.CODIGO_EAN,
+          1
+        `
+        : `
+          S.TIPO_PRODUCTO_NUEVO,
+          S.CODIGO_ALFA,
+          S.CODIGO,
+          S.CODIGO_EAN,
+          1
+        `;
+
     const merge = await new sql.Request(transaction).query(`
       DECLARE @Cambios TABLE (ACCION NVARCHAR(10));
 
       /*
-        El maestro consolidado no trae TIPO_PRODUCTO.
-        - Si el CODIGO_ALFA ya existe, conservamos su tipo.
-        - Si fue generado por PRODUCTOS_APP, lo recuperamos del detalle exportado.
-        - Para históricos desconocidos usamos PAR_SUELTO solamente como valor técnico
-          para satisfacer el NOT NULL. La existencia ERP se controla globalmente por
-          CODIGO_ALFA y ya no depende de este campo.
+        Tomamos el máximo bajo la misma transacción. HOLDLOCK sobre el
+        destino evita que dos sincronizaciones concurrentes asignen
+        el mismo rango de IDs cuando ID_PRODUCTO no es IDENTITY.
       */
-      MERGE dbo.PRODUCTOS AS T
+      DECLARE @MaxId BIGINT =
+        ISNULL(
+          (
+            SELECT MAX(ID_PRODUCTO)
+            FROM dbo.PRODUCTOS WITH (UPDLOCK, HOLDLOCK)
+          ),
+          0
+        );
+
+      /*
+        El maestro consolidado no trae TIPO_PRODUCTO.
+        - Si fue generado por PRODUCTOS_APP, lo recuperamos del detalle exportado.
+        - Para históricos desconocidos usamos PAR_SUELTO solamente como valor técnico.
+        - ID_PRODUCTO_NUEVO solo se usa cuando la PK no es IDENTITY.
+      */
+      MERGE dbo.PRODUCTOS WITH (HOLDLOCK) AS T
       USING (
         SELECT
           S.CODIGO_ALFA,
           S.CODIGO,
           S.CODIGO_EAN,
           S.RUBRO_ERP,
-          COALESCE(D.TIPO_PRODUCTO_DETALLE, 'PAR_SUELTO') AS TIPO_PRODUCTO_NUEVO
+          COALESCE(D.TIPO_PRODUCTO_DETALLE, 'PAR_SUELTO') AS TIPO_PRODUCTO_NUEVO,
+          @MaxId +
+            ROW_NUMBER() OVER (
+              ORDER BY S.CODIGO_ALFA
+            ) AS ID_PRODUCTO_NUEVO
         FROM dbo.PRODUCTOS_ERP_STAGING S
         OUTER APPLY (
           SELECT TOP 1 D1.TIPO_PRODUCTO_DETALLE
@@ -179,18 +257,10 @@ async function sincronizarProductosErp(opciones = {}) {
 
       WHEN NOT MATCHED BY TARGET THEN
         INSERT (
-          TIPO_PRODUCTO,
-          CODIGO_ALFA,
-          CODIGO,
-          CODIGO_EAN,
-          ACTIVO
+          ${columnasInsert}
         )
         VALUES (
-          S.TIPO_PRODUCTO_NUEVO,
-          S.CODIGO_ALFA,
-          S.CODIGO,
-          S.CODIGO_EAN,
-          1
+          ${valoresInsert}
         )
 
       WHEN NOT MATCHED BY SOURCE AND ISNULL(T.ACTIVO, 0) = 1 THEN
@@ -258,6 +328,7 @@ async function sincronizarProductosErp(opciones = {}) {
       registrosLeidos: registros.length,
       lineasInvalidas: invalidas,
       codigosDuplicadosEnArchivo: duplicadas,
+      idProductoEsIdentity: estructura.idProductoEsIdentity,
       insertados: Number(cambios.INSERTADOS || 0),
       actualizados: Number(cambios.ACTUALIZADOS || 0),
       confirmadosEnEstaSync: Number(conc.CONFIRMADOS_EN_ESTA_SYNC || 0),

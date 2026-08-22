@@ -212,6 +212,17 @@ async function obtenerOrigenes() {
 }
 
 
+async function obtenerProveedores(
+    filtros = {}
+) {
+
+    return repository.buscarProveedores({
+        rubro:
+            filtros.rubro || null
+    });
+}
+
+
 async function obtenerTalles() {
 
     return repository.obtenerMaestroSimple({
@@ -230,6 +241,14 @@ async function obtenerTalles() {
 async function buscarModelos(filtros) {
 
     return repository.buscarModelos(
+        filtros
+    );
+}
+
+
+async function obtenerLicenciasModelos(filtros) {
+
+    return repository.buscarLicenciasModelos(
         filtros
     );
 }
@@ -435,9 +454,11 @@ module.exports = {
 
     obtenerPaises,
     obtenerOrigenes,
+    obtenerProveedores,
 
     obtenerTalles,
     obtenerTallesModulos,
 
-    buscarModelos
+    buscarModelos,
+    obtenerLicenciasModelos
 };

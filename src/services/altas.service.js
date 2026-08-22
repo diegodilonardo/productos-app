@@ -327,6 +327,15 @@ async function obtenerAlta(
         return null;
     }
 
+    /*
+     * IMPORTANTE:
+     * Obtener/refrescar una pantalla NO debe modificar el estado
+     * de validación de los productos.
+     *
+     * La conciliación contra PRODUCTOS (Presea) se realiza en
+     * validarAlta(), antes de validar definitivamente el Alta.
+     */
+
 
     const detalle =
         await altasRepository
@@ -488,6 +497,35 @@ function validarClasificacion(
    CODIGO ALFA
    ============================================================ */
 
+function obtenerRubroCodigoAlfaHijoModulo(
+    clasificacionModulo
+) {
+
+    const detalleClasificacion =
+        normalizarTexto(
+            clasificacionModulo?.DETALLE_CLASIFICACION
+        )
+            .toUpperCase()
+            .replace(/\s+/g, '');
+
+    /*
+     * REGLA ESPECIAL COD_ALFA:
+     * - solamente para hijos automáticos de MOD.MUJ => F
+     * - solamente para hijos automáticos de MOD.HOM => M
+     * - cualquier otro módulo conserva CODIGO_RUBRO normal
+     */
+    if (detalleClasificacion === 'MOD.MUJ') {
+        return 'F';
+    }
+
+    if (detalleClasificacion === 'MOD.HOM') {
+        return 'M';
+    }
+
+    return null;
+}
+
+
 function construirCodigoAlfa({
     alta,
     modelo,
@@ -495,7 +533,8 @@ function construirCodigoAlfa({
     color,
     codigoModulo,
     detalleTalle,
-    tipoProductoDetalle = null
+    tipoProductoDetalle = null,
+    codigoRubroCodAlfa = null
 }) {
 
     const tipoProducto =
@@ -508,10 +547,14 @@ function construirCodigoAlfa({
             ? codigoModulo
             : detalleTalle;
 
+    const segmentoRubro =
+        normalizarTexto(codigoRubroCodAlfa) ||
+        alta.CODIGO_RUBRO;
+
     return [
         alta.CODIGO_ANO,
         alta.CODIGO_TEMPORADA,
-        alta.CODIGO_RUBRO,
+        segmentoRubro,
         modelo.CODIGO_MODELO,
         clasificacion.CODIGO_CLASIFICACION,
         color.CODIGO_COLOR,
@@ -812,6 +855,7 @@ async function prepararDetalleProducto(
     }
 
     const codigoModelo = normalizarTexto(datosEntrada.codigoModelo);
+    const codigoProveedor = normalizarTexto(datosEntrada.codigoProveedor);
     const codigoGrupo = normalizarTexto(datosEntrada.codigoGrupo);
     const codigoSubgrupo = normalizarTexto(datosEntrada.codigoSubgrupo);
     const codigoLinea = normalizarTexto(datosEntrada.codigoLinea);
@@ -852,6 +896,7 @@ async function prepararDetalleProducto(
 
     const obligatorios = [
         [codigoModelo, 'Debe seleccionar un modelo.'],
+        [codigoProveedor, 'Debe seleccionar un proveedor.'],
         [codigoGrupo, 'Debe seleccionar un grupo.'],
         [codigoSubgrupo, 'Debe seleccionar un subgrupo.'],
         [codigoLinea, 'Debe seleccionar una línea.'],
@@ -887,6 +932,7 @@ async function prepararDetalleProducto(
 
     const [
         modelo,
+        proveedor,
         grupo,
         subgrupo,
         linea,
@@ -901,6 +947,10 @@ async function prepararDetalleProducto(
         altasRepository.buscarModelo(
             codigoModelo,
             alta.DETALLE_MARCA,
+            alta.DETALLE_RUBRO
+        ),
+        altasRepository.buscarProveedor(
+            codigoProveedor,
             alta.DETALLE_RUBRO
         ),
         altasRepository.buscarGrupo(codigoGrupo),
@@ -918,6 +968,12 @@ async function prepararDetalleProducto(
     if (!modelo) {
         throw new Error(
             'El modelo no existe, está inactivo o no corresponde a la marca/rubro del alta.'
+        );
+    }
+    if (!proveedor) {
+        throw new Error(
+            `Proveedor ${codigoProveedor} inexistente, inactivo ` +
+            `o no corresponde al rubro ${alta.DETALLE_RUBRO}.`
         );
     }
     if (!grupo) throw new Error('Grupo inexistente o inactivo.');
@@ -1078,6 +1134,29 @@ async function prepararDetalleProducto(
         contexto.codigosGenerados || new Set();
 
     const omitidos = [];
+    const relacionesFamilia = [];
+
+    function agregarRelacionFamilia(
+        padreTemporal,
+        codigoAlfaHijo
+    ) {
+        if (!padreTemporal || !codigoAlfaHijo) {
+            return;
+        }
+
+        const existe =
+            relacionesFamilia.some(item =>
+                item.padreTemporal === padreTemporal &&
+                item.codigoAlfaHijo === codigoAlfaHijo
+            );
+
+        if (!existe) {
+            relacionesFamilia.push({
+                padreTemporal,
+                codigoAlfaHijo
+            });
+        }
+    }
 
     function armarObjetoDetalle({
         color,
@@ -1102,6 +1181,12 @@ async function prepararDetalleProducto(
             CODIGO_MODELO: modelo.CODIGO_MODELO,
             DETALLE_MODELO: modelo.DETALLE_MODELO,
             LICENCIA: modelo.LICENCIA || null,
+
+            CODIGO_PROVEEDOR: proveedor.CODIGO,
+            PRESEA_PROVEEDOR: proveedor.PRESEA || null,
+            RUBRO_PROVEEDOR: proveedor.RUBRO || null,
+            DETALLE_PROVEEDOR: proveedor.NVA_RAZON_SOCIAL,
+
             CODIGO_GRUPO: grupo.CODIGO_GRUPO,
             DETALLE_GRUPO: grupo.DETALLE_GRUPO,
             CODIGO_SUBGRUPO: subgrupo.CODIGO_SUBGRUPO,
@@ -1213,7 +1298,8 @@ async function prepararDetalleProducto(
         talle,
         clasificacion,
         padreTemporal,
-        sufijoClave
+        sufijoClave,
+        codigoRubroCodAlfa = null
     }) {
         const codigoAlfa =
             construirCodigoAlfa({
@@ -1223,10 +1309,20 @@ async function prepararDetalleProducto(
                 color,
                 codigoModulo: null,
                 detalleTalle: talle.DETALLE_TALLE,
-                tipoProductoDetalle: 'PAR_SUELTO'
+                tipoProductoDetalle: 'PAR_SUELTO',
+                codigoRubroCodAlfa
             });
 
         if (codigosGenerados.has(codigoAlfa)) {
+            /*
+             * El producto ya fue generado dentro de esta misma operación,
+             * pero la NUEVA familia también debe quedar relacionada con él.
+             */
+            agregarRelacionFamilia(
+                padreTemporal,
+                codigoAlfa
+            );
+
             omitidos.push({
                 codigoAlfa,
                 motivo: 'DUPLICADO_OPERACION'
@@ -1241,6 +1337,15 @@ async function prepararDetalleProducto(
             );
 
         if (existenteLote) {
+            /*
+             * El CODIGO_ALFA ya existe físicamente una sola vez,
+             * pero puede pertenecer a más de una familia/curva.
+             */
+            agregarRelacionFamilia(
+                padreTemporal,
+                codigoAlfa
+            );
+
             omitidos.push({
                 codigoAlfa,
                 motivo: 'YA_EXISTE_EN_ALTA'
@@ -1286,6 +1391,11 @@ async function prepararDetalleProducto(
                 talle
             });
 
+        agregarRelacionFamilia(
+            padreTemporal,
+            codigoAlfa
+        );
+
         detallesAGuardar.push(
             armarObjetoDetalle({
                 color,
@@ -1310,6 +1420,14 @@ async function prepararDetalleProducto(
             })
         );
     }
+
+    const codigoRubroHijosModulo =
+        tipoProducto === 'MODULO'
+            ? obtenerRubroCodigoAlfaHijoModulo(
+                clasificacionPrincipal
+            )
+            : null;
+
 
     for (const color of colores) {
         if (tipoProducto === 'MODULO') {
@@ -1378,7 +1496,8 @@ async function prepararDetalleProducto(
                     talle,
                     clasificacion: clasificacionPrimera,
                     padreTemporal: claveModulo,
-                    sufijoClave: 'PRI'
+                    sufijoClave: 'PRI',
+                    codigoRubroCodAlfa: codigoRubroHijosModulo
                 });
 
                 await agregarAutomaticoSiCorresponde({
@@ -1386,7 +1505,8 @@ async function prepararDetalleProducto(
                     talle,
                     clasificacion: clasificacionSegunda,
                     padreTemporal: claveModulo,
-                    sufijoClave: 'SEG'
+                    sufijoClave: 'SEG',
+                    codigoRubroCodAlfa: codigoRubroHijosModulo
                 });
             }
         } else {
@@ -1464,7 +1584,8 @@ async function prepararDetalleProducto(
         tipoProducto,
         usuario,
         detallesAGuardar,
-        omitidos
+        omitidos,
+        relacionesFamilia
     };
 }
 
@@ -1512,7 +1633,8 @@ async function agregarDetalle(
             await altasRepository.crearDetalles(
                 id,
                 preparado.detallesAGuardar,
-                preparado.usuario
+                preparado.usuario,
+                preparado.relacionesFamilia
             );
 
         return {
@@ -1541,6 +1663,7 @@ async function agregarDetalle(
     const codigosGenerados = new Set();
     const todosLosDetalles = [];
     const todosLosOmitidos = [];
+    const todasLasRelacionesFamilia = [];
     const resumenProductos = [];
     let tipoProductoAlta = null;
 
@@ -1592,6 +1715,10 @@ async function agregarDetalle(
             }))
         );
 
+        todasLasRelacionesFamilia.push(
+            ...preparado.relacionesFamilia
+        );
+
         resumenProductos.push({
             productoSolicitud: i + 1,
             cantidadGenerada:
@@ -1615,7 +1742,8 @@ async function agregarDetalle(
         await altasRepository.crearDetalles(
             id,
             todosLosDetalles,
-            usuarioLote
+            usuarioLote,
+            todasLasRelacionesFamilia
         );
 
     return {
@@ -1684,6 +1812,15 @@ async function eliminarDetalle(
         );
     }
 
+    /*
+     * La tabla ALTAS_PRODUCTOS_FAMILIAS_DETALLE es ahora la fuente
+     * de verdad para la pertenencia de los automáticos a una familia.
+     * El repository:
+     * 1) elimina las relaciones de esta familia;
+     * 2) conserva los automáticos todavía usados por otra familia;
+     * 3) elimina solamente los automáticos que quedaron huérfanos;
+     * 4) elimina el principal.
+     */
     const eliminado =
         await altasRepository.eliminarDetalle(
             id,
@@ -1723,6 +1860,13 @@ async function validarAlta(
             `Solamente se pueden validar altas BORRADOR.`
         );
     }
+
+    /*
+     * Antes de validar, volvemos a conciliar contra PRODUCTOS.
+     * Así ningún producto que ya apareció en Presea queda exportable
+     * por haber sido agregado al Alta antes de una sincronización.
+     */
+    await altasRepository.reconciliarExistenciaERPAlta(id);
 
     const detalles =
         await altasRepository.obtenerDetalleAlta(id);
@@ -1952,6 +2096,130 @@ async function validarAlta(
 }
 
 /* ============================================================
+   ANULAR ALTA
+   ============================================================ */
+
+async function anularAlta(
+    idAlta,
+    datosEntrada = {}
+) {
+
+    const id =
+        validarId(
+            idAlta
+        );
+
+
+    const usuario =
+        normalizarTexto(
+            datosEntrada.usuario
+        ) || 'SISTEMA';
+
+
+    const motivo =
+        normalizarTexto(
+            datosEntrada.motivo
+        );
+
+
+    if (!motivo) {
+
+        throw new Error(
+            'Debe indicar un motivo para anular el Alta.'
+        );
+    }
+
+
+    if (
+        motivo.length > 500
+    ) {
+
+        throw new Error(
+            'El motivo de anulación no puede superar los 500 caracteres.'
+        );
+    }
+
+
+    const alta =
+        await altasRepository
+            .obtenerAltaPorId(
+                id
+            );
+
+
+    if (!alta) {
+
+        throw new Error(
+            'Alta no encontrada.'
+        );
+    }
+
+
+    if (
+        normalizarTexto(
+            alta.ESTADO
+        ).toUpperCase() !==
+        'BORRADOR'
+    ) {
+
+        throw new Error(
+            `El alta no puede anularse desde el estado ${alta.ESTADO}.`
+        );
+    }
+
+
+    const altaAnulada =
+        await altasRepository
+            .marcarAltaAnulada(
+                id,
+                usuario,
+                motivo
+            );
+
+
+    if (!altaAnulada) {
+
+        throw new Error(
+            'No se pudo anular el Alta. ' +
+            'Es posible que su estado haya cambiado.'
+        );
+    }
+
+
+    /*
+     * No eliminamos:
+     * - detalle del Alta
+     * - relaciones de familia
+     * - imágenes
+     *
+     * El Alta queda como histórico.
+     *
+     * Las validaciones de duplicados ya ignoran Altas ANULADAS,
+     * por lo que sus COD_ALFA dejan de bloquear nuevas Altas.
+     */
+    return {
+        alta:
+            altaAnulada,
+
+        idAlta:
+            altaAnulada.ID_ALTA,
+
+        estado:
+            altaAnulada.ESTADO,
+
+        fechaAnulacion:
+            altaAnulada.FECHA_ANULACION,
+
+        usuarioAnulacion:
+            altaAnulada.USUARIO_ANULACION,
+
+        motivoAnulacion:
+            altaAnulada.MOTIVO_ANULACION
+    };
+}
+
+
+/* ============================================================
    EXPORTS
    ============================================================ */
 
@@ -1967,5 +2235,7 @@ module.exports = {
 
     eliminarDetalle,
 
-    validarAlta
+    validarAlta,
+
+    anularAlta
 };

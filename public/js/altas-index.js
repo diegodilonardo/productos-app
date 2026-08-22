@@ -175,6 +175,9 @@ function pintarAltasFiltradas() {
         item.TIPO_PRODUCTO,
         item.CODIGO_ANO,
         item.DETALLE_TEMPORADA,
+        item.CODIGO_TEMPORADA,
+        item.LICENCIA_ALTA,
+        item.LICENCIA,
         item.USUARIO_CREACION
       ]
         .filter(Boolean)
@@ -196,8 +199,15 @@ function pintarTablaAltas(filas) {
   if (!filas.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" class="text-center py-4 text-secondary">
-          No hay altas para mostrar.
+        <td colspan="9" class="text-center py-5 text-secondary">
+          <div class="altas-empty">
+            <div class="altas-empty-icon">ALT</div>
+            <strong>No hay altas para mostrar</strong>
+            <span>Probá cambiando la búsqueda o el filtro de estado.</span>
+            <a href="/altas/nueva" class="btn btn-sm btn-outline-primary mt-2">
+              Crear nueva Alta
+            </a>
+          </div>
         </td>
       </tr>
     `;
@@ -222,68 +232,242 @@ function pintarTablaAltas(filas) {
       alta.cantidadProductos ??
       0;
 
+    const licencia =
+      normalizarLicenciaAlta(
+        alta
+      );
+
+    const temporada =
+      alta.DETALLE_TEMPORADA ??
+      alta.CODIGO_TEMPORADA ??
+      '-';
+
     const tr =
       document.createElement('tr');
 
+    tr.className =
+      `altas-row altas-row-${estado.toLowerCase().replaceAll('_', '-')}`;
+
     tr.innerHTML = `
-      <td>
-        <div class="fw-semibold font-monospace">
-          ${escapar(alta.CODIGO_ALTA ?? '-')}
+      <td class="alta-cell">
+        <div class="altas-code">
+          ${escapar(
+            alta.CODIGO_ALTA ??
+            '-'
+          )}
         </div>
-        <div class="small text-secondary">
-          ID ${escapar(id ?? '-')}
+
+        <div class="altas-id">
+          ID ${escapar(
+            id ??
+            '-'
+          )}
         </div>
       </td>
 
-      <td>${escapar(alta.DETALLE_MARCA ?? '-')}</td>
-      <td>${escapar(alta.DETALLE_RUBRO ?? '-')}</td>
-      <td>${escapar(alta.TIPO_PRODUCTO ?? '-')}</td>
-      <td>${escapar(alta.CODIGO_ANO ?? '-')}</td>
-      <td>${escapar(alta.DETALLE_TEMPORADA ?? alta.CODIGO_TEMPORADA ?? '-')}</td>
-      <td class="text-center">${escapar(cantidad)}</td>
+      <td>
+        <div class="altas-primary-text">
+          ${escapar(
+            alta.DETALLE_MARCA ??
+            '-'
+          )}
+        </div>
+
+        <div class="altas-secondary-text">
+          ${escapar(
+            alta.DETALLE_RUBRO ??
+            '-'
+          )}
+        </div>
+      </td>
 
       <td>
-        <span class="badge ${claseEstado(estado)}">
-          ${escapar(estado)}
+        <span class="altas-type">
+          ${escapar(
+            alta.TIPO_PRODUCTO ??
+            '-'
+          )}
         </span>
       </td>
 
+      <td>
+        <div class="altas-primary-text">
+          ${escapar(
+            alta.CODIGO_ANO ??
+            '-'
+          )}
+        </div>
+
+        <div class="altas-secondary-text">
+          ${escapar(
+            temporada
+          )}
+        </div>
+      </td>
+
+      <td>
+        ${badgeLicencia(
+          licencia
+        )}
+      </td>
+
+      <td class="text-center">
+        <span class="altas-product-count">
+          ${escapar(
+            cantidad
+          )}
+        </span>
+      </td>
+
+      <td>
+        <span class="badge ${claseEstado(estado)}">
+          ${escapar(
+            estado
+          )}
+        </span>
+
+        ${
+          estado === 'ANULADO'
+            ? `
+                <div
+                  class="altas-cancel-reason"
+                  title="${escapar(alta.MOTIVO_ANULACION ?? alta.motivoAnulacion ?? '')}"
+                >
+                  ${escapar(alta.MOTIVO_ANULACION ?? alta.motivoAnulacion ?? 'Sin motivo informado')}
+                </div>
+              `
+            : ''
+        }
+      </td>
+
       <td class="text-nowrap">
-        ${escapar(formatearFecha(alta.FECHA_CREACION))}
+        <div class="altas-date">
+          ${escapar(
+            formatearFecha(
+              alta.FECHA_CREACION
+            )
+          )}
+        </div>
       </td>
 
       <td class="text-end">
-        ${botonAccion(id, estado)}
+        ${botonAccion(
+          id,
+          estado
+        )}
       </td>
     `;
 
-    tbody.appendChild(tr);
+    tbody.appendChild(
+      tr
+    );
   }
 }
+
+
+function normalizarLicenciaAlta(alta) {
+  const valor =
+    alta.LICENCIA_ALTA ??
+    alta.LICENCIA ??
+    alta.licenciaAlta ??
+    alta.licencia;
+
+  if (
+    valor === undefined ||
+    valor === null ||
+    String(valor).trim() === ''
+  ) {
+    const cantidad =
+      Number(
+        alta.CANTIDAD_PRODUCTOS ??
+        alta.cantidadProductos ??
+        0
+      );
+
+    return cantidad > 0
+      ? 'SIN LICENCIA'
+      : 'SIN DEFINIR';
+  }
+
+  const texto =
+    String(
+      valor
+    ).trim();
+
+  if (
+    texto ===
+    '__SIN_LICENCIA__'
+  ) {
+    return 'SIN LICENCIA';
+  }
+
+  return texto;
+}
+
+
+function badgeLicencia(valor) {
+  const texto =
+    String(
+      valor ||
+      'SIN DEFINIR'
+    );
+
+  if (
+    texto ===
+    'SIN DEFINIR'
+  ) {
+    return `
+      <span class="altas-license altas-license-muted">
+        Sin definir
+      </span>
+    `;
+  }
+
+  if (
+    texto ===
+    'SIN LICENCIA'
+  ) {
+    return `
+      <span class="altas-license altas-license-neutral">
+        Sin licencia
+      </span>
+    `;
+  }
+
+  return `
+    <span
+      class="altas-license"
+      title="${escapar(texto)}"
+    >
+      ${escapar(texto)}
+    </span>
+  `;
+}
+
 
 function botonAccion(id, estado) {
   if (!id) {
     return '-';
   }
 
-  if (estado === 'BORRADOR') {
-    return `
-      <a
-        href="/altas/${encodeURIComponent(id)}/productos"
-        class="btn btn-sm btn-primary"
-      >
-        Continuar edición
-      </a>
-    `;
-  }
+  const hrefProductos =
+    `/altas/${encodeURIComponent(id)}/productos`;
 
-  if (estado === 'VALIDADO') {
+  if (
+    [
+      'BORRADOR',
+      'VALIDADO'
+    ].includes(
+      estado
+    )
+  ) {
     return `
       <a
-        href="/altas/${encodeURIComponent(id)}/productos"
-        class="btn btn-sm btn-outline-primary"
+        href="${hrefProductos}"
+        class="btn btn-sm btn-primary altas-action-btn"
+        title="Abrir lote, productos e imágenes"
       >
-        Ver / Exportar
+        Abrir
       </a>
     `;
   }
@@ -293,22 +477,35 @@ function botonAccion(id, estado) {
       'EXPORTADO',
       'PARCIAL_ERP',
       'GENERADO_OK_EN_ERP'
-    ].includes(estado)
+    ].includes(
+      estado
+    )
   ) {
     return `
-      <a
-        href="/seguimiento/${encodeURIComponent(id)}"
-        class="btn btn-sm btn-outline-success"
-      >
-        Seguimiento ERP
-      </a>
+      <div class="d-flex justify-content-end gap-1">
+        <a
+          href="${hrefProductos}"
+          class="btn btn-sm btn-outline-secondary altas-action-btn"
+          title="Ver productos e imágenes"
+        >
+          Ver
+        </a>
+
+        <a
+          href="/seguimiento/${encodeURIComponent(id)}"
+          class="btn btn-sm btn-outline-success altas-action-btn"
+          title="Abrir seguimiento ERP"
+        >
+          ERP
+        </a>
+      </div>
     `;
   }
 
   return `
     <a
-      href="/altas/${encodeURIComponent(id)}/productos"
-      class="btn btn-sm btn-outline-secondary"
+      href="${hrefProductos}"
+      class="btn btn-sm btn-outline-secondary altas-action-btn"
     >
       Ver
     </a>

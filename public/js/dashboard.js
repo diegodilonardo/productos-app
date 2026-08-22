@@ -148,7 +148,7 @@ function pintarAltas(altas) {
         tbody.innerHTML = `
             <tr>
                 <td
-                    colspan="8"
+                    colspan="10"
                     class="text-center py-5 text-secondary"
                 >
                     No existen altas registradas.
@@ -209,6 +209,16 @@ function pintarAltas(altas) {
             </td>
 
             <td>
+                ${formatearAnoTemporada(alta)}
+            </td>
+
+            <td>
+                ${badgeLicencia(
+                    alta.LICENCIA_ALTA
+                )}
+            </td>
+
+            <td>
                 ${escaparHtml(
                     alta.TIPO_PRODUCTO
                 )}
@@ -243,6 +253,76 @@ function pintarAltas(altas) {
 
         tbody.appendChild(tr);
     }
+}
+
+
+function formatearAnoTemporada(alta) {
+
+    const ano =
+        alta.DETALLE_ANO ??
+        alta.DETALLE_AÑO ??
+        alta.ANO ??
+        alta.AÑO ??
+        alta.CODIGO_ANO ??
+        alta.CODIGO_AÑO ??
+        '-';
+
+    const codigoTemporada =
+        alta.CODIGO_TEMPORADA ??
+        alta.CODIGO_TEM ??
+        alta.COD_TEM ??
+        '';
+
+    const detalleTemporada =
+        alta.DETALLE_TEMPORADA ??
+        alta.DETALLE_TEM ??
+        alta.DCOD_TEM ??
+        alta.TEMPORADA ??
+        '';
+
+    let temporada = '-';
+
+    if (detalleTemporada && codigoTemporada) {
+        temporada =
+            `${codigoTemporada} - ${detalleTemporada}`;
+    } else if (detalleTemporada) {
+        temporada =
+            detalleTemporada;
+    } else if (codigoTemporada) {
+        temporada =
+            codigoTemporada;
+    }
+
+    return `
+        <div class="d-flex flex-wrap gap-1">
+            <span class="badge text-bg-light border">
+                ${escaparHtml(ano)}
+            </span>
+            <span class="badge text-bg-light border">
+                ${escaparHtml(temporada)}
+            </span>
+        </div>
+    `;
+}
+
+
+function badgeLicencia(licencia) {
+
+    const valor =
+        String(
+            licencia || 'SIN DEFINIR'
+        ).trim();
+
+    const clase =
+        valor.toUpperCase() === 'SIN LICENCIA'
+            ? 'text-bg-secondary'
+            : 'text-bg-light border text-dark';
+
+    return `
+        <span class="badge ${clase}">
+            ${escaparHtml(valor)}
+        </span>
+    `;
 }
 
 

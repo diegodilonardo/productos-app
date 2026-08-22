@@ -1,80 +1,170 @@
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-  <div>
-    <h1 class="h3 mb-1">Altas de Productos</h1>
-    <p class="text-secondary mb-0">
-      Retomá borradores, revisá altas validadas y accedé al seguimiento ERP.
-    </p>
-  </div>
+<link rel="stylesheet" href="/css/altas-index.css">
 
-  <div class="d-flex gap-2">
-    <button id="btnActualizarAltas" type="button" class="btn btn-outline-secondary">
-      Actualizar
-    </button>
+<div class="altas-v2">
 
-    <a href="/altas/nueva" class="btn btn-primary">
-      Nueva Alta
-    </a>
-  </div>
-</div>
+  <section class="altas-hero">
+    <div class="altas-hero-main">
+      <div class="altas-hero-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="3.5" width="16" height="17" rx="2"></rect>
+      <path d="M8 8h8M8 12h8M8 16h5"></path>
+    </svg>
+      </div>
 
-<div id="alertaAltas" class="alert d-none" role="alert"></div>
+      <div>
+        <div class="altas-kicker">GESTIÓN DE LOTES</div>
+        <h1 class="h3 mb-1">Altas de Productos</h1>
+        <p class="text-secondary mb-0">
+          Retomá borradores, administrá imágenes, revisá altas validadas y accedé al seguimiento ERP.
+        </p>
+      </div>
+    </div>
 
-<div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Borradores</div>
-        <div id="contadorBorradores" class="display-6 fw-semibold">0</div>
+    <div class="d-flex flex-wrap gap-2">
+      <button
+        id="btnActualizarAltas"
+        type="button"
+        class="btn btn-outline-secondary"
+      >
+        Actualizar
+      </button>
+
+      <a
+        href="/altas/nueva"
+        class="btn btn-primary"
+      >
+        + Nueva Alta
+      </a>
+    </div>
+  </section>
+
+  <div
+    id="alertaAltas"
+    class="alert d-none"
+    role="alert"
+  ></div>
+
+  <div class="row g-3 altas-metrics">
+    <div class="col-6 col-lg-3">
+      <div class="card altas-metric-card h-100">
+        <div class="card-body">
+          <div class="altas-metric-icon altas-tone-gray">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4.5h10l4 4V19.5H5z"></path>
+      <path d="M15 4.5v4h4"></path>
+      <path d="M8 13h8M8 16h5"></path>
+    </svg>
+          </div>
+
+          <div class="altas-metric-content">
+            <div class="altas-metric-label">Borradores</div>
+            <div id="contadorBorradores" class="altas-metric-value">0</div>
+            <div class="altas-metric-help">En edición</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="card altas-metric-card h-100">
+        <div class="card-body">
+          <div class="altas-metric-icon altas-tone-cyan">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5"></circle>
+      <path d="M8.5 12.2l2.2 2.2 4.8-5"></path>
+    </svg>
+          </div>
+
+          <div class="altas-metric-content">
+            <div class="altas-metric-label">Validados</div>
+            <div id="contadorValidados" class="altas-metric-value">0</div>
+            <div class="altas-metric-help">Listos para exportar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="card altas-metric-card h-100">
+        <div class="card-body">
+          <div class="altas-metric-icon altas-tone-blue">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 16V5"></path>
+      <path d="M8.5 8.5L12 5l3.5 3.5"></path>
+      <path d="M5 15.5v3h14v-3"></path>
+    </svg>
+          </div>
+
+          <div class="altas-metric-content">
+            <div class="altas-metric-label">Exportados / ERP</div>
+            <div id="contadorExportados" class="altas-metric-value">0</div>
+            <div class="altas-metric-help">En circuito Presea</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="card altas-metric-card h-100">
+        <div class="card-body">
+          <div class="altas-metric-icon altas-tone-purple">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="4" width="6" height="6" rx="1.2"></rect>
+      <rect x="14" y="4" width="6" height="6" rx="1.2"></rect>
+      <rect x="4" y="14" width="6" height="6" rx="1.2"></rect>
+      <rect x="14" y="14" width="6" height="6" rx="1.2"></rect>
+    </svg>
+          </div>
+
+          <div class="altas-metric-content">
+            <div class="altas-metric-label">Total</div>
+            <div id="contadorTotal" class="altas-metric-value">0</div>
+            <div class="altas-metric-help">Lotes registrados</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="col-6 col-lg-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Validados</div>
-        <div id="contadorValidados" class="display-6 fw-semibold">0</div>
-      </div>
-    </div>
+  <div class="altas-state-guide">
+    <span class="altas-state-guide-title">Circuito:</span>
+    <span class="altas-state-guide-item"><i class="altas-state-dot altas-state-draft"></i>Borrador</span>
+    <span class="altas-state-guide-item"><i class="altas-state-dot altas-state-valid"></i>Validado</span>
+    <span class="altas-state-guide-item"><i class="altas-state-dot altas-state-export"></i>Exportado</span>
+    <span class="altas-state-guide-item"><i class="altas-state-dot altas-state-ok"></i>ERP OK</span>
   </div>
 
-  <div class="col-6 col-lg-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Exportados / ERP</div>
-        <div id="contadorExportados" class="display-6 fw-semibold">0</div>
-      </div>
-    </div>
-  </div>
+  <div class="card altas-list-card">
+    <div class="altas-list-head">
+      <div class="d-flex align-items-center gap-2">
+        <span class="altas-section-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="3.5" width="16" height="17" rx="2"></rect>
+      <path d="M8 8h8M8 12h8M8 16h8"></path>
+    </svg>
+        </span>
 
-  <div class="col-6 col-lg-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Total</div>
-        <div id="contadorTotal" class="display-6 fw-semibold">0</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-header bg-white">
-    <div class="row g-2 align-items-center">
-      <div class="col-12 col-lg">
-        <h2 class="h5 mb-0">Lotes de alta</h2>
+        <div>
+          <div class="altas-kicker mb-1">LOTES</div>
+          <h2 class="h5 mb-0">Altas registradas</h2>
+        </div>
       </div>
 
-      <div class="col-12 col-md-5 col-lg-4">
-        <input
-          id="buscarAlta"
-          type="search"
-          class="form-control"
-          placeholder="Buscar por alta, marca, rubro..."
+      <div class="altas-toolbar">
+        <div class="altas-search-wrap">
+          <span class="altas-search-symbol" aria-hidden="true">⌕</span>
+          <input
+            id="buscarAlta"
+            type="search"
+            class="form-control altas-search-input"
+            placeholder="Buscar alta, marca, rubro, licencia..."
+          >
+        </div>
+
+        <select
+          id="filtroEstadoAlta"
+          class="form-select"
         >
-      </div>
-
-      <div class="col-12 col-md-4 col-lg-3">
-        <select id="filtroEstadoAlta" class="form-select">
           <option value="">Todos los estados</option>
           <option value="BORRADOR">BORRADOR</option>
           <option value="VALIDADO">VALIDADO</option>
@@ -85,34 +175,34 @@
         </select>
       </div>
     </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 altas-table">
+        <thead>
+          <tr>
+            <th>Alta</th>
+            <th>Marca / Rubro</th>
+            <th>Tipo</th>
+            <th>Año / Temp.</th>
+            <th>Licencia</th>
+            <th class="text-center">Productos</th>
+            <th>Estado</th>
+            <th>Creación</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody id="tablaAltas">
+          <tr>
+            <td colspan="9" class="text-center py-5 text-secondary">
+              Cargando altas...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Alta</th>
-          <th>Marca</th>
-          <th>Rubro</th>
-          <th>Tipo</th>
-          <th>Año</th>
-          <th>Temporada</th>
-          <th>Productos</th>
-          <th>Estado</th>
-          <th>Creación</th>
-          <th class="text-end">Acción</th>
-        </tr>
-      </thead>
-
-      <tbody id="tablaAltas">
-        <tr>
-          <td colspan="10" class="text-center py-4 text-secondary">
-            Cargando altas...
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
 </div>
 
 <script src="/js/altas-index.js"></script>

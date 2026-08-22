@@ -4,6 +4,7 @@ const path = require("path");
 const maestrosRoutes = require("./routes/maestros.routes");
 const altasRoutes = require("./routes/altas.routes");
 const seguimientoRoutes = require("./routes/seguimiento.routes");
+const imagenesRoutes = require("./routes/imagenes.routes");
 const webRoutes = require("./routes/web.routes");
 
 const {
@@ -37,9 +38,16 @@ app.use(
 
 /* ============================================================
    JSON
+
+   Se amplía el límite para permitir carga de imágenes
+   codificadas en Base64 desde el frontend.
    ============================================================ */
 
-app.use(express.json());
+app.use(
+  express.json({
+    limit: "12mb"
+  })
+);
 
 
 /* ============================================================
@@ -86,6 +94,16 @@ app.use(
 app.use(
   "/api/altas",
   altasRoutes
+);
+
+
+/* ============================================================
+   IMÁGENES PRODUCTOS
+   ============================================================ */
+
+app.use(
+  "/api/imagenes",
+  imagenesRoutes
 );
 
 

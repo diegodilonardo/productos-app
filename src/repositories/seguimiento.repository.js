@@ -105,6 +105,31 @@ async function listarAltasSeguimiento(estado = null) {
             A.CODIGO_TEMPORADA,
             A.DETALLE_TEMPORADA,
             A.CODIGO_ANO,
+
+            (
+                SELECT TOP 1
+                    MA.DETALLE_ANO
+                FROM dbo.MAESTRO_ANOS MA
+                WHERE
+                    MA.CODIGO_ANO = A.CODIGO_ANO
+                    AND MA.ACTIVO = 1
+            ) AS DETALLE_ANO,
+
+            (
+                SELECT TOP 1
+                    CASE
+                        WHEN NULLIF(
+                            LTRIM(RTRIM(DL.LICENCIA)),
+                            ''
+                        ) IS NULL
+                        THEN 'SIN LICENCIA'
+                        ELSE LTRIM(RTRIM(DL.LICENCIA))
+                    END
+                FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
+                WHERE DL.ID_ALTA = A.ID_ALTA
+                ORDER BY DL.ID_DETALLE
+            ) AS LICENCIA_ALTA,
+
             A.ESTADO,
             A.FECHA_CREACION,
             A.USUARIO_CREACION,
@@ -195,6 +220,31 @@ async function obtenerSeguimientoAlta(idAlta) {
                 A.CODIGO_TEMPORADA,
                 A.DETALLE_TEMPORADA,
                 A.CODIGO_ANO,
+
+                (
+                    SELECT TOP 1
+                        MA.DETALLE_ANO
+                    FROM dbo.MAESTRO_ANOS MA
+                    WHERE
+                        MA.CODIGO_ANO = A.CODIGO_ANO
+                        AND MA.ACTIVO = 1
+                ) AS DETALLE_ANO,
+
+                (
+                    SELECT TOP 1
+                        CASE
+                            WHEN NULLIF(
+                                LTRIM(RTRIM(DL.LICENCIA)),
+                                ''
+                            ) IS NULL
+                            THEN 'SIN LICENCIA'
+                            ELSE LTRIM(RTRIM(DL.LICENCIA))
+                        END
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
+                    WHERE DL.ID_ALTA = A.ID_ALTA
+                    ORDER BY DL.ID_DETALLE
+                ) AS LICENCIA_ALTA,
+
                 A.ESTADO,
                 A.FECHA_CREACION,
                 A.USUARIO_CREACION,

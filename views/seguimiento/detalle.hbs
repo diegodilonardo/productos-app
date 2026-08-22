@@ -1,107 +1,164 @@
-<div id="paginaSeguimientoDetalle" data-id-alta="{{idAlta}}">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <div>
-      <h1 class="h3 mb-1">Seguimiento ERP</h1>
-      <p id="codigoAltaSeguimiento" class="text-secondary mb-0 font-monospace">
-        Cargando...
-      </p>
+<div id="paginaSeguimientoDetalle" data-id-alta="{{idAlta}}" class="seguimiento-v2 seguimiento-detalle-v2">
+
+  <section class="seguimiento-hero">
+    <div class="seguimiento-hero-main">
+      <div class="seguimiento-hero-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 15l4-4 3 2 5-6"/><path d="M16.5 7H19v2.5"/></svg>
+      </div>
+
+      <div>
+        <div class="seguimiento-kicker">DETALLE DEL LOTE</div>
+        <h1 class="h3 mb-1">Seguimiento ERP</h1>
+        <p id="codigoAltaSeguimiento" class="text-secondary mb-0 font-monospace">
+          Cargando...
+        </p>
+      </div>
     </div>
 
     <div class="d-flex gap-2">
-      <a href="/seguimiento" class="btn btn-outline-secondary">
-        Volver
-      </a>
-
+      <a href="/seguimiento" class="btn btn-light border">Volver</a>
       <button id="btnActualizarDetalleSeguimiento" type="button" class="btn btn-outline-primary">
         Actualizar
       </button>
     </div>
-  </div>
+  </section>
 
   <div id="alertaSeguimientoDetalle" class="alert d-none"></div>
 
-  <div class="card shadow-sm mb-4">
+  <div class="card seguimiento-info-card mb-4">
     <div class="card-body">
-      <div class="row g-3 align-items-center">
-        <div class="col-6 col-md-2">
-          <div class="app-info-label">ID Alta</div>
-          <div id="detIdAlta" class="fw-semibold">-</div>
+      <div class="seguimiento-info-grid">
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">ID Alta</span>
+          <strong id="detIdAlta">-</strong>
         </div>
-
-        <div class="col-6 col-md-2">
-          <div class="app-info-label">Marca</div>
-          <div id="detMarca" class="fw-semibold">-</div>
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">Marca</span>
+          <strong id="detMarca">-</strong>
         </div>
-
-        <div class="col-6 col-md-2">
-          <div class="app-info-label">Rubro</div>
-          <div id="detRubro" class="fw-semibold">-</div>
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">Rubro</span>
+          <strong id="detRubro">-</strong>
         </div>
-
-        <div class="col-6 col-md-2">
-          <div class="app-info-label">Tipo</div>
-          <div id="detTipo" class="fw-semibold">-</div>
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">Año</span>
+          <strong id="detAno">-</strong>
         </div>
-
-        <div class="col-6 col-md-2">
-          <div class="app-info-label">Estado</div>
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">Temporada</span>
+          <strong id="detTemporada">-</strong>
+        </div>
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">Licencia</span>
+          <span id="detLicencia" class="badge text-bg-light border text-dark">-</span>
+        </div>
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">Tipo</span>
+          <strong id="detTipo">-</strong>
+        </div>
+        <div class="seguimiento-info-item">
+          <span class="app-info-label">Estado</span>
           <span id="detEstado" class="badge text-bg-secondary">-</span>
         </div>
-
-        <div class="col-12 col-md-2">
-          <div class="app-info-label">Archivo</div>
-          <div id="detArchivo" class="small fw-semibold text-break">-</div>
+        <div class="seguimiento-info-item seguimiento-info-file">
+          <span class="app-info-label">Archivo</span>
+          <strong id="detArchivo" class="small text-break">-</strong>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="row g-3 mb-4">
+  <section class="row g-3 seguimiento-metrics">
     <div class="col-6 col-xl-3">
-      <div class="card shadow-sm h-100">
+      <div class="card seguimiento-metric-card h-100">
         <div class="card-body">
-          <div class="app-info-label">Total exportados</div>
-          <div id="detTotal" class="display-6 fw-semibold">0</div>
+          <div class="seguimiento-metric-icon seguimiento-tone-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5"/><path d="M8.5 8.5L12 5l3.5 3.5"/><path d="M5 15.5v3h14v-3"/></svg></div>
+          <div>
+            <div class="app-info-label">Total exportados</div>
+            <div id="detTotal" class="seguimiento-metric-value">0</div>
+            <div class="seguimiento-metric-help">Registros del lote</div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="col-6 col-xl-3">
-      <div class="card shadow-sm h-100">
+      <div class="card seguimiento-metric-card h-100">
         <div class="card-body">
-          <div class="app-info-label">Confirmados</div>
-          <div id="detConfirmados" class="display-6 fw-semibold">0</div>
+          <div class="seguimiento-metric-icon seguimiento-tone-green"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.2 2.2 4.8-5"/></svg></div>
+          <div>
+            <div class="app-info-label">Confirmados</div>
+            <div id="detConfirmados" class="seguimiento-metric-value">0</div>
+            <div class="seguimiento-metric-help">Encontrados en Presea</div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="col-6 col-xl-3">
-      <div class="card shadow-sm h-100">
+      <div class="card seguimiento-metric-card h-100">
         <div class="card-body">
-          <div class="app-info-label">Pendientes</div>
-          <div id="detPendientes" class="display-6 fw-semibold">0</div>
+          <div class="seguimiento-metric-icon seguimiento-tone-amber"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>
+          <div>
+            <div class="app-info-label">Pendientes</div>
+            <div id="detPendientes" class="seguimiento-metric-value">0</div>
+            <div class="seguimiento-metric-help">Aguardando ERP</div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="col-6 col-xl-3">
-      <div class="card shadow-sm h-100">
+      <div class="card seguimiento-metric-card h-100">
         <div class="card-body">
-          <div class="app-info-label">Errores</div>
-          <div id="detErrores" class="display-6 fw-semibold">0</div>
+          <div class="seguimiento-metric-icon seguimiento-tone-red"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5"/><path d="M12 16.5h.01"/></svg></div>
+          <div>
+            <div class="app-info-label">Errores</div>
+            <div id="detErrores" class="seguimiento-metric-value">0</div>
+            <div class="seguimiento-metric-help">Conciliación</div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="card shadow-sm mb-4">
+  <div class="card seguimiento-flow-card mb-4">
     <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="fw-semibold">Confirmación ERP</span>
-        <strong id="detPorcentaje">0%</strong>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <div class="seguimiento-table-kicker">CIRCUITO ERP</div>
+          <h2 class="h5 mb-0">Confirmación del lote</h2>
+        </div>
+        <strong id="detPorcentaje" class="seguimiento-percent">0%</strong>
       </div>
 
-      <div class="progress app-progress-lg">
+      <div id="seguimientoEtapas" class="seguimiento-steps" aria-label="Progreso del lote">
+        <div id="seguimientoPasoExportado" class="seguimiento-step is-active">
+          <span class="seguimiento-step-marker">1</span>
+          <span class="seguimiento-step-copy">
+            <strong>Exportado</strong>
+            <small>Archivo DBI generado</small>
+          </span>
+        </div>
+        <div class="seguimiento-step-line"></div>
+        <div id="seguimientoPasoDetectado" class="seguimiento-step">
+          <span class="seguimiento-step-marker">2</span>
+          <span class="seguimiento-step-copy">
+            <strong>Detectado en ERP</strong>
+            <small>Presea procesando</small>
+          </span>
+        </div>
+        <div class="seguimiento-step-line"></div>
+        <div id="seguimientoPasoConfirmado" class="seguimiento-step">
+          <span class="seguimiento-step-marker">3</span>
+          <span class="seguimiento-step-copy">
+            <strong>Confirmado</strong>
+            <small>Lote conciliado</small>
+          </span>
+        </div>
+      </div>
+
+      <div class="progress app-progress-lg seguimiento-main-progress">
         <div
           id="barraSeguimientoERP"
           class="progress-bar"
@@ -117,31 +174,34 @@
     </div>
   </div>
 
-  <div id="mensajeSeguimientoERP" class="alert alert-info">
+  <div id="mensajeSeguimientoERP" class="alert alert-info seguimiento-status-message">
     Consultando confirmación en Presea...
   </div>
 
-  <div class="card shadow-sm">
-    <div class="card-header bg-white">
-      <div class="row g-2 align-items-center">
-        <div class="col">
+  <div class="card seguimiento-list-card">
+    <div class="seguimiento-list-head">
+      <div class="d-flex align-items-center gap-2">
+        <span class="seguimiento-section-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h8"/></svg></span>
+        <div>
+          <div class="seguimiento-table-kicker">CONCILIACIÓN</div>
           <h2 class="h5 mb-0">Productos exportados</h2>
         </div>
+      </div>
 
-        <div class="col-12 col-md-4">
-          <select id="filtroProductoERP" class="form-select">
-            <option value="">Todos</option>
-            <option value="PENDIENTE_ERP">Pendientes</option>
-            <option value="GENERADO_OK_EN_ERP">Confirmados</option>
-            <option value="ERROR_ERP">Errores</option>
-          </select>
-        </div>
+      <div class="seguimiento-toolbar">
+        <label class="seguimiento-filter-label" for="filtroProductoERP">Estado ERP</label>
+        <select id="filtroProductoERP" class="form-select">
+          <option value="">Todos</option>
+          <option value="PENDIENTE_ERP">Pendientes</option>
+          <option value="GENERADO_OK_EN_ERP">Confirmados</option>
+          <option value="ERROR_ERP">Errores</option>
+        </select>
       </div>
     </div>
 
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+      <table class="table table-hover align-middle mb-0 seguimiento-table">
+        <thead>
           <tr>
             <th>COD_ALFA</th>
             <th>Código ERP</th>
@@ -150,10 +210,9 @@
             <th>Confirmación</th>
           </tr>
         </thead>
-
         <tbody id="tablaProductosSeguimientoERP">
           <tr>
-            <td colspan="5" class="text-center py-4 text-secondary">
+            <td colspan="5" class="text-center py-5 text-secondary">
               Cargando...
             </td>
           </tr>
@@ -161,6 +220,7 @@
       </table>
     </div>
   </div>
+
 </div>
 
 <script src="/js/seguimiento-detalle.js"></script>

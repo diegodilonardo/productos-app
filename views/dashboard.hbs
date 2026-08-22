@@ -20,13 +20,12 @@
             Actualizar
         </button>
 
-        <button
+        <a
             class="btn btn-primary"
-            type="button"
-            disabled
+            href="/altas/nueva"
         >
             Nueva Alta
-        </button>
+        </a>
 
     </div>
 
@@ -44,34 +43,25 @@
 
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card app-card h-100">
-            <div class="card-body">
-                <div class="app-card-label">
-                    Altas totales
+            <div class="card-body app-metric-card-body">
+                <div class="app-metric-icon app-metric-icon-blue">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M7 3.5h7l4 4V20.5H7z"></path>
+  <path d="M14 3.5v4h4"></path>
+</svg>
                 </div>
 
-                <div
-                    id="totalAltas"
-                    class="app-card-number"
-                >
-                    -
-                </div>
-            </div>
-        </div>
-    </div>
+                <div class="app-metric-content">
+                    <div class="app-card-label">
+                        Altas totales
+                    </div>
 
-
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card app-card h-100">
-            <div class="card-body">
-                <div class="app-card-label">
-                    Generadas OK en ERP
-                </div>
-
-                <div
-                    id="altasOk"
-                    class="app-card-number"
-                >
-                    -
+                    <div
+                        id="totalAltas"
+                        class="app-card-number"
+                    >
+                        -
+                    </div>
                 </div>
             </div>
         </div>
@@ -80,16 +70,25 @@
 
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card app-card h-100">
-            <div class="card-body">
-                <div class="app-card-label">
-                    Productos pendientes ERP
+            <div class="card-body app-metric-card-body">
+                <div class="app-metric-icon app-metric-icon-green">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="8.5"></circle>
+  <path d="M8.5 12.2l2.2 2.2 4.8-5"></path>
+</svg>
                 </div>
 
-                <div
-                    id="productosPendientes"
-                    class="app-card-number"
-                >
-                    -
+                <div class="app-metric-content">
+                    <div class="app-card-label">
+                        Generadas OK en ERP
+                    </div>
+
+                    <div
+                        id="altasOk"
+                        class="app-card-number"
+                    >
+                        -
+                    </div>
                 </div>
             </div>
         </div>
@@ -98,16 +97,54 @@
 
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card app-card h-100">
-            <div class="card-body">
-                <div class="app-card-label">
-                    Productos confirmados ERP
+            <div class="card-body app-metric-card-body">
+                <div class="app-metric-icon app-metric-icon-purple">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M12 16V5"></path>
+  <path d="M8.5 8.5L12 5l3.5 3.5"></path>
+  <path d="M5 15.5v3h14v-3"></path>
+</svg>
                 </div>
 
-                <div
-                    id="productosConfirmados"
-                    class="app-card-number"
-                >
-                    -
+                <div class="app-metric-content">
+                    <div class="app-card-label">
+                        Productos pendientes ERP
+                    </div>
+
+                    <div
+                        id="productosPendientes"
+                        class="app-card-number"
+                    >
+                        -
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card app-card h-100">
+            <div class="card-body app-metric-card-body">
+                <div class="app-metric-icon app-metric-icon-gray">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M12 3.5L4.5 7.2 12 11l7.5-3.8z"></path>
+  <path d="M4.5 12L12 15.8 19.5 12"></path>
+  <path d="M4.5 16.8L12 20.5l7.5-3.7"></path>
+</svg>
+                </div>
+
+                <div class="app-metric-content">
+                    <div class="app-card-label">
+                        Productos confirmados ERP
+                    </div>
+
+                    <div
+                        id="productosConfirmados"
+                        class="app-card-number"
+                    >
+                        -
+                    </div>
                 </div>
             </div>
         </div>
@@ -146,6 +183,8 @@
                     <th>Alta</th>
                     <th>Marca</th>
                     <th>Rubro</th>
+                    <th>Campaña</th>
+                    <th>Licencia</th>
                     <th>Tipo</th>
                     <th>Estado</th>
                     <th class="text-center">ERP</th>
@@ -159,7 +198,7 @@
 
                 <tr>
                     <td
-                        colspan="8"
+                        colspan="10"
                         class="text-center py-5 text-secondary"
                     >
                         Cargando información...

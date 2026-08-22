@@ -182,6 +182,13 @@ const maestros = {
                 tipo: 'VARCHAR',
                 longitud: 30,
                 requerido: true
+            },
+            {
+                archivo: 2,
+                nombre: 'RUBRO_GRUPO',
+                tipo: 'VARCHAR',
+                longitud: 30,
+                requerido: false
             }
         ],
 
@@ -427,6 +434,20 @@ const maestros = {
                 tipo: 'VARCHAR',
                 longitud: 30,
                 requerido: true
+            },
+            {
+                archivo: 2,
+                nombre: 'GRUPO_SUBGRUPO',
+                tipo: 'VARCHAR',
+                longitud: 30,
+                requerido: false
+            },
+            {
+                archivo: 3,
+                nombre: 'RUBRO_SUBGRUPO',
+                tipo: 'VARCHAR',
+                longitud: 30,
+                requerido: false
             }
         ],
 

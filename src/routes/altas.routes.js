@@ -8,6 +8,12 @@ const altasService =
 const exportacionService =
     require('../services/exportacion.service');
 
+const modelosBusquedaService =
+    require('../services/modelosBusqueda.service');
+
+const borradorExcelService =
+    require('../services/borradorExcel.service');
+
 
 /* ============================================================
    CREAR ALTA
@@ -200,6 +206,96 @@ router.post('/:id/exportar', async (req, res) => {
             ok: true,
             mensaje: 'Archivo DBI generado correctamente.',
             resultado
+        });
+    } catch (error) {
+        res.status(400).json({
+            ok: false,
+            mensaje: error.message
+        });
+    }
+});
+
+
+/* ============================================================
+   EXCEL BORRADOR DE MODULOS
+   SOLO ESTADO BORRADOR
+   ============================================================ */
+
+router.get('/:id/borrador-excel', async (req, res) => {
+    try {
+
+        const protocolo =
+            req.get('x-forwarded-proto') ||
+            req.protocol;
+
+        const host =
+            req.get('host');
+
+        const baseUrl =
+            `${protocolo}://${host}`;
+
+
+        const resultado =
+            await borradorExcelService
+                .generarBorradorExcel(
+                    req.params.id,
+                    baseUrl
+                );
+
+
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${resultado.nombreArchivo}"`
+        );
+
+        res.setHeader(
+            'Content-Length',
+            resultado.buffer.length
+        );
+
+
+        res.end(
+            resultado.buffer
+        );
+
+    } catch (error) {
+
+        res.status(
+            400
+        ).json({
+            ok:
+                false,
+
+            mensaje:
+                error.message
+        });
+    }
+});
+
+
+/* ============================================================
+   BUSCAR MODELOS DEL ALTA
+   ============================================================ */
+
+router.get('/:id/modelos', async (req, res) => {
+    try {
+        const resultado =
+            await modelosBusquedaService.buscarModelosPorAlta(
+                req.params.id,
+                req.query.buscar || '',
+                req.query.limite || 60
+            );
+
+        res.json({
+            ok: true,
+            cantidad: resultado.cantidad,
+            criterio: resultado.criterio,
+            datos: resultado.datos
         });
     } catch (error) {
         res.status(400).json({

@@ -114,8 +114,12 @@ function pintarAltas(filas) {
   if (!filas.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" class="text-center py-4 text-secondary">
-          No hay altas para mostrar.
+        <td colspan="11" class="text-center py-4 text-secondary">
+          <div class="seguimiento-empty">
+            <div class="seguimiento-empty-icon">ERP</div>
+            <strong>No hay altas para mostrar</strong>
+            <span>Probá cambiando el filtro de estado.</span>
+          </div>
         </td>
       </tr>
     `;
@@ -200,6 +204,8 @@ function pintarAltas(filas) {
 
       <td>${escapar(fila.DETALLE_MARCA ?? fila.marca ?? '-')}</td>
       <td>${escapar(fila.DETALLE_RUBRO ?? fila.rubro ?? '-')}</td>
+      <td>${formatearAnoTemporada(fila)}</td>
+      <td>${badgeLicencia(fila.LICENCIA_ALTA ?? fila.licenciaAlta)}</td>
       <td>${escapar(fila.TIPO_PRODUCTO ?? fila.tipoProducto ?? '-')}</td>
 
       <td>
@@ -213,8 +219,11 @@ function pintarAltas(filas) {
       </td>
 
       <td>
-        <div class="progress" role="progressbar" aria-valuenow="${porcentajeVisual}" aria-valuemin="0" aria-valuemax="100">
-          <div class="progress-bar" style="width:${porcentajeVisual}%">${porcentajeVisual}%</div>
+        <div class="seguimiento-progress-row">
+          <div class="progress seguimiento-progress" role="progressbar" aria-valuenow="${porcentajeVisual}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar ${claseBarraProgreso(porcentajeVisual, seguimiento)}" style="width:${porcentajeVisual}%"></div>
+          </div>
+          <span class="seguimiento-progress-value">${porcentajeVisual}%</span>
         </div>
       </td>
 
@@ -223,8 +232,8 @@ function pintarAltas(filas) {
       </td>
 
       <td class="text-end">
-        <a href="/seguimiento/${encodeURIComponent(id)}" class="btn btn-sm btn-outline-primary">
-          Ver
+        <a href="/seguimiento/${encodeURIComponent(id)}" class="btn btn-sm btn-outline-primary seguimiento-view-btn">
+          Ver detalle
         </a>
       </td>
     `;
@@ -232,6 +241,82 @@ function pintarAltas(filas) {
     tbody.appendChild(tr);
   }
 }
+
+
+function claseBarraProgreso(porcentaje, seguimiento = {}) {
+  const errores = numero(
+    seguimiento.errores ??
+    seguimiento.ERRORES ??
+    0
+  );
+
+  if (errores > 0) return 'bg-danger';
+  if (porcentaje >= 100) return 'bg-success';
+  if (porcentaje > 0) return 'bg-warning';
+  return 'bg-secondary';
+}
+
+
+function formatearAnoTemporada(fila) {
+  const ano =
+    fila.DETALLE_ANO ??
+    fila.DETALLE_AÑO ??
+    fila.ANO ??
+    fila.AÑO ??
+    fila.CODIGO_ANO ??
+    fila.CODIGO_AÑO ??
+    '-';
+
+  const codigoTemporada =
+    fila.CODIGO_TEMPORADA ??
+    fila.CODIGO_TEM ??
+    fila.COD_TEM ??
+    '';
+
+  const detalleTemporada =
+    fila.DETALLE_TEMPORADA ??
+    fila.DETALLE_TEM ??
+    fila.DCOD_TEM ??
+    fila.TEMPORADA ??
+    '';
+
+  let temporada = '-';
+
+  if (detalleTemporada && codigoTemporada) {
+    temporada = `${codigoTemporada} - ${detalleTemporada}`;
+  } else if (detalleTemporada) {
+    temporada = detalleTemporada;
+  } else if (codigoTemporada) {
+    temporada = codigoTemporada;
+  }
+
+  return `
+    <div class="d-flex flex-wrap gap-1">
+      <span class="badge text-bg-light border">${escapar(ano)}</span>
+      <span class="badge text-bg-light border">${escapar(temporada)}</span>
+    </div>
+  `;
+}
+
+
+function badgeLicencia(licencia) {
+  const valor =
+    String(
+      licencia || 'SIN DEFINIR'
+    ).trim();
+
+  const clase =
+    valor.toUpperCase() === 'SIN LICENCIA'
+      ? 'text-bg-secondary'
+      : 'text-bg-light border text-dark';
+
+  return `
+    <span class="badge ${clase}">
+      ${escapar(valor)}
+    </span>
+  `;
+}
+
 
 function claseEstado(estado) {
   switch (String(estado).toUpperCase()) {

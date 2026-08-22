@@ -1,9 +1,28 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-semibold" href="/">PRODUCTOS APP</a>
+<nav class="navbar navbar-expand-lg navbar-dark app-navbar">
+  <div class="container-fluid app-navbar-container">
+
+    <a
+      class="navbar-brand app-navbar-brand"
+      href="/"
+      aria-label="Alta Productos Atomik - Dashboard"
+    >
+      <span class="app-navbar-logo-wrap">
+        <img
+          src="/img/logo-atomik.png"
+          alt="Atomik"
+          class="app-navbar-logo"
+        >
+      </span>
+
+      <span class="app-navbar-divider d-none d-lg-block" aria-hidden="true"></span>
+
+      <span class="app-navbar-title d-none d-md-inline-flex">
+        ALTA PRODUCTOS ATOMIK
+      </span>
+    </a>
 
     <button
-      class="navbar-toggler"
+      class="navbar-toggler app-navbar-toggler"
       type="button"
       data-bs-toggle="collapse"
       data-bs-target="#navbarProductosApp"
@@ -15,49 +34,71 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navbarProductosApp">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+      <ul class="navbar-nav app-navbar-nav me-auto mb-2 mb-lg-0">
 
         <li class="nav-item">
           <a
-            class="nav-link {{#if (eq pagina 'dashboard')}}active{{/if}}"
+            class="nav-link app-navbar-link {{#if (eq pagina 'dashboard')}}active{{/if}}"
             href="/"
           >
-            Dashboard
+            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <rect x="3" y="3" width="7" height="7" rx="1.4"></rect>
+  <rect x="14" y="3" width="7" height="7" rx="1.4"></rect>
+  <rect x="3" y="14" width="7" height="7" rx="1.4"></rect>
+  <rect x="14" y="14" width="7" height="7" rx="1.4"></rect>
+</svg>
+            <span>Dashboard</span>
           </a>
         </li>
 
         <li class="nav-item">
           <a
-            class="nav-link {{#if (eq pagina 'nueva-alta')}}active{{/if}}"
+            class="nav-link app-navbar-link {{#if (eq pagina 'nueva-alta')}}active{{/if}}"
             href="/altas/nueva"
           >
-            Nueva Alta
+            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="8.5"></circle>
+  <path d="M12 8v8M8 12h8"></path>
+</svg>
+            <span>Nueva Alta</span>
           </a>
         </li>
 
         <li class="nav-item">
           <a
-            class="nav-link {{#if (eq pagina 'altas')}}active{{/if}}"
+            class="nav-link app-navbar-link {{#if (eq pagina 'altas')}}active{{/if}}"
             href="/altas"
           >
-            Altas
+            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <rect x="4" y="3.5" width="16" height="17" rx="2"></rect>
+  <path d="M8 8h8M8 12h8M8 16h8"></path>
+</svg>
+            <span>Altas</span>
           </a>
         </li>
 
         <li class="nav-item">
           <a
-            class="nav-link {{#if (eq pagina 'seguimiento')}}active{{/if}}"
+            class="nav-link app-navbar-link {{#if (eq pagina 'seguimiento')}}active{{/if}}"
             href="/seguimiento"
           >
-            Seguimiento
+            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M4 19V5"></path>
+  <path d="M4 19h16"></path>
+  <path d="M7 15l4-4 3 2 5-6"></path>
+  <path d="M16.5 7H19v2.5"></path>
+</svg>
+            <span>Seguimiento</span>
           </a>
         </li>
 
       </ul>
 
-      <span class="navbar-text small">
-        SQL Server · Presea
-      </span>
+      <div class="app-navbar-system d-none d-lg-flex">
+        <span class="app-navbar-system-dot" aria-hidden="true"></span>
+        <span>SQL Server · Presea</span>
+      </div>
     </div>
+
   </div>
 </nav>

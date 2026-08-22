@@ -182,10 +182,29 @@ async function listarAltas() {
 
                 A.CODIGO_ANO,
 
+                (
+                    SELECT TOP 1
+                        CASE
+                            WHEN NULLIF(
+                                LTRIM(RTRIM(DL.LICENCIA)),
+                                ''
+                            ) IS NULL
+                            THEN 'SIN LICENCIA'
+                            ELSE LTRIM(RTRIM(DL.LICENCIA))
+                        END
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
+                    WHERE DL.ID_ALTA = A.ID_ALTA
+                    ORDER BY DL.ID_DETALLE
+                ) AS LICENCIA_ALTA,
+
                 A.ESTADO,
 
                 A.FECHA_CREACION,
                 A.USUARIO_CREACION,
+
+                A.FECHA_ANULACION,
+                A.USUARIO_ANULACION,
+                A.MOTIVO_ANULACION,
 
                 (
                     SELECT COUNT(*)
@@ -222,15 +241,72 @@ async function obtenerAltaPorId(idAlta) {
 async function obtenerDetalleAlta(idAlta) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("ID_ALTA", sql.BigInt, idAlta)
-    .query(`
-            SELECT *
-            FROM dbo.ALTAS_PRODUCTOS_DETALLE
-            WHERE ID_ALTA = @ID_ALTA
-            ORDER BY ID_DETALLE;
-        `);
+  const [resultadoDetalle, resultadoRelaciones] =
+    await Promise.all([
+      pool
+        .request()
+        .input("ID_ALTA", sql.BigInt, idAlta)
+        .query(`
+          SELECT *
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE
+          WHERE ID_ALTA = @ID_ALTA
+          ORDER BY ID_DETALLE;
+        `),
 
-  return resultado.recordset;
+      pool
+        .request()
+        .input("ID_ALTA", sql.BigInt, idAlta)
+        .query(`
+          SELECT
+            ID_DETALLE_PADRE,
+            ID_DETALLE_HIJO
+          FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE
+          WHERE ID_ALTA = @ID_ALTA
+          ORDER BY ID_DETALLE_PADRE, ID_DETALLE_HIJO;
+        `)
+    ]);
+
+  const padresPorHijo = new Map();
+
+  for (const relacion of resultadoRelaciones.recordset) {
+    const clave =
+      String(relacion.ID_DETALLE_HIJO);
+
+    if (!padresPorHijo.has(clave)) {
+      padresPorHijo.set(clave, []);
+    }
+
+    padresPorHijo
+      .get(clave)
+      .push(Number(relacion.ID_DETALLE_PADRE));
+  }
+
+  return resultadoDetalle.recordset.map(item => {
+    const clave =
+      String(item.ID_DETALLE);
+
+    let familiasPadre =
+      padresPorHijo.get(clave) || [];
+
+    /*
+     * Compatibilidad con registros históricos durante la transición.
+     * Una vez ejecutada la migración, normalmente no será necesario.
+     */
+    if (
+      familiasPadre.length === 0 &&
+      item.ID_DETALLE_PADRE !== null &&
+      item.ID_DETALLE_PADRE !== undefined
+    ) {
+      familiasPadre = [
+        Number(item.ID_DETALLE_PADRE)
+      ];
+    }
+
+    return {
+      ...item,
+      FAMILIAS_PADRE: familiasPadre
+    };
+  });
 }
 
 /* ============================================================
@@ -263,6 +339,39 @@ async function buscarModelo(codigoModelo, marca, rubro) {
                 AND RUBRO_MODELO = @RUBRO
                 AND ACTIVO = 1;
         `);
+
+  return resultado.recordset[0] || null;
+}
+
+
+async function buscarProveedor(codigo, rubro = null) {
+  const pool = await getConnection();
+
+  const resultado = await pool
+    .request()
+    .input("CODIGO", sql.VarChar(30), codigo)
+    .input("RUBRO", sql.VarChar(100), rubro)
+    .query(`
+      SELECT TOP 1
+        CODIGO,
+        PRESEA,
+        RUBRO,
+        NVA_RAZON_SOCIAL
+      FROM dbo.MAESTRO_PROVEEDORES
+      WHERE
+        CODIGO = @CODIGO
+        AND ACTIVO = 1
+        AND
+        (
+          @RUBRO IS NULL
+          OR UPPER(
+               LTRIM(RTRIM(ISNULL(RUBRO, '')))
+             ) =
+             UPPER(
+               LTRIM(RTRIM(@RUBRO))
+             )
+        );
+    `);
 
   return resultado.recordset[0] || null;
 }
@@ -509,28 +618,147 @@ async function buscarRubroFacturacion(marcaEmpresa, rubroFacturacion) {
 async function buscarProductoERP(tipoProducto, codigoAlfa) {
   const pool = await getConnection();
 
+  /*
+   * En la réplica de Presea la identidad confiable del producto
+   * es CODIGO_ALFA.
+   *
+   * La comparación se normaliza con TRIM + UPPER para evitar que
+   * espacios o diferencias de mayúsculas/minúsculas provenientes de
+   * la réplica de Presea hagan aparecer un producto existente como NUEVO.
+   *
+   * No filtramos por TIPO_PRODUCTO porque existen registros del ERP
+   * cuyo tipo no representa correctamente la naturaleza del producto.
+   * Ejemplo real detectado:
+   *
+   *   CODIGO_ALFA 2721131596015R9
+   *   TIPO_PRODUCTO = PAR_SUELTO
+   *
+   * aunque el CODIGO_ALFA corresponde al módulo principal.
+   *
+   * Si filtráramos además por MODULO, la aplicación lo consideraría
+   * erróneamente NUEVO y podría volver a exportarlo.
+   *
+   * Conservamos tipoProducto en la firma para no modificar todas las
+   * llamadas existentes del service.
+   */
   const resultado = await pool
     .request()
+    .input(
+      "CODIGO_ALFA",
+      sql.VarChar(30),
+      codigoAlfa
+    )
+    .query(`
+      SELECT TOP 1
+        ID_PRODUCTO,
+        TIPO_PRODUCTO,
+        CODIGO_ALFA,
+        CODIGO,
+        CODIGO_EAN,
+        ACTIVO
 
-    .input("TIPO_PRODUCTO", sql.VarChar(20), tipoProducto)
+      FROM dbo.PRODUCTOS
 
-    .input("CODIGO_ALFA", sql.VarChar(30), codigoAlfa).query(`
-            SELECT TOP 1
-                ID_PRODUCTO,
-                TIPO_PRODUCTO,
-                CODIGO_ALFA,
-                CODIGO,
-                CODIGO_EAN,
-                ACTIVO
+      WHERE
+        UPPER(
+          LTRIM(
+            RTRIM(
+              ISNULL(CODIGO_ALFA, '')
+            )
+          )
+        ) =
+        UPPER(
+          LTRIM(
+            RTRIM(
+              @CODIGO_ALFA
+            )
+          )
+        )
 
-            FROM dbo.PRODUCTOS
-
-            WHERE
-                TIPO_PRODUCTO = @TIPO_PRODUCTO
-                AND CODIGO_ALFA = @CODIGO_ALFA;
-        `);
+      ORDER BY
+        CASE WHEN ISNULL(ACTIVO, 0) = 1 THEN 0 ELSE 1 END,
+        ID_PRODUCTO DESC;
+    `);
 
   return resultado.recordset[0] || null;
+}
+
+/* ============================================================
+   RECONCILIAR EXISTENCIA ERP DEL ALTA
+
+   Importante:
+   - CODIGO_ALFA es la identidad confiable frente a Presea.
+   - Solamente promovemos VALIDO -> EXISTE_ERP.
+   - No hacemos el camino inverso aquí; si un EXISTE_ERP dejó de
+     existir en la réplica, validarAlta() lo detectará y bloqueará.
+   ============================================================ */
+async function reconciliarExistenciaERPAlta(idAlta) {
+  const pool = await getConnection();
+
+  const resultado = await pool
+    .request()
+    .input("ID_ALTA", sql.Int, idAlta)
+    .query(`
+      UPDATE D
+      SET
+        D.ESTADO_VALIDACION = 'EXISTE_ERP',
+        D.OBSERVACION_VALIDACION =
+          CASE
+            WHEN P.CODIGO IS NOT NULL AND P.CODIGO_EAN IS NOT NULL
+              THEN CONCAT(
+                'Ya existe en Presea - Código ERP: ',
+                P.CODIGO,
+                ' - EAN: ',
+                P.CODIGO_EAN
+              )
+            WHEN P.CODIGO IS NOT NULL
+              THEN CONCAT(
+                'Ya existe en Presea - Código ERP: ',
+                P.CODIGO
+              )
+            WHEN P.CODIGO_EAN IS NOT NULL
+              THEN CONCAT(
+                'Ya existe en Presea - EAN: ',
+                P.CODIGO_EAN
+              )
+            ELSE 'Ya existe en Presea'
+          END
+      OUTPUT
+        INSERTED.ID_DETALLE,
+        INSERTED.CODIGO_ALFA,
+        INSERTED.ESTADO_VALIDACION
+      FROM dbo.ALTAS_PRODUCTOS_DETALLE AS D
+      CROSS APPLY
+      (
+        SELECT TOP 1
+          P0.CODIGO,
+          P0.CODIGO_EAN
+        FROM dbo.PRODUCTOS AS P0
+        WHERE
+          UPPER(
+            LTRIM(
+              RTRIM(
+                ISNULL(P0.CODIGO_ALFA, '')
+              )
+            )
+          ) =
+          UPPER(
+            LTRIM(
+              RTRIM(
+                ISNULL(D.CODIGO_ALFA, '')
+              )
+            )
+          )
+        ORDER BY
+          CASE WHEN ISNULL(P0.ACTIVO, 0) = 1 THEN 0 ELSE 1 END,
+          P0.ID_PRODUCTO DESC
+      ) AS P
+      WHERE
+        D.ID_ALTA = @ID_ALTA
+        AND ISNULL(D.ESTADO_VALIDACION, 'VALIDO') <> 'EXISTE_ERP';
+    `);
+
+  return resultado.recordset || [];
 }
 
 /* ============================================================
@@ -560,7 +788,6 @@ async function buscarDetallePorCodigoAlfa(idAlta, codigoAlfa) {
 
   return resultado.recordset[0] || null;
 }
-
 
 /* ============================================================
    BUSCAR CODIGO ALFA EN OTRAS ALTAS ACTIVAS
@@ -612,7 +839,7 @@ async function buscarCodigoAlfaEnOtraAlta(idAltaActual, codigoAlfa) {
    - PADRE_TEMPORAL
    ============================================================ */
 
-async function crearDetalles(idAlta, detalles, usuario) {
+async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) {
   const pool = await getConnection();
   const transaction = new sql.Transaction(pool);
 
@@ -630,7 +857,7 @@ async function crearDetalles(idAlta, detalles, usuario) {
 
         if (!idDetallePadre) {
           throw new Error(
-            `No se pudo resolver el detalle padre temporal "${d.PADRE_TEMPORAL}".`
+            `No se pudo resolver el detalle padre temporal "${d.PADRE_TEMPORAL}".`,
           );
         }
       }
@@ -640,6 +867,10 @@ async function crearDetalles(idAlta, detalles, usuario) {
         .input("CODIGO_MODELO", sql.VarChar(6), d.CODIGO_MODELO)
         .input("DETALLE_MODELO", sql.VarChar(60), d.DETALLE_MODELO)
         .input("LICENCIA", sql.VarChar(30), d.LICENCIA)
+        .input("CODIGO_PROVEEDOR", sql.VarChar(30), d.CODIGO_PROVEEDOR)
+        .input("PRESEA_PROVEEDOR", sql.VarChar(30), d.PRESEA_PROVEEDOR)
+        .input("RUBRO_PROVEEDOR", sql.VarChar(100), d.RUBRO_PROVEEDOR)
+        .input("DETALLE_PROVEEDOR", sql.VarChar(200), d.DETALLE_PROVEEDOR)
         .input("CODIGO_GRUPO", sql.VarChar(2), d.CODIGO_GRUPO)
         .input("DETALLE_GRUPO", sql.VarChar(30), d.DETALLE_GRUPO)
         .input("CODIGO_SUBGRUPO", sql.VarChar(2), d.CODIGO_SUBGRUPO)
@@ -654,7 +885,11 @@ async function crearDetalles(idAlta, detalles, usuario) {
         .input("DETALLE_EDAD", sql.VarChar(20), d.DETALLE_EDAD)
         .input("SEXO", sql.VarChar(3), d.SEXO)
         .input("CODIGO_CLASIFICACION", sql.VarChar(1), d.CODIGO_CLASIFICACION)
-        .input("DETALLE_CLASIFICACION", sql.VarChar(20), d.DETALLE_CLASIFICACION)
+        .input(
+          "DETALLE_CLASIFICACION",
+          sql.VarChar(20),
+          d.DETALLE_CLASIFICACION,
+        )
         .input("CODIGO_MODULO", sql.VarChar(2), d.CODIGO_MODULO)
         .input("DETALLE_MODULO", sql.VarChar(100), d.DETALLE_MODULO)
         .input("CODIGO_TALLE", sql.VarChar(10), d.CODIGO_TALLE)
@@ -668,27 +903,34 @@ async function crearDetalles(idAlta, detalles, usuario) {
         .input("CODIGO_ALFA", sql.VarChar(30), d.CODIGO_ALFA)
         .input("DETALLE_PRODUCTO", sql.VarChar(50), d.DETALLE_PRODUCTO)
         .input("NIVEL", sql.Int, d.NIVEL)
-        .input("TIPO_PRODUCTO_DETALLE", sql.VarChar(20), d.TIPO_PRODUCTO_DETALLE)
+        .input(
+          "TIPO_PRODUCTO_DETALLE",
+          sql.VarChar(20),
+          d.TIPO_PRODUCTO_DETALLE,
+        )
         .input("ID_DETALLE_PADRE", sql.Int, idDetallePadre)
         .input("GENERADO_AUTOMATICO", sql.Bit, d.GENERADO_AUTOMATICO ? 1 : 0)
         .input(
           "ESTADO_VALIDACION",
           sql.VarChar(30),
-          d.ESTADO_VALIDACION || 'VALIDO'
+          d.ESTADO_VALIDACION || "VALIDO",
         )
         .input(
           "OBSERVACION_VALIDACION",
           sql.VarChar(255),
-          d.OBSERVACION_VALIDACION || null
+          d.OBSERVACION_VALIDACION || null,
         )
-        .input("USUARIO_CREACION", sql.VarChar(100), usuario)
-        .query(`
+        .input("USUARIO_CREACION", sql.VarChar(100), usuario).query(`
           INSERT INTO dbo.ALTAS_PRODUCTOS_DETALLE
           (
             ID_ALTA,
             CODIGO_MODELO,
             DETALLE_MODELO,
             LICENCIA,
+            CODIGO_PROVEEDOR,
+            PRESEA_PROVEEDOR,
+            RUBRO_PROVEEDOR,
+            DETALLE_PROVEEDOR,
             CODIGO_GRUPO,
             DETALLE_GRUPO,
             CODIGO_SUBGRUPO,
@@ -732,6 +974,10 @@ async function crearDetalles(idAlta, detalles, usuario) {
             @CODIGO_MODELO,
             @DETALLE_MODELO,
             @LICENCIA,
+            @CODIGO_PROVEEDOR,
+            @PRESEA_PROVEEDOR,
+            @RUBRO_PROVEEDOR,
+            @DETALLE_PROVEEDOR,
             @CODIGO_GRUPO,
             @DETALLE_GRUPO,
             @CODIGO_SUBGRUPO,
@@ -776,6 +1022,98 @@ async function crearDetalles(idAlta, detalles, usuario) {
       if (d.CLAVE_TEMPORAL) {
         idsTemporales.set(d.CLAVE_TEMPORAL, creado.ID_DETALLE);
       }
+    }
+
+    /*
+     * Registrar relaciones muchos-a-muchos entre principal y automáticos.
+     * El hijo se resuelve por CODIGO_ALFA después de insertar todos los
+     * detalles, por lo que funciona tanto para hijos nuevos como para
+     * productos automáticos que ya existían dentro del Alta.
+     */
+    for (const relacion of (
+      Array.isArray(relacionesFamilia)
+        ? relacionesFamilia
+        : []
+    )) {
+      const idPadre =
+        idsTemporales.get(
+          relacion.padreTemporal
+        );
+
+      if (!idPadre) {
+        throw new Error(
+          `No se pudo resolver el padre temporal ` +
+          `"${relacion.padreTemporal}" para una relación de familia.`
+        );
+      }
+
+      const codigoAlfaHijo =
+        String(
+          relacion.codigoAlfaHijo || ""
+        ).trim();
+
+      if (!codigoAlfaHijo) {
+        continue;
+      }
+
+      const hijoResultado =
+        await new sql.Request(transaction)
+          .input("ID_ALTA", sql.BigInt, idAlta)
+          .input(
+            "CODIGO_ALFA_HIJO",
+            sql.VarChar(30),
+            codigoAlfaHijo
+          )
+          .query(`
+            SELECT TOP 1
+              ID_DETALLE
+            FROM dbo.ALTAS_PRODUCTOS_DETALLE
+            WHERE
+              ID_ALTA = @ID_ALTA
+              AND CODIGO_ALFA = @CODIGO_ALFA_HIJO;
+          `);
+
+      const idHijo =
+        hijoResultado.recordset?.[0]?.ID_DETALLE;
+
+      if (!idHijo) {
+        throw new Error(
+          `No se encontró el hijo ${codigoAlfaHijo} ` +
+          `para registrar la relación de familia.`
+        );
+      }
+
+      await new sql.Request(transaction)
+        .input("ID_ALTA", sql.BigInt, idAlta)
+        .input("ID_DETALLE_PADRE", sql.BigInt, idPadre)
+        .input("ID_DETALLE_HIJO", sql.BigInt, idHijo)
+        .query(`
+          IF NOT EXISTS
+          (
+            SELECT 1
+            FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE
+            WHERE
+              ID_ALTA = @ID_ALTA
+              AND ID_DETALLE_PADRE = @ID_DETALLE_PADRE
+              AND ID_DETALLE_HIJO = @ID_DETALLE_HIJO
+          )
+          BEGIN
+            INSERT INTO dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE
+            (
+              ID_ALTA,
+              ID_DETALLE_PADRE,
+              ID_DETALLE_HIJO,
+              FECHA_CREACION
+            )
+            VALUES
+            (
+              @ID_ALTA,
+              @ID_DETALLE_PADRE,
+              @ID_DETALLE_HIJO,
+              SYSDATETIME()
+            );
+          END;
+        `);
     }
 
     await transaction.commit();
@@ -824,52 +1162,131 @@ async function eliminarDetalle(idAlta, idDetalle) {
   await transaction.begin();
 
   try {
-    const buscar = await new sql.Request(transaction)
-      .input("ID_ALTA", sql.BigInt, idAlta)
-      .input("ID_DETALLE", sql.BigInt, idDetalle)
-      .query(`
-        SELECT TOP 1 *
-        FROM dbo.ALTAS_PRODUCTOS_DETALLE
-        WHERE ID_ALTA = @ID_ALTA
-          AND ID_DETALLE = @ID_DETALLE;
-      `);
+    const buscar =
+      await new sql.Request(transaction)
+        .input("ID_ALTA", sql.BigInt, idAlta)
+        .input("ID_DETALLE", sql.BigInt, idDetalle)
+        .query(`
+          SELECT TOP 1 *
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE
+          WHERE
+            ID_ALTA = @ID_ALTA
+            AND ID_DETALLE = @ID_DETALLE;
+        `);
 
-    const detalle = buscar.recordset[0] || null;
+    const detalle =
+      buscar.recordset[0] || null;
 
     if (!detalle) {
       await transaction.rollback();
       return null;
     }
 
-    /* Primero eliminamos los hijos directos. En el modelo actual
-       las familias tienen como máximo un nivel de descendencia. */
+    /*
+     * 1. Eliminamos solamente las relaciones de ESTA familia.
+     */
     await new sql.Request(transaction)
       .input("ID_ALTA", sql.BigInt, idAlta)
-      .input("ID_DETALLE", sql.BigInt, idDetalle)
+      .input("ID_DETALLE_PADRE", sql.BigInt, idDetalle)
       .query(`
-        DELETE FROM dbo.ALTAS_PRODUCTOS_DETALLE
-        WHERE ID_ALTA = @ID_ALTA
-          AND ID_DETALLE_PADRE = @ID_DETALLE;
+        DELETE FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE
+        WHERE
+          ID_ALTA = @ID_ALTA
+          AND ID_DETALLE_PADRE = @ID_DETALLE_PADRE;
       `);
 
-    const resultado = await new sql.Request(transaction)
+    /*
+     * 2. Compatibilidad del campo legado ID_DETALLE_PADRE:
+     *    si un hijo todavía pertenece a otra familia, apuntamos
+     *    ese campo a uno de sus padres restantes.
+     */
+    await new sql.Request(transaction)
       .input("ID_ALTA", sql.BigInt, idAlta)
-      .input("ID_DETALLE", sql.BigInt, idDetalle)
+      .input("ID_DETALLE_PADRE", sql.BigInt, idDetalle)
       .query(`
-        DELETE FROM dbo.ALTAS_PRODUCTOS_DETALLE
-        OUTPUT
-          DELETED.ID_DETALLE,
-          DELETED.ID_ALTA,
-          DELETED.CODIGO_ALFA,
-          DELETED.DETALLE_PRODUCTO,
-          DELETED.TIPO_PRODUCTO_DETALLE,
-          DELETED.GENERADO_AUTOMATICO
-        WHERE ID_ALTA = @ID_ALTA
-          AND ID_DETALLE = @ID_DETALLE;
+        UPDATE H
+        SET
+          H.ID_DETALLE_PADRE =
+          (
+            SELECT MIN(R.ID_DETALLE_PADRE)
+            FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE AS R
+            WHERE
+              R.ID_ALTA = H.ID_ALTA
+              AND R.ID_DETALLE_HIJO = H.ID_DETALLE
+          )
+        FROM dbo.ALTAS_PRODUCTOS_DETALLE AS H
+        WHERE
+          H.ID_ALTA = @ID_ALTA
+          AND H.ID_DETALLE_PADRE = @ID_DETALLE_PADRE
+          AND EXISTS
+          (
+            SELECT 1
+            FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE AS R
+            WHERE
+              R.ID_ALTA = H.ID_ALTA
+              AND R.ID_DETALLE_HIJO = H.ID_DETALLE
+          );
       `);
+
+    /*
+     * 3. Eliminamos automáticos que ya no pertenecen a ninguna familia.
+     */
+    const huerfanos =
+      await new sql.Request(transaction)
+        .input("ID_ALTA", sql.BigInt, idAlta)
+        .query(`
+          DELETE H
+          OUTPUT
+            DELETED.ID_DETALLE,
+            DELETED.CODIGO_ALFA
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE AS H
+          WHERE
+            H.ID_ALTA = @ID_ALTA
+            AND ISNULL(H.GENERADO_AUTOMATICO, 0) = 1
+            AND NOT EXISTS
+            (
+              SELECT 1
+              FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE AS R
+              WHERE
+                R.ID_ALTA = H.ID_ALTA
+                AND R.ID_DETALLE_HIJO = H.ID_DETALLE
+            );
+        `);
+
+    /*
+     * 4. Finalmente eliminamos el principal solicitado.
+     */
+    const resultado =
+      await new sql.Request(transaction)
+        .input("ID_ALTA", sql.BigInt, idAlta)
+        .input("ID_DETALLE", sql.BigInt, idDetalle)
+        .query(`
+          DELETE FROM dbo.ALTAS_PRODUCTOS_DETALLE
+          OUTPUT
+            DELETED.ID_DETALLE,
+            DELETED.ID_ALTA,
+            DELETED.CODIGO_ALFA,
+            DELETED.DETALLE_PRODUCTO,
+            DELETED.TIPO_PRODUCTO_DETALLE,
+            DELETED.GENERADO_AUTOMATICO
+          WHERE
+            ID_ALTA = @ID_ALTA
+            AND ID_DETALLE = @ID_DETALLE;
+        `);
 
     await transaction.commit();
-    return resultado.recordset[0] || null;
+
+    const eliminado =
+      resultado.recordset[0] || null;
+
+    return eliminado
+      ? {
+          ...eliminado,
+          AUTOMATICOS_ELIMINADOS:
+            huerfanos.recordset.length
+        }
+      : null;
+
   } catch (error) {
     try {
       await transaction.rollback();
@@ -940,6 +1357,39 @@ async function marcarAltaValidada(idAlta, usuario) {
   return resultado.recordset[0] || null;
 }
 
+
+/* ============================================================
+   MARCAR ALTA COMO ANULADA
+   ============================================================ */
+
+async function marcarAltaAnulada(
+  idAlta,
+  usuario,
+  motivo
+) {
+  const pool = await getConnection();
+
+  const resultado = await pool
+    .request()
+    .input("ID_ALTA", sql.Int, idAlta)
+    .input("USUARIO_ANULACION", sql.VarChar(100), usuario)
+    .input("MOTIVO_ANULACION", sql.VarChar(500), motivo)
+    .query(`
+      UPDATE dbo.ALTAS_PRODUCTOS
+      SET
+        ESTADO = 'ANULADO',
+        FECHA_ANULACION = SYSDATETIME(),
+        USUARIO_ANULACION = @USUARIO_ANULACION,
+        MOTIVO_ANULACION = @MOTIVO_ANULACION
+      OUTPUT INSERTED.*
+      WHERE
+        ID_ALTA = @ID_ALTA
+        AND ESTADO = 'BORRADOR';
+    `);
+
+  return resultado.recordset[0] || null;
+}
+
 module.exports = {
   buscarMarca,
   buscarRubro,
@@ -952,6 +1402,7 @@ module.exports = {
   obtenerDetalleAlta,
 
   buscarModelo,
+  buscarProveedor,
   buscarGrupo,
   buscarSubgrupo,
   buscarLinea,
@@ -968,6 +1419,7 @@ module.exports = {
   buscarRubroFacturacion,
 
   buscarProductoERP,
+  reconciliarExistenciaERPAlta,
   buscarDetallePorCodigoAlfa,
   buscarCodigoAlfaEnOtraAlta,
 
@@ -976,4 +1428,5 @@ module.exports = {
   eliminarDetalle,
   buscarDuplicadosAlta,
   marcarAltaValidada,
+  marcarAltaAnulada,
 };

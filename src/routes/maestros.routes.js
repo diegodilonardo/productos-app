@@ -1,272 +1,204 @@
-const express =
-    require('express');
+const express = require("express");
 
-const router =
-    express.Router();
+const router = express.Router();
 
-const maestrosService =
-    require('../services/maestros.service');
-
+const maestrosService = require("../services/maestros.service");
 
 /* ============================================================
    FUNCION AUXILIAR
    ============================================================ */
 
-function crearRutaSimple(
-    metodoService
-) {
+function crearRutaSimple(metodoService) {
+  return async (req, res) => {
+    try {
+      const datos = await metodoService();
 
-    return async (
-        req,
-        res
-    ) => {
+      res.json({
+        ok: true,
+        cantidad: datos.length,
+        datos,
+      });
+    } catch (error) {
+      console.error(error);
 
-        try {
+      res.status(500).json({
+        ok: false,
 
-            const datos =
-                await metodoService();
-
-
-            res.json({
-                ok: true,
-                cantidad:
-                    datos.length,
-                datos
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                error
-            );
-
-
-            res.status(500).json({
-
-                ok: false,
-
-                mensaje:
-                    error.message
-            });
-        }
-    };
+        mensaje: error.message,
+      });
+    }
+  };
 }
-
 
 /* ============================================================
    MAESTROS
    ============================================================ */
 
-router.get(
-    '/anos',
-    crearRutaSimple(
-        maestrosService.obtenerAnos
-    )
-);
+router.get("/anos", crearRutaSimple(maestrosService.obtenerAnos));
 
+router.get("/marcas", crearRutaSimple(maestrosService.obtenerMarcas));
 
-router.get(
-    '/marcas',
-    crearRutaSimple(
-        maestrosService.obtenerMarcas
-    )
-);
+router.get("/rubros", crearRutaSimple(maestrosService.obtenerRubros));
 
+router.get("/temporadas", crearRutaSimple(maestrosService.obtenerTemporadas));
 
-router.get(
-    '/rubros',
-    crearRutaSimple(
-        maestrosService.obtenerRubros
-    )
-);
+router.get("/colores", crearRutaSimple(maestrosService.obtenerColores));
 
+router.get("/grupos", crearRutaSimple(maestrosService.obtenerGrupos));
+
+router.get("/subgrupos", crearRutaSimple(maestrosService.obtenerSubgrupos));
+
+router.get("/lineas", crearRutaSimple(maestrosService.obtenerLineas));
+
+router.get("/deportes", crearRutaSimple(maestrosService.obtenerDeportes));
+
+router.get("/edades", crearRutaSimple(maestrosService.obtenerEdades));
+
+router.get("/sexo", crearRutaSimple(maestrosService.obtenerSexo));
 
 router.get(
-    '/temporadas',
-    crearRutaSimple(
-        maestrosService.obtenerTemporadas
-    )
+  "/clasificaciones",
+  crearRutaSimple(maestrosService.obtenerClasificaciones),
 );
 
+router.get("/paises", crearRutaSimple(maestrosService.obtenerPaises));
+
+router.get("/origenes", crearRutaSimple(maestrosService.obtenerOrigenes));
 
 router.get(
-    '/colores',
-    crearRutaSimple(
-        maestrosService.obtenerColores
-    )
+  "/proveedores",
+
+  async (req, res) => {
+    try {
+      const rubro =
+        req.query.rubro
+          ? String(req.query.rubro).trim()
+          : null;
+
+      const datos =
+        await maestrosService.obtenerProveedores({
+          rubro,
+        });
+
+      res.json({
+        ok: true,
+        cantidad: datos.length,
+        filtros: {
+          rubro,
+        },
+        datos,
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        ok: false,
+        mensaje: error.message,
+      });
+    }
+  },
 );
 
+router.get("/talles", crearRutaSimple(maestrosService.obtenerTalles));
 
 router.get(
-    '/grupos',
-    crearRutaSimple(
-        maestrosService.obtenerGrupos
-    )
+  "/talles-modulos",
+  crearRutaSimple(maestrosService.obtenerTallesModulos),
 );
 
+/* ============================================================
+   LICENCIAS DE MODELOS
+   ============================================================ */
 
 router.get(
-    '/subgrupos',
-    crearRutaSimple(
-        maestrosService.obtenerSubgrupos
-    )
+  "/licencias-modelos",
+
+  async (req, res) => {
+    try {
+      const marca = req.query.marca ? String(req.query.marca).trim() : null;
+
+      const rubro = req.query.rubro ? String(req.query.rubro).trim() : null;
+
+      const datos = await maestrosService.obtenerLicenciasModelos({
+        marca,
+        rubro,
+      });
+
+      res.json({
+        ok: true,
+
+        cantidad: datos.length,
+
+        filtros: {
+          marca,
+          rubro,
+        },
+
+        datos,
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        ok: false,
+
+        mensaje: error.message,
+      });
+    }
+  },
 );
-
-
-router.get(
-    '/lineas',
-    crearRutaSimple(
-        maestrosService.obtenerLineas
-    )
-);
-
-
-router.get(
-    '/deportes',
-    crearRutaSimple(
-        maestrosService.obtenerDeportes
-    )
-);
-
-
-router.get(
-    '/edades',
-    crearRutaSimple(
-        maestrosService.obtenerEdades
-    )
-);
-
-
-router.get(
-    '/sexo',
-    crearRutaSimple(
-        maestrosService.obtenerSexo
-    )
-);
-
-
-router.get(
-    '/clasificaciones',
-    crearRutaSimple(
-        maestrosService.obtenerClasificaciones
-    )
-);
-
-
-router.get(
-    '/paises',
-    crearRutaSimple(
-        maestrosService.obtenerPaises
-    )
-);
-
-
-router.get(
-    '/origenes',
-    crearRutaSimple(
-        maestrosService.obtenerOrigenes
-    )
-);
-
-
-router.get(
-    '/talles',
-    crearRutaSimple(
-        maestrosService.obtenerTalles
-    )
-);
-
-
-router.get(
-    '/talles-modulos',
-    crearRutaSimple(
-        maestrosService.obtenerTallesModulos
-    )
-);
-
 
 /* ============================================================
    MODELOS
    ============================================================ */
 
 router.get(
-    '/modelos',
+  "/modelos",
 
-    async (
-        req,
-        res
-    ) => {
+  async (req, res) => {
+    try {
+      const marca = req.query.marca ? String(req.query.marca).trim() : null;
 
-        try {
+      const rubro = req.query.rubro ? String(req.query.rubro).trim() : null;
 
-            const marca =
-                req.query.marca
-                    ? String(
-                        req.query.marca
-                    ).trim()
-                    : null;
+      const texto = req.query.texto ? String(req.query.texto).trim() : null;
 
+      const licencia = req.query.licencia
+        ? String(req.query.licencia).trim()
+        : null;
 
-            const rubro =
-                req.query.rubro
-                    ? String(
-                        req.query.rubro
-                    ).trim()
-                    : null;
+      const datos = await maestrosService.buscarModelos({
+        marca,
+        rubro,
+        texto,
+        licencia,
+      });
 
+      res.json({
+        ok: true,
 
-            const texto =
-                req.query.texto
-                    ? String(
-                        req.query.texto
-                    ).trim()
-                    : null;
+        cantidad: datos.length,
 
+        filtros: {
+          marca,
+          rubro,
+          texto,
+          licencia,
+        },
 
-            const datos =
-                await maestrosService.buscarModelos({
-                    marca,
-                    rubro,
-                    texto
-                });
+        datos,
+      });
+    } catch (error) {
+      console.error(error);
 
+      res.status(500).json({
+        ok: false,
 
-            res.json({
-
-                ok: true,
-
-                cantidad:
-                    datos.length,
-
-                filtros: {
-                    marca,
-                    rubro,
-                    texto
-                },
-
-                datos
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                error
-            );
-
-
-            res.status(500).json({
-
-                ok: false,
-
-                mensaje:
-                    error.message
-            });
-        }
+        mensaje: error.message,
+      });
     }
+  },
 );
 
-
-module.exports =
-    router;
+module.exports = router;

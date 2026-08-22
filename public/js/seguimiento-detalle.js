@@ -69,6 +69,47 @@ function pintarCabecera(alta) {
   setTexto('detIdAlta', alta.ID_ALTA ?? ID_ALTA_SEGUIMIENTO);
   setTexto('detMarca', alta.DETALLE_MARCA ?? '-');
   setTexto('detRubro', alta.DETALLE_RUBRO ?? '-');
+
+  setTexto(
+    'detAno',
+    alta.DETALLE_ANO ??
+    alta.CODIGO_ANO ??
+    '-'
+  );
+
+  const temporada =
+    alta.DETALLE_TEMPORADA && alta.CODIGO_TEMPORADA
+      ? `${alta.CODIGO_TEMPORADA} - ${alta.DETALLE_TEMPORADA}`
+      : (
+          alta.DETALLE_TEMPORADA ??
+          alta.CODIGO_TEMPORADA ??
+          '-'
+        );
+
+  setTexto(
+    'detTemporada',
+    temporada
+  );
+
+  const licencia =
+    String(
+      alta.LICENCIA_ALTA ||
+      'SIN DEFINIR'
+    ).trim();
+
+  const badgeLicencia =
+    document.getElementById(
+      'detLicencia'
+    );
+
+  badgeLicencia.textContent =
+    licencia;
+
+  badgeLicencia.className =
+    licencia.toUpperCase() === 'SIN LICENCIA'
+      ? 'badge text-bg-secondary'
+      : 'badge text-bg-light border text-dark';
+
   setTexto('detTipo', alta.TIPO_PRODUCTO ?? '-');
   setTexto('detArchivo', alta.ARCHIVO_EXPORTADO ?? '-');
   setTexto('codigoAltaSeguimiento', alta.CODIGO_ALTA ?? '-');
@@ -99,6 +140,14 @@ function pintarResumen(seguimiento) {
   barra.textContent = `${porcentaje}%`;
   barra.setAttribute('aria-valuenow', porcentaje);
 
+  actualizarEtapasSeguimiento({
+    total,
+    confirmados,
+    pendientes,
+    errores,
+    porcentaje
+  });
+
   const mensaje = document.getElementById('mensajeSeguimientoERP');
 
   if (total === 0) {
@@ -124,6 +173,54 @@ function pintarResumen(seguimiento) {
   }
 }
 
+
+function actualizarEtapasSeguimiento({
+  total,
+  confirmados,
+  errores,
+  porcentaje
+}) {
+  const pasoExportado =
+    document.getElementById('seguimientoPasoExportado');
+  const pasoDetectado =
+    document.getElementById('seguimientoPasoDetectado');
+  const pasoConfirmado =
+    document.getElementById('seguimientoPasoConfirmado');
+
+  if (!pasoExportado || !pasoDetectado || !pasoConfirmado) {
+    return;
+  }
+
+  [pasoExportado, pasoDetectado, pasoConfirmado]
+    .forEach(paso => {
+      paso.classList.remove('is-active', 'is-done', 'is-error');
+    });
+
+  if (total > 0) {
+    pasoExportado.classList.add('is-done');
+  } else {
+    pasoExportado.classList.add('is-active');
+  }
+
+  if (errores > 0) {
+    pasoDetectado.classList.add('is-error');
+    return;
+  }
+
+  if (confirmados > 0 || porcentaje > 0) {
+    pasoDetectado.classList.add('is-done');
+  } else if (total > 0) {
+    pasoDetectado.classList.add('is-active');
+  }
+
+  if (total > 0 && confirmados === total) {
+    pasoConfirmado.classList.add('is-done');
+  } else if (confirmados > 0) {
+    pasoConfirmado.classList.add('is-active');
+  }
+}
+
+
 function pintarProductosFiltrados() {
   const filtro = document.getElementById('filtroProductoERP').value;
 
@@ -144,7 +241,11 @@ function pintarProductos(filas) {
     tbody.innerHTML = `
       <tr>
         <td colspan="5" class="text-center py-4 text-secondary">
-          No hay productos para mostrar.
+          <div class="seguimiento-empty">
+            <div class="seguimiento-empty-icon">ERP</div>
+            <strong>No hay productos para mostrar</strong>
+            <span>Probá cambiando el filtro de estado ERP.</span>
+          </div>
         </td>
       </tr>
     `;

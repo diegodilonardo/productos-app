@@ -1,0 +1,2124 @@
+
+/* ============================================================
+   PRODUCTOS APP · ALTA VISUAL V2
+   Solo presentación. No contiene reglas de negocio.
+   ============================================================ */
+
+.alta-v2 {
+  --alta-surface: #ffffff;
+  --alta-surface-soft: #f7f9fc;
+  --alta-border: #e8edf3;
+  --alta-text-soft: #6c757d;
+  --alta-radius: 18px;
+}
+
+.alta-v2 .alta-card {
+  border-radius: var(--alta-radius);
+  overflow: hidden;
+}
+
+.alta-hero {
+  background:
+    radial-gradient(circle at top right, rgba(13,110,253,.10), transparent 34%),
+    linear-gradient(135deg, #ffffff, #f7f9fc);
+  border: 1px solid var(--alta-border);
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 .25rem 1rem rgba(30, 42, 56, .055);
+}
+
+.alta-hero-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #0d6efd;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.15rem;
+  box-shadow: 0 .4rem 1rem rgba(13,110,253,.2);
+}
+
+.alta-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.alta-meta-item {
+  min-width: 0;
+  background: rgba(255,255,255,.82);
+  border: 1px solid var(--alta-border);
+  border-radius: 13px;
+  padding: 12px 14px;
+}
+
+.alta-meta-item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alta-meta-label,
+.alta-section-kicker {
+  display: block;
+  color: var(--alta-text-soft);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+
+.alta-section-kicker {
+  margin-bottom: .25rem;
+}
+
+.alta-photo-mini {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 220px;
+  padding: 10px 12px;
+  border: 1px dashed #cfd8e3;
+  border-radius: 14px;
+  background: var(--alta-surface-soft);
+}
+
+.alta-photo-symbol {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--alta-border);
+  color: #8b98a7;
+  font-size: 1.35rem;
+}
+
+.alta-form-section {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--alta-border);
+}
+
+.alta-form-section:first-child {
+  padding-top: 8px;
+}
+
+.alta-form-section:last-child {
+  border-bottom: 0;
+}
+
+.alta-form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 15px;
+  color: #344054;
+  font-weight: 700;
+}
+
+.alta-step {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #0d6efd;
+  font-size: .8rem;
+  font-weight: 800;
+}
+
+.alta-color-box {
+  background: var(--alta-surface-soft);
+  border: 1px solid var(--alta-border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.alta-color-list {
+  max-height: 230px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--alta-border);
+  border-radius: 11px;
+  padding: 8px;
+}
+
+.alta-color-list .app-color-item {
+  padding: 7px 10px 7px 32px;
+  border-radius: 8px;
+  transition: background-color .15s ease;
+}
+
+.alta-color-list .app-color-item:hover {
+  background: #f4f7fb;
+}
+
+.alta-sticky-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.alta-counter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.alta-counter {
+  min-width: 0;
+  padding: 14px 9px;
+  text-align: center;
+  border-radius: 13px;
+  border: 1px solid var(--alta-border);
+}
+
+.alta-counter span {
+  display: block;
+  font-size: 1.65rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.alta-counter small {
+  display: block;
+  margin-top: 6px;
+  color: var(--alta-text-soft);
+  font-size: .72rem;
+}
+
+.alta-counter-total {
+  background: #f7f9fc;
+}
+
+.alta-counter-new {
+  background: #edf9f1;
+  border-color: #d8eee0;
+}
+
+.alta-counter-existing {
+  background: #fff8e6;
+  border-color: #f3e2b0;
+}
+
+.alta-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--alta-border);
+  font-size: .9rem;
+}
+
+.alta-summary-row span {
+  color: var(--alta-text-soft);
+}
+
+.alta-rule-note {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f7f9fc;
+  border: 1px solid var(--alta-border);
+  color: #536273;
+  font-size: .78rem;
+}
+
+.alta-rule-note strong {
+  display: block;
+  color: #344054;
+  margin-bottom: 3px;
+}
+
+.alta-photo-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px;
+  border: 1px dashed #cad4df;
+  border-radius: 15px;
+  background: #fff;
+}
+
+.alta-photo-frame {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #f7f9fc;
+  border: 1px solid var(--alta-border);
+  color: #98a3b1;
+  font-size: 1.6rem;
+}
+
+.alta-products-table thead th {
+  background: #f8fafc;
+  color: #5a6674;
+  font-size: .72rem;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom-width: 1px;
+}
+
+.alta-products-table tbody td {
+  vertical-align: middle;
+  border-color: #edf0f4;
+}
+
+.alta-products-table .alta-row-principal td {
+  background: #fbfcfe;
+  border-top: 2px solid #d8e1ec;
+}
+
+.alta-products-table .alta-row-principal td:first-child {
+  box-shadow: inset 4px 0 0 #0d6efd;
+}
+
+.alta-products-table .alta-row-hijo td {
+  font-size: .9rem;
+  color: #5f6b78;
+}
+
+.alta-products-table .alta-row-existente td {
+  background: #fffaf0;
+}
+
+.alta-products-table .alta-row-existente.alta-row-principal td:first-child {
+  box-shadow: inset 4px 0 0 #ffc107;
+}
+
+.alta-child-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 4px;
+}
+
+.alta-child-line {
+  width: 14px;
+  height: 12px;
+  flex: 0 0 14px;
+  border-left: 2px solid #d7dee7;
+  border-bottom: 2px solid #d7dee7;
+  border-bottom-left-radius: 5px;
+}
+
+.alta-cod-alfa {
+  font-size: .82rem;
+  white-space: nowrap;
+}
+
+.alta-badge-auto,
+.alta-badge-principal {
+  border-radius: 999px;
+  padding: .45rem .65rem;
+  font-size: .66rem;
+  letter-spacing: .035em;
+}
+
+.alta-badge-auto {
+  background: #eef4ff;
+  color: #3566a9;
+}
+
+.alta-badge-principal {
+  background: #eef1f4;
+  color: #556270;
+}
+
+.alta-v2 .form-control,
+.alta-v2 .form-select {
+  border-color: #dfe5ec;
+  border-radius: 10px;
+}
+
+.alta-v2 .form-control:focus,
+.alta-v2 .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
+}
+
+.alta-v2 .btn {
+  border-radius: 10px;
+}
+
+.alta-v2 .alert {
+  border-radius: 12px;
+}
+
+@media (max-width: 1199.98px) {
+  .alta-sticky-panel {
+    position: static;
+  }
+
+  .alta-meta-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .alta-hero {
+    padding: 18px;
+  }
+
+  .alta-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .alta-photo-mini {
+    width: 100%;
+  }
+
+  .alta-counter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .alta-counter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .alta-counter small {
+    margin-top: 0;
+  }
+}
+
+
+/* ============================================================
+   BUSCADOR DE MODELOS
+   ============================================================ */
+
+.alta-model-search {
+  position: relative;
+}
+
+.alta-model-list {
+  margin-top: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--alta-border);
+  border-radius: 12px;
+  box-shadow: 0 .35rem 1rem rgba(30, 42, 56, .06);
+}
+
+.alta-model-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid #eef1f4;
+  background: #fff;
+  text-align: left;
+  transition:
+    background-color .12s ease,
+    transform .12s ease;
+}
+
+.alta-model-item:last-child {
+  border-bottom: 0;
+}
+
+.alta-model-item:hover,
+.alta-model-item:focus {
+  background: #f4f8ff;
+  outline: none;
+}
+
+.alta-model-code {
+  flex: 0 0 auto;
+  min-width: 68px;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: #eef4ff;
+  color: #245da8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .79rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.alta-model-main {
+  min-width: 0;
+}
+
+.alta-model-name {
+  color: #263442;
+  font-weight: 600;
+}
+
+.alta-model-license {
+  margin-top: 2px;
+  color: #7b8794;
+  font-size: .78rem;
+}
+
+.alta-model-selected {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  min-height: 58px;
+  padding: 10px 12px;
+  background: #f4f8ff;
+  border: 1px solid #cfe0fa;
+  border-radius: 11px;
+}
+
+.alta-model-selected-label {
+  display: block;
+  margin-bottom: 2px;
+  color: #6b7785;
+  font-size: .69rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.alta-model-empty,
+.alta-model-more {
+  padding: 14px;
+  color: #7a8794;
+  font-size: .86rem;
+}
+
+.alta-model-more {
+  text-align: center;
+  background: #f8fafc;
+  border-top: 1px solid #eef1f4;
+}
+
+
+.alta-model-match {
+  padding: 0;
+  background: #fff1a8;
+  color: inherit;
+  font-weight: 800;
+  border-radius: 3px;
+}
+
+.alta-model-list {
+  scrollbar-width: thin;
+}
+
+.alta-model-name {
+  line-height: 1.2;
+}
+
+.alta-model-license {
+  line-height: 1.15;
+}
+
+
+/* ============================================================
+   BUSCADOR DE CURVA / MODULO
+   ============================================================ */
+
+.alta-module-search {
+  position: relative;
+}
+
+.alta-module-list {
+  margin-top: 8px;
+  max-height: 290px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--alta-border);
+  border-radius: 12px;
+  box-shadow: 0 .35rem 1rem rgba(30, 42, 56, .06);
+  scrollbar-width: thin;
+}
+
+.alta-module-item {
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid #eef1f4;
+  background: #fff;
+  text-align: left;
+  transition:
+    background-color .12s ease,
+    transform .12s ease;
+}
+
+.alta-module-item:last-child {
+  border-bottom: 0;
+}
+
+.alta-module-item:hover,
+.alta-module-item:focus {
+  background: #f4f8ff;
+  outline: none;
+}
+
+.alta-module-code {
+  flex: 0 0 auto;
+  min-width: 66px;
+  align-self: flex-start;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #eef4ff;
+  color: #245da8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .82rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.alta-module-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.alta-module-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.alta-module-range {
+  color: #263442;
+  font-size: .92rem;
+}
+
+.alta-module-pairs {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef1f4;
+  color: #536171;
+  font-size: .70rem;
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+
+.alta-module-composition {
+  margin-top: 4px;
+  color: #6f7d8b;
+  font-size: .80rem;
+  line-height: 1.35;
+}
+
+.alta-module-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: #f4f8ff;
+  border: 1px solid #cfe0fa;
+  border-radius: 12px;
+}
+
+.alta-module-selected-main {
+  min-width: 0;
+}
+
+.alta-module-selected-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #6b7785;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.alta-module-empty,
+.alta-module-more {
+  padding: 14px;
+  color: #7a8794;
+  font-size: .86rem;
+}
+
+.alta-module-more {
+  text-align: center;
+  background: #f8fafc;
+  border-top: 1px solid #eef1f4;
+}
+
+@media (max-width: 575.98px) {
+  .alta-module-selected {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alta-module-selected .btn {
+    width: 100%;
+  }
+}
+
+
+/* ============================================================
+   BUSCADORES VISUALES - MAESTROS
+   Grupo / Subgrupo / Línea / Deporte
+   ============================================================ */
+
+.alta-master-search {
+  position: relative;
+}
+
+.alta-master-list {
+  margin-top: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--alta-border);
+  border-radius: 12px;
+  box-shadow: 0 .35rem 1rem rgba(30, 42, 56, .06);
+  scrollbar-width: thin;
+}
+
+.alta-master-item {
+  width: 100%;
+  display: block;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid #eef1f4;
+  background: #fff;
+  text-align: left;
+  transition: background-color .12s ease;
+}
+
+.alta-master-item:last-child {
+  border-bottom: 0;
+}
+
+.alta-master-item:hover,
+.alta-master-item:focus {
+  background: #f4f8ff;
+  outline: none;
+}
+
+.alta-master-detail {
+  color: #263442;
+  font-size: .90rem;
+  font-weight: 600;
+}
+
+.alta-master-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 11px 12px;
+  border: 1px solid #cfe0fa;
+  border-radius: 12px;
+  background: #f4f8ff;
+}
+
+.alta-master-selected-main {
+  min-width: 0;
+}
+
+.alta-master-selected-label {
+  display: block;
+  margin-bottom: 2px;
+  color: #6b7785;
+  font-size: .67rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.alta-master-empty,
+.alta-master-more {
+  padding: 12px;
+  color: #7a8794;
+  font-size: .84rem;
+}
+
+.alta-master-more {
+  text-align: center;
+  background: #f8fafc;
+  border-top: 1px solid #eef1f4;
+}
+
+@media (max-width: 575.98px) {
+  .alta-master-selected {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alta-master-selected .btn {
+    width: 100%;
+  }
+}
+
+
+/* ============================================================
+   IMAGENES DE PRODUCTO
+   ============================================================ */
+
+.alta-photo-manager {
+  padding: 15px;
+  border: 1px solid var(--alta-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.alta-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.alta-photo-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--alta-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.alta-photo-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 12px;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.alta-photo-card-color {
+  color: #263442;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.alta-photo-card-code {
+  margin-top: 2px;
+  color: #8a96a3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .67rem;
+  overflow-wrap: anywhere;
+}
+
+.alta-photo-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 165px;
+  padding: 8px;
+  background:
+    linear-gradient(45deg, #f7f9fb 25%, transparent 25%),
+    linear-gradient(-45deg, #f7f9fb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f7f9fb 75%),
+    linear-gradient(-45deg, transparent 75%, #f7f9fb 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
+
+.alta-photo-preview img {
+  width: 100%;
+  height: 165px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 10px;
+}
+
+.alta-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px;
+  color: #929da8;
+  font-size: .80rem;
+}
+
+.alta-photo-empty-icon {
+  font-size: 1.65rem;
+}
+
+.alta-photo-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 11px 12px 7px;
+}
+
+.alta-photo-filename {
+  min-height: 28px;
+  padding: 0 12px 11px;
+  color: #7b8794;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .67rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 991.98px) {
+  .alta-photo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ============================================================
+   IMAGEN INTEGRADA DEBAJO DE COLOR
+   ============================================================ */
+
+.alta-photo-manager-inline {
+  border-style: dashed;
+}
+
+.alta-step-photo {
+  flex: 0 0 auto;
+  font-size: .78rem;
+}
+
+.alta-photo-manager-inline .alta-photo-grid:empty {
+  display: none;
+}
+
+
+/* ============================================================
+   IMAGEN POR FAMILIA EN TABLA
+   ============================================================ */
+
+.alta-image-cell {
+  min-width: 150px;
+}
+
+.alta-family-image {
+  width: 138px;
+}
+
+.alta-family-image-preview {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 6px;
+  border: 1px solid #e1e7ee;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alta-family-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.alta-family-image-empty {
+  color: #a0abb6;
+  font-size: 1.5rem;
+}
+
+.alta-family-image-status {
+  margin-bottom: 5px;
+  font-size: .70rem;
+  font-weight: 600;
+}
+
+.alta-family-image-button {
+  width: 100%;
+  margin-bottom: 5px;
+  white-space: nowrap;
+}
+
+.alta-family-image-name {
+  max-width: 138px;
+  color: #7b8794;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .60rem;
+  overflow-wrap: anywhere;
+}
+
+.alta-family-image-child {
+  color: #8b97a4;
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+.alta-family-image-link {
+  color: #b6c3d2;
+  margin-right: 4px;
+  font-weight: 700;
+}
+
+@media (max-width: 991.98px) {
+  .alta-family-image {
+    width: 120px;
+  }
+
+  .alta-family-image-name {
+    max-width: 120px;
+  }
+}
+
+
+/* ============================================================
+   AJUSTE VISUAL FINAL - IMAGEN POR FAMILIA
+   ============================================================ */
+
+.alta-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.alta-family-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e3e9ef;
+  border-radius: 12px;
+  background: #fbfcfd;
+}
+
+.alta-family-note-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dce5ee;
+  border-radius: 9px;
+  background: #fff;
+  color: #6b7c8f;
+  font-size: 1rem;
+}
+
+#tablaProductosAlta {
+  vertical-align: middle;
+}
+
+#tablaProductosAlta thead th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  white-space: nowrap;
+}
+
+#tablaProductosAlta tbody td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.alta-image-cell {
+  width: 132px;
+  min-width: 132px;
+}
+
+.alta-family-image {
+  width: 112px;
+}
+
+.alta-family-image-preview {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 5px;
+  border-radius: 9px;
+}
+
+.alta-family-image-button {
+  width: auto;
+  min-width: 96px;
+  padding-left: 9px;
+  padding-right: 9px;
+}
+
+.alta-family-image-name {
+  max-width: 112px;
+  font-size: .57rem;
+  line-height: 1.25;
+}
+
+.alta-family-image-status {
+  margin-bottom: 4px;
+  font-size: .66rem;
+}
+
+.alta-family-image-child {
+  font-size: .68rem;
+}
+
+@media (max-width: 1199.98px) {
+  .alta-image-cell {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  .alta-family-image {
+    width: 102px;
+  }
+
+  .alta-family-image-name {
+    max-width: 102px;
+  }
+}
+
+
+/* ============================================================
+   HOTFIX LAYOUT - FORMULARIO + RESUMEN LATERAL
+   ============================================================ */
+
+.alta-v2 > .row.g-4 {
+  align-items: flex-start;
+}
+
+.alta-sticky-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.alta-sticky-panel > .alta-card {
+  overflow: hidden;
+}
+
+.alta-family-inline-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  border: 1px solid #e1e7ed;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #6c7885;
+  font-size: .72rem;
+}
+
+.alta-family-inline-note span {
+  color: #7b8b9c;
+}
+
+@media (min-width: 1200px) {
+  .alta-v2 > .row.g-4 > .col-xl-8 {
+    padding-right: 14px;
+  }
+
+  .alta-v2 > .row.g-4 > .col-xl-4 {
+    padding-left: 14px;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .alta-sticky-panel {
+    position: static;
+  }
+}
+
+
+/* ============================================================
+   AJUSTE FINAL DE LAYOUT - ARCHIVOS REALES
+   ============================================================ */
+
+.alta-v2 > .row.g-4 {
+  align-items: flex-start;
+}
+
+.alta-sticky-panel {
+  position: sticky;
+  top: 16px;
+}
+
+.alta-sticky-panel .card-body {
+  padding: 20px !important;
+}
+
+.alta-sticky-panel .alta-counter-grid {
+  gap: 7px;
+}
+
+.alta-sticky-panel .alta-counter {
+  padding: 12px 7px;
+}
+
+.alta-sticky-panel .alta-counter span {
+  font-size: 1.45rem;
+}
+
+.alta-sticky-panel .alta-summary-row {
+  padding: 9px 0;
+}
+
+.alta-sticky-panel #mensajeEstadoAlta {
+  font-size: .84rem;
+  line-height: 1.4;
+}
+
+.alta-sticky-panel .alta-rule-note {
+  margin-top: 12px !important;
+}
+
+@media (min-width: 1200px) {
+  .alta-v2 > .row.g-4 > .col-xl-8 {
+    width: 68%;
+  }
+
+  .alta-v2 > .row.g-4 > .col-xl-4 {
+    width: 32%;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .alta-sticky-panel {
+    position: static;
+  }
+}
+
+
+/* ============================================================
+   IMAGEN POR FAMILIA - PRESENTACION COMPACTA
+   ============================================================ */
+
+.alta-image-cell {
+  width: 118px;
+  min-width: 118px;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+.alta-family-image {
+  width: 92px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.alta-family-image-preview {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 5px;
+  border: 1px solid #dfe6ed;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alta-family-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.alta-family-image-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  color: #9ba7b3;
+}
+
+.alta-family-image-empty-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.alta-family-image-empty-text {
+  font-size: .58rem;
+  font-weight: 600;
+}
+
+.alta-family-image-status {
+  min-height: 16px;
+  margin: 0 0 5px;
+  font-size: .61rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.alta-family-image-actions {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.alta-family-image-button {
+  width: auto;
+  min-width: 66px;
+  padding: 4px 7px;
+  border-radius: 7px !important;
+  font-size: .65rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.alta-family-image-readonly {
+  color: #929da8;
+  font-size: .62rem;
+  font-weight: 600;
+}
+
+.alta-family-image-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #a0aab5;
+  font-size: .64rem;
+  white-space: nowrap;
+}
+
+.alta-family-image-child-icon {
+  color: #bdc6cf;
+  font-weight: 700;
+}
+
+.alta-family-image-name {
+  display: none !important;
+}
+
+@media (max-width: 1199.98px) {
+  .alta-image-cell {
+    width: 110px;
+    min-width: 110px;
+  }
+
+  .alta-family-image {
+    width: 88px;
+  }
+
+  .alta-family-image-preview {
+    width: 70px;
+    height: 70px;
+  }
+}
+
+
+/* ============================================================
+   FAMILIAS DESPLEGABLES
+   ============================================================ */
+
+.alta-family-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alta-family-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 128px;
+  white-space: nowrap;
+  font-size: .72rem;
+}
+
+.alta-family-toggle-icon {
+  display: inline-block;
+  width: 10px;
+  color: #718096;
+  font-size: .78rem;
+  line-height: 1;
+}
+
+.alta-row-principal .alta-family-toggle {
+  background: #fff;
+}
+
+.alta-row-hijo:not(.d-none) {
+  animation: altaFamilyRowIn .14s ease-out;
+}
+
+@keyframes altaFamilyRowIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1399.98px) {
+  .alta-family-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alta-family-actions .btn {
+    width: 100%;
+  }
+}
+
+
+/* ============================================================
+   NORMALIZACIÓN TIPOGRÁFICA GLOBAL
+   Hereda la escala definida en /css/app.css
+   ============================================================ */
+
+.alta-v2 {
+  font-size: var(--app-font-size-body);
+}
+
+.alta-v2 .alta-section-kicker,
+.alta-v2 .alta-meta-label,
+.alta-v2 .alta-form-label,
+.alta-v2 .alta-family-image-status,
+.alta-v2 .alta-family-image-child,
+.alta-v2 .alta-model-code,
+.alta-v2 .alta-model-license,
+.alta-v2 .alta-model-more,
+.alta-v2 .alta-model-empty,
+.alta-v2 .alta-master-code,
+.alta-v2 .alta-master-empty,
+.alta-v2 .alta-curve-code,
+.alta-v2 .alta-curve-meta,
+.alta-v2 .alta-curve-empty,
+.alta-v2 .alta-table-help {
+  font-size: var(--app-font-size-small) !important;
+}
+
+.alta-v2 .alta-form-section-title,
+.alta-v2 .alta-summary-title,
+.alta-v2 .alta-card-title {
+  font-size: var(--app-font-size-section) !important;
+}
+
+.alta-v2 .alta-meta-item strong,
+.alta-v2 .alta-summary-value,
+.alta-v2 .alta-model-name,
+.alta-v2 .alta-master-name,
+.alta-v2 .alta-curve-name {
+  font-size: var(--app-font-size-body) !important;
+}
+
+.alta-v2 .form-control,
+.alta-v2 .form-select,
+.alta-v2 .form-check-label,
+.alta-v2 .alta-search-input {
+  font-size: var(--app-font-size-body) !important;
+}
+
+.alta-v2 .btn,
+.alta-v2 .alta-family-toggle,
+.alta-v2 .alta-family-image-button {
+  font-size: var(--app-font-size-button) !important;
+}
+
+.alta-v2 .badge {
+  font-size: var(--app-font-size-badge) !important;
+}
+
+.alta-v2 table,
+.alta-v2 table th,
+.alta-v2 table td,
+.alta-v2 .alta-product-code,
+.alta-v2 .alta-product-detail {
+  font-size: var(--app-font-size-table) !important;
+}
+
+.alta-v2 .alta-hero h1 {
+  font-size: var(--app-font-size-title) !important;
+}
+
+.alta-v2 .alta-step {
+  font-size: var(--app-font-size-small) !important;
+}
+
+
+/* ============================================================
+   PRODUCTOS DEL ALTA - PIEL VISUAL BASADA EN "ALTAS"
+   Solo presentación. No modifica layout ni comportamiento.
+   ============================================================ */
+
+.alta-v2 {
+  --alta-ref-border: #e2e7ec;
+  --alta-ref-border-soft: #edf0f3;
+  --alta-ref-surface: #ffffff;
+  --alta-ref-surface-soft: #f7f9fb;
+  --alta-ref-text: #29323b;
+  --alta-ref-muted: #6c7a89;
+  --alta-ref-shadow: 0 2px 8px rgba(24, 39, 55, .05);
+  color: var(--alta-ref-text);
+}
+
+.alta-v2 .card,
+.alta-v2 .alta-card,
+.alta-v2 .alta-form-card,
+.alta-v2 .alta-summary-card,
+.alta-v2 .alta-products-card {
+  border: 1px solid var(--alta-ref-border) !important;
+  border-radius: 12px !important;
+  background: var(--alta-ref-surface) !important;
+  box-shadow: var(--alta-ref-shadow) !important;
+}
+
+.alta-v2 .card-header,
+.alta-v2 .alta-card-header,
+.alta-v2 .alta-section-head {
+  border-bottom-color: #e4e8ed !important;
+  background: #fff !important;
+}
+
+.alta-v2 .alta-section-kicker,
+.alta-v2 .alta-meta-label,
+.alta-v2 .alta-form-label {
+  color: var(--alta-ref-muted) !important;
+  font-weight: 700;
+  letter-spacing: .035em;
+}
+
+.alta-v2 .form-control,
+.alta-v2 .form-select,
+.alta-v2 .alta-search-input {
+  min-height: 38px;
+  border-color: #d8dfe6 !important;
+  border-radius: 8px !important;
+}
+
+.alta-v2 .btn {
+  border-radius: 8px !important;
+}
+
+.alta-v2 table thead th {
+  border-bottom-color: #dbe2e9 !important;
+  background: var(--alta-ref-surface-soft) !important;
+  color: #586676 !important;
+  font-size: .70rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.alta-v2 table tbody td {
+  border-color: var(--alta-ref-border-soft) !important;
+  color: var(--alta-ref-text) !important;
+  font-size: .86rem !important;
+}
+
+.alta-v2 .alta-row-principal {
+  background: #fbfcfd;
+}
+
+.alta-v2 .alta-row-hijo {
+  background: #fff;
+}
+
+.alta-v2 .alta-family-toggle,
+.alta-v2 .alta-family-image-button {
+  border-radius: 8px !important;
+}
+
+.alta-v2 .alta-family-image-preview {
+  border-color: #e2e7ec !important;
+  border-radius: 10px !important;
+  background: #f7f9fb !important;
+}
+
+
+/* ============================================================
+   PRODUCTOS GENERADOS - FILTROS + ALINEACIÓN DE IMAGEN
+   ============================================================ */
+
+.alta-products-filterbar {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 1.5fr)
+    minmax(145px, .62fr)
+    minmax(145px, .62fr)
+    minmax(145px, .62fr)
+    auto
+    auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid #edf0f3;
+  border-bottom: 1px solid #e3e8ed;
+  background: #fbfcfd;
+}
+
+.alta-products-search {
+  position: relative;
+}
+
+.alta-products-search-icon {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: #83909d;
+  font-size: 17px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.alta-products-search .form-control {
+  padding-left: 34px;
+}
+
+.alta-products-filter {
+  position: relative;
+}
+
+.alta-products-filter label {
+  display: block;
+  margin: 0 0 4px;
+  color: #6c7a89;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.alta-products-filterbar .form-control,
+.alta-products-filterbar .form-select {
+  min-height: 36px;
+  border-color: #dbe2e9;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.alta-products-clear-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 7px 8px !important;
+  color: #3976b7;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.alta-products-clear-filter:hover {
+  color: #245f9d;
+  text-decoration: none;
+}
+
+.alta-products-clear-filter span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.alta-products-filter-result {
+  min-width: 92px;
+  padding-bottom: 8px;
+  color: #85919d;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+#tablaProductosAlta tr.alta-filter-hidden {
+  display: none !important;
+}
+
+/*
+  Cuando existen filtros, las coincidencias se muestran
+  individualmente. El control de familia se oculta hasta
+  volver a la navegación normal.
+*/
+#tablaProductosAlta.alta-filtros-activos .alta-family-toggle {
+  visibility: hidden;
+}
+
+/* ------------------------------------------------------------
+   IMAGEN - BLOQUE VERTICAL CENTRADO
+   ------------------------------------------------------------ */
+
+.alta-products-table td.alta-image-cell {
+  vertical-align: middle !important;
+  text-align: center;
+}
+
+.alta-family-image {
+  display: flex !important;
+  width: 104px !important;
+  min-width: 104px;
+  margin: 0 auto !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.alta-family-image-preview {
+  flex: 0 0 auto;
+  margin: 0 auto 6px !important;
+}
+
+.alta-family-image-status {
+  width: 100%;
+  min-height: 15px !important;
+  margin: 0 0 6px !important;
+  text-align: center;
+}
+
+.alta-family-image-actions {
+  display: flex !important;
+  width: 100%;
+  align-items: center;
+  justify-content: center !important;
+  gap: 5px;
+}
+
+.alta-family-image-button {
+  display: inline-flex !important;
+  min-width: 88px !important;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 4px 8px !important;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.alta-family-image-readonly {
+  width: 100%;
+  text-align: center;
+}
+
+@media (max-width: 1399.98px) {
+  .alta-products-filterbar {
+    grid-template-columns:
+      minmax(240px, 1.4fr)
+      repeat(3, minmax(130px, .7fr));
+  }
+
+  .alta-products-clear-filter,
+  .alta-products-filter-result {
+    justify-self: start;
+    text-align: left;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .alta-products-filterbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .alta-products-search {
+    grid-column: 1 / -1;
+  }
+
+  .alta-products-filter-result {
+    align-self: center;
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .alta-products-filterbar {
+    grid-template-columns: 1fr;
+  }
+
+  .alta-products-search {
+    grid-column: auto;
+  }
+
+  .alta-products-clear-filter,
+  .alta-products-filter-result {
+    width: 100%;
+  }
+}
+
+
+/* ============================================================
+   AJUSTE FINAL - BOTONES DE IMAGEN
+   Mantiene la lógica actual. Solo corrige ancho/alineación.
+   ============================================================ */
+
+.alta-family-image-actions {
+  display: flex !important;
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.alta-family-image-button {
+  display: inline-flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 30px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 5px 10px !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  text-align: center !important;
+}
+
+.alta-family-image-button span {
+  display: inline-block;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.alta-family-image {
+  width: 116px !important;
+  min-width: 116px !important;
+}
+
+.alta-image-cell {
+  width: 136px !important;
+  min-width: 136px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+@media (max-width: 1199.98px) {
+  .alta-family-image {
+    width: 108px !important;
+    min-width: 108px !important;
+  }
+
+  .alta-image-cell {
+    width: 128px !important;
+    min-width: 128px !important;
+  }
+}
+
+
+/* ALTA ANULADA - MOTIVO */
+.alta-cancel-reason {
+  border: 1px solid rgba(220, 53, 69, 0.22);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(220, 53, 69, 0.045);
+}
+
+.alta-cancel-reason-label {
+  margin-bottom: 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.alta-cancel-reason-text {
+  font-size: 0.88rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+
+/* ============================================================
+   TOAST FLOTANTE - CONFIRMACIONES SIN MOVER EL SCROLL
+   ============================================================ */
+
+.alta-toast-container {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 1095;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.alta-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 13px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+  pointer-events: auto;
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
+.alta-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.alta-toast-success {
+  background: #e8f7ef;
+  border-color: #b7e3c9;
+  color: #176b3a;
+}
+
+.alta-toast-danger {
+  background: #fdecec;
+  border-color: #f2b8bd;
+  color: #9f1c2b;
+}
+
+.alta-toast-warning {
+  background: #fff6df;
+  border-color: #f3d58a;
+  color: #805b00;
+}
+
+.alta-toast-info {
+  background: #eaf4ff;
+  border-color: #b9d8f5;
+  color: #245f91;
+}
+
+.alta-toast-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 0.82rem;
+}
+
+.alta-toast-success .alta-toast-icon {
+  background: rgba(25, 135, 84, 0.12);
+}
+
+.alta-toast-message {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.alta-toast-close {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.65;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.alta-toast-close:hover {
+  opacity: 1;
+}
+
+@media (max-width: 575.98px) {
+  .alta-toast-container {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    align-items: stretch;
+  }
+
+  .alta-toast {
+    width: 100%;
+  }
+}
+
+/* Toast unificado para todos los mensajes transitorios */
+.alta-toast-danger .alta-toast-icon {
+  background: rgba(220, 53, 69, 0.12);
+}
+
+.alta-toast-warning .alta-toast-icon {
+  background: rgba(255, 193, 7, 0.18);
+}
+
+.alta-toast-info .alta-toast-icon {
+  background: rgba(13, 110, 253, 0.10);
+}
+
+
+/* ============================================================
+   SEXO + CLASIFICACION COMO BUSCADORES VISUALES
+   Reutilizan el mismo lenguaje visual de Edad / País.
+   ============================================================ */
+
+#buscarSexo,
+#buscarClasificacion {
+  min-height: 38px;
+}
+
+#buscarClasificacion:disabled {
+  background: #f7f9fc;
+  color: #8b98a7;
+  cursor: not-allowed;
+}
+
+#sexoSeleccionado,
+#clasificacionSeleccionado {
+  min-height: 50px;
+}
+
+
+/* ============================================================
+   PRODUCTO - LICENCIA / MODELO / PROVEEDOR
+   ============================================================ */
+
+.alta-v2 .alta-license-search {
+  max-width: 100%;
+}
+
+.alta-v2 .alta-license-list {
+  max-height: 220px;
+}
+
+.alta-v2 #licenciaSeleccionada,
+.alta-v2 #proveedorSeleccionado,
+.alta-v2 #modeloSeleccionado {
+  min-height: 48px;
+}
+
+.alta-v2 #buscarLicencia,
+.alta-v2 #buscarModelo,
+.alta-v2 #buscarProveedor {
+  min-height: 48px;
+}
+
+.alta-v2 #listaLicencia .alta-master-item,
+.alta-v2 #listaProveedor .alta-master-item {
+  min-height: 42px;
+}
+
+@media (min-width: 992px) {
+  .alta-v2 #listaModelos,
+  .alta-v2 #listaProveedor {
+    max-height: 230px;
+  }
+}
+
+
+/* ============================================================
+   AJUSTE FINAL - MODELO / PROVEEDOR ALINEADOS
+   ============================================================ */
+
+.alta-v2 #proveedorSeleccionado {
+  margin-top: 0;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-radius: 11px;
+}
+
+.alta-v2 #proveedorSeleccionado .alta-master-selected-label {
+  font-size: .69rem;
+}
+
+.alta-v2 #modeloSeleccionado,
+.alta-v2 #proveedorSeleccionado {
+  width: 100%;
+}
+
+
+/* ============================================================
+   COLORES ELEGIDOS - CHIPS
+   ============================================================ */
+
+.alta-v2 .alta-color-selected-summary {
+  padding: 10px 12px;
+  border: 1px solid #dbe4ee;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.alta-v2 .alta-color-selected-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.alta-v2 .alta-color-selected-title {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #607086;
+}
+
+.alta-v2 .alta-color-clear-all {
+  font-size: .72rem;
+  text-decoration: none;
+}
+
+.alta-v2 .alta-color-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.alta-v2 .alta-color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid #cbdcf5;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #1f3f69;
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.alta-v2 .alta-color-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alta-v2 .alta-color-chip-remove {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #526a88;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.alta-v2 .alta-color-chip-remove:hover {
+  background: rgba(31, 63, 105, .10);
+  color: #1f3f69;
+}
+
+.alta-v2 .alta-color-selected-empty {
+  color: #7b8794;
+  font-size: .76rem;
+}

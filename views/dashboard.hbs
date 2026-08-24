@@ -1,216 +1,146 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Dashboard</h1>
+    <p class="text-secondary mb-0">Estado general de Altas, Pedidos y sincronización con Presea.</p>
+  </div>
 
+  <div class="d-flex flex-wrap gap-2">
+    <button id="btnActualizar" class="btn btn-outline-secondary" type="button">Actualizar</button>
+    <a class="btn btn-outline-primary" href="/pedidos/nuevo">Nuevo Pedido</a>
+    <a class="btn btn-primary" href="/altas/nueva">Nueva Alta</a>
+  </div>
+</div>
+
+<div id="alertaError" class="alert alert-danger d-none" role="alert"></div>
+
+<section class="mb-4">
+  <div class="d-flex justify-content-between align-items-end mb-2">
     <div>
-        <h1 class="h3 mb-1">
-            Dashboard
-        </h1>
-
-        <p class="text-secondary mb-0">
-            Estado general de altas y sincronización con Presea.
-        </p>
+      <div class="text-uppercase text-secondary fw-bold small">Altas / ERP</div>
+      <h2 class="h5 mb-0">Resumen de productos</h2>
     </div>
+  </div>
 
-    <div class="d-flex gap-2">
-
-        <button
-            id="btnActualizar"
-            class="btn btn-outline-secondary"
-            type="button"
-        >
-            Actualizar
-        </button>
-
-        <a
-            class="btn btn-primary"
-            href="/altas/nueva"
-        >
-            Nueva Alta
-        </a>
-
-    </div>
-
-</div>
-
-
-<div
-    id="alertaError"
-    class="alert alert-danger d-none"
-    role="alert"
-></div>
-
-
-<div class="row g-3 mb-4">
-
+  <div class="row g-3">
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card app-card h-100">
-            <div class="card-body app-metric-card-body">
-                <div class="app-metric-icon app-metric-icon-blue">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M7 3.5h7l4 4V20.5H7z"></path>
-  <path d="M14 3.5v4h4"></path>
-</svg>
-                </div>
-
-                <div class="app-metric-content">
-                    <div class="app-card-label">
-                        Altas totales
-                    </div>
-
-                    <div
-                        id="totalAltas"
-                        class="app-card-number"
-                    >
-                        -
-                    </div>
-                </div>
-            </div>
-        </div>
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon app-metric-icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20.5H7z"></path><path d="M14 3.5v4h4"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Altas totales</div><div id="totalAltas" class="app-card-number">-</div></div>
+      </div></div>
     </div>
-
-
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card app-card h-100">
-            <div class="card-body app-metric-card-body">
-                <div class="app-metric-icon app-metric-icon-green">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-  <circle cx="12" cy="12" r="8.5"></circle>
-  <path d="M8.5 12.2l2.2 2.2 4.8-5"></path>
-</svg>
-                </div>
-
-                <div class="app-metric-content">
-                    <div class="app-card-label">
-                        Generadas OK en ERP
-                    </div>
-
-                    <div
-                        id="altasOk"
-                        class="app-card-number"
-                    >
-                        -
-                    </div>
-                </div>
-            </div>
-        </div>
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon app-metric-icon-green"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M8.5 12.2l2.2 2.2 4.8-5"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Generadas OK en ERP</div><div id="altasOk" class="app-card-number">-</div></div>
+      </div></div>
     </div>
-
-
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card app-card h-100">
-            <div class="card-body app-metric-card-body">
-                <div class="app-metric-icon app-metric-icon-purple">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M12 16V5"></path>
-  <path d="M8.5 8.5L12 5l3.5 3.5"></path>
-  <path d="M5 15.5v3h14v-3"></path>
-</svg>
-                </div>
-
-                <div class="app-metric-content">
-                    <div class="app-card-label">
-                        Productos pendientes ERP
-                    </div>
-
-                    <div
-                        id="productosPendientes"
-                        class="app-card-number"
-                    >
-                        -
-                    </div>
-                </div>
-            </div>
-        </div>
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon app-metric-icon-purple"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5"></path><path d="M8.5 8.5L12 5l3.5 3.5"></path><path d="M5 15.5v3h14v-3"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Productos pendientes ERP</div><div id="productosPendientes" class="app-card-number">-</div></div>
+      </div></div>
     </div>
-
-
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card app-card h-100">
-            <div class="card-body app-metric-card-body">
-                <div class="app-metric-icon app-metric-icon-gray">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M12 3.5L4.5 7.2 12 11l7.5-3.8z"></path>
-  <path d="M4.5 12L12 15.8 19.5 12"></path>
-  <path d="M4.5 16.8L12 20.5l7.5-3.7"></path>
-</svg>
-                </div>
-
-                <div class="app-metric-content">
-                    <div class="app-card-label">
-                        Productos confirmados ERP
-                    </div>
-
-                    <div
-                        id="productosConfirmados"
-                        class="app-card-number"
-                    >
-                        -
-                    </div>
-                </div>
-            </div>
-        </div>
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon app-metric-icon-gray"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5L4.5 7.2 12 11l7.5-3.8z"></path><path d="M4.5 12L12 15.8 19.5 12"></path><path d="M4.5 16.8L12 20.5l7.5-3.7"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Productos confirmados ERP</div><div id="productosConfirmados" class="app-card-number">-</div></div>
+      </div></div>
     </div>
+  </div>
+</section>
 
-</div>
+<section class="mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+    <div>
+      <div class="text-uppercase text-secondary fw-bold small">Pedidos</div>
+      <h2 class="h5 mb-0">Resumen comercial</h2>
+    </div>
+    <a href="/pedidos" class="btn btn-sm btn-outline-primary">Ver todos los Pedidos</a>
+  </div>
 
+  <div class="row g-3">
+    <div class="col-6 col-xl-3">
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon app-metric-icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect><path d="M8 9h8M8 13h8M8 17h5"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Pedidos totales</div><div id="pedidosTotal" class="app-card-number">-</div></div>
+      </div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon app-metric-icon-gray"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19l3.5-.8L18 8.7 15.3 6 5.8 15.5z"></path><path d="M14.5 6.8l2.7 2.7"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Borradores</div><div id="pedidosBorrador" class="app-card-number">-</div></div>
+      </div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon app-metric-icon-green"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M8.5 12.2l2.2 2.2 4.8-5"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Validados</div><div id="pedidosValidado" class="app-card-number">-</div><div id="pedidosValidadoImporte" class="small text-secondary mt-1"></div></div>
+      </div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card app-card h-100"><div class="card-body app-metric-card-body">
+        <div class="app-metric-icon" style="background:#fdebed;color:#dc3545"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg></div>
+        <div class="app-metric-content"><div class="app-card-label">Anulados</div><div id="pedidosAnulado" class="app-card-number">-</div></div>
+      </div></div>
+    </div>
+  </div>
+</section>
 
-<div class="card shadow-sm">
-
+<section class="mb-4">
+  <div class="card shadow-sm">
     <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
-
-        <div>
-            <h2 class="h5 mb-0">
-                Altas recientes
-            </h2>
-        </div>
-
-        <div>
-            <span
-                id="ultimaActualizacion"
-                class="text-secondary small"
-            ></span>
-        </div>
-
+      <div>
+        <div class="text-uppercase text-secondary fw-bold small">Actividad</div>
+        <h2 class="h5 mb-0">Pedidos recientes</h2>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/pedidos" class="btn btn-sm btn-outline-primary">Ver todos</a>
+        <a href="/pedidos/nuevo" class="btn btn-sm btn-primary">Nuevo Pedido</a>
+      </div>
     </div>
+    <div id="pedidosRecientes" class="p-3 dashboard-pedidos-recientes-grid">
+      <div class="text-center py-5 text-secondary dashboard-pedidos-loading">Cargando pedidos...</div>
+    </div>
+  </div>
+</section>
 
-
+<section>
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <div class="text-uppercase text-secondary fw-bold small">Altas / ERP</div>
+        <h2 class="h5 mb-0">Altas recientes</h2>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <span id="ultimaActualizacion" class="text-secondary small"></span>
+        <a href="/altas" class="btn btn-sm btn-outline-primary">Ver todas las Altas</a>
+      </div>
+    </div>
     <div class="table-responsive">
-
-        <table class="table table-hover align-middle mb-0">
-
-            <thead class="table-light">
-
-                <tr>
-                    <th>Alta</th>
-                    <th>Marca</th>
-                    <th>Rubro</th>
-                    <th>Campaña</th>
-                    <th>Licencia</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th class="text-center">ERP</th>
-                    <th class="text-center">%</th>
-                    <th>Archivo</th>
-                </tr>
-
-            </thead>
-
-            <tbody id="tablaAltas">
-
-                <tr>
-                    <td
-                        colspan="10"
-                        class="text-center py-5 text-secondary"
-                    >
-                        Cargando información...
-                    </td>
-                </tr>
-
-            </tbody>
-
-        </table>
-
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Alta</th><th>Marca</th><th>Rubro</th><th>Campaña</th><th>Licencia</th><th>Tipo</th><th>Estado</th><th class="text-center">ERP</th><th class="text-center">%</th><th>Archivo</th></tr></thead>
+        <tbody id="tablaAltas"><tr><td colspan="10" class="text-center py-5 text-secondary">Cargando información...</td></tr></tbody>
+      </table>
     </div>
+  </div>
+</section>
 
-</div>
+<style>
+.dashboard-pedido-card{border:1px solid #e4eaf1;border-radius:14px;padding:14px 15px;background:#fff;transition:.15s ease}
+.dashboard-pedido-card+.dashboard-pedido-card{margin-top:0}
+.dashboard-pedidos-recientes-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.dashboard-pedidos-loading{grid-column:1/-1}
+.dashboard-pedido-card:hover{border-color:#cbd8ea;box-shadow:0 5px 16px rgba(15,23,42,.055)}
+.dashboard-pedido-code{font-weight:800;font-size:.9rem;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dashboard-pedido-sub{color:#75849a;font-size:.82rem;margin-top:3px}
+.dashboard-pedido-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.dashboard-pedido-stat{background:#f8fafc;border-radius:10px;padding:8px 9px}
+.dashboard-pedido-stat span{display:block;color:#8290a3;font-size:.68rem;text-transform:uppercase;font-weight:700}
+.dashboard-pedido-stat strong{display:block;margin-top:2px;font-size:.84rem}
+.dashboard-pedido-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px}
+@media(max-width:1199.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:1fr}}
+@media(max-width:575.98px){.dashboard-pedido-stats{grid-template-columns:1fr 1fr}.dashboard-pedido-stat:last-child{grid-column:1/-1}}
+</style>
 
 <script src="/js/dashboard.js"></script>

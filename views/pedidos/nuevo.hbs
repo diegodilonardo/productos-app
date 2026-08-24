@@ -1,0 +1,256 @@
+<div
+  class="nueva-alta-v2 pedido-nuevo-v2"
+  id="nuevoPedidoApp"
+  data-alta="{{idAltaPreseleccionada}}"
+>
+  <section class="nueva-alta-hero">
+    <div class="nueva-alta-hero-main">
+      <div class="nueva-alta-hero-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 7.5L12 3.8l7.5 3.7V17L12 20.2 4.5 17z"></path>
+          <path d="M4.5 7.5L12 11l7.5-3.5M12 11v9.2"></path>
+        </svg>
+      </div>
+
+      <div>
+        <div class="nueva-alta-kicker">CREACIÓN DE PEDIDO</div>
+        <h1 class="h3 mb-1">Nuevo Pedido</h1>
+        <p class="text-secondary mb-0">
+          Definí el Alta confirmada, el proveedor y los datos generales de la orden.
+        </p>
+      </div>
+    </div>
+
+    <a class="btn btn-light border" href="/pedidos">
+      Volver a Pedidos
+    </a>
+  </section>
+
+  <div class="nueva-alta-flowbar pedido-flowbar" aria-label="Flujo del pedido">
+    <div class="nueva-alta-flowstep is-active">
+      <span class="nueva-alta-flow-number">1</span>
+      <span class="nueva-alta-flow-copy">
+        <strong>Cabecera</strong>
+        <small>Alta y orden</small>
+      </span>
+    </div>
+
+    <span class="nueva-alta-flow-line"></span>
+
+    <div class="nueva-alta-flowstep">
+      <span class="nueva-alta-flow-number">2</span>
+      <span class="nueva-alta-flow-copy">
+        <strong>Productos</strong>
+        <small>Carga manual</small>
+      </span>
+    </div>
+
+    <span class="nueva-alta-flow-line"></span>
+
+    <div class="nueva-alta-flowstep">
+      <span class="nueva-alta-flow-number">3</span>
+      <span class="nueva-alta-flow-copy">
+        <strong>Validar</strong>
+        <small>Consistencia</small>
+      </span>
+    </div>
+
+    <span class="nueva-alta-flow-line"></span>
+
+    <div class="nueva-alta-flowstep">
+      <span class="nueva-alta-flow-number">4</span>
+      <span class="nueva-alta-flow-copy">
+        <strong>Finalizado</strong>
+        <small>Pedido cerrado</small>
+      </span>
+    </div>
+  </div>
+
+  <div id="alertaNuevoPedido" class="alert d-none" role="alert"></div>
+
+  <div class="row g-4 align-items-stretch">
+    <div class="col-12 col-xl-8">
+      <div class="card nueva-alta-form-card h-100">
+        <div class="nueva-alta-card-head">
+          <div class="nueva-alta-section-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+              <path d="M8 9h8M8 13h5"></path>
+            </svg>
+          </div>
+
+          <div>
+            <div class="nueva-alta-section-kicker">PASO 1</div>
+            <h2 class="h5 mb-1">Datos generales del pedido</h2>
+            <p class="mb-0 text-secondary small">
+              Esta información quedará fija para todos los productos que cargues en el pedido.
+            </p>
+          </div>
+        </div>
+
+        <div class="card-body nueva-alta-form-body">
+          <form id="formNuevoPedido" novalidate>
+
+            <div class="nueva-alta-block">
+              <div class="nueva-alta-block-title">Origen del pedido</div>
+
+              <div class="row g-3">
+                <div class="col-12 col-md-7">
+                  <label class="form-label" for="idAlta">Alta asociada</label>
+                  <select id="idAlta" class="form-select" required>
+                    <option value="">Cargando Altas...</option>
+                  </select>
+                  <div id="infoAlta" class="nueva-alta-field-help">
+                    Solo se muestran Altas confirmadas en ERP.
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-5">
+                  <label class="form-label" for="codigoProveedor">Proveedor</label>
+                  <select id="codigoProveedor" class="form-select" required disabled>
+                    <option value="">Seleccione primero un Alta...</option>
+                  </select>
+                  <div class="nueva-alta-field-help">
+                    Se listan únicamente los proveedores presentes en el Alta seleccionada.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="nueva-alta-block">
+              <div class="nueva-alta-block-title">Orden</div>
+
+              <div class="row g-3">
+                <div class="col-12 col-md-8">
+                  <label class="form-label" for="numeroOrden">Número de orden</label>
+                  <input
+                    id="numeroOrden"
+                    class="form-control"
+                    type="text"
+                    maxlength="50"
+                    required
+                    autocomplete="off"
+                    placeholder="Ej.: 1002"
+                  >
+                  <div class="nueva-alta-field-help">
+                    Número de orden informado por el usuario.
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="moneda">Moneda</label>
+                  <select id="moneda" class="form-select" required>
+                    <option value="USD" selected>USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="CNY">CNY</option>
+                    <option value="BRL">BRL</option>
+                  </select>
+                  <div class="nueva-alta-field-help">
+                    Se aplicará a todos los importes del pedido.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="nueva-alta-block nueva-alta-block-last">
+              <div class="nueva-alta-block-title">Información adicional</div>
+
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label" for="observaciones">Observaciones</label>
+                  <textarea
+                    id="observaciones"
+                    class="form-control"
+                    rows="4"
+                    maxlength="500"
+                    placeholder="Observaciones generales del pedido..."
+                  ></textarea>
+                  <div class="nueva-alta-field-help">
+                    Opcional. Podrás consultar este texto desde el pedido.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="nueva-alta-actions">
+              <a class="btn btn-light border" href="/pedidos">
+                Cancelar
+              </a>
+
+              <button
+                id="btnCrearPedido"
+                class="btn btn-primary nueva-alta-create-btn"
+                type="submit"
+              >
+                Crear Pedido y continuar
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card nueva-alta-summary-card pedido-summary-card h-100">
+        <div class="card-body p-4">
+          <div class="nueva-alta-summary-kicker">RESUMEN DEL PEDIDO</div>
+          <h2 class="h5 mb-3">Datos seleccionados</h2>
+
+          <div class="pedido-summary-empty" id="pedidoResumenVacio">
+            Seleccioná un Alta para comenzar.
+          </div>
+
+          <div id="pedidoResumenDatos" class="d-none">
+            <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Alta</span>
+              <strong id="resumenAlta">-</strong>
+            </div>
+
+            <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Marca / Rubro</span>
+              <strong id="resumenMarcaRubro">-</strong>
+            </div>
+
+            <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Tipo</span>
+              <strong id="resumenTipo">-</strong>
+            </div>
+
+            <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Campaña</span>
+              <strong id="resumenCampana">-</strong>
+            </div>
+
+            <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Licencia</span>
+              <strong id="resumenLicencia">-</strong>
+            </div>
+
+            <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Proveedor</span>
+              <strong id="resumenProveedor">Pendiente</strong>
+            </div>
+
+            <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Orden</span>
+              <strong id="resumenOrden">Pendiente</strong>
+            </div>
+
+            <div class="pedido-summary-row pedido-summary-row-last">
+              <span class="pedido-summary-label">Moneda</span>
+              <strong id="resumenMoneda">USD</strong>
+            </div>
+          </div>
+
+          <div class="nueva-alta-note pedido-summary-note">
+            <strong>Siguiente paso</strong>
+            <span>
+              Al crear la cabecera pasarás a la carga manual de productos del Alta y proveedor seleccionados.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

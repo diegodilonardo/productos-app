@@ -386,13 +386,13 @@ async function registrarExportacion(
 
                 .input(
                     'RUBROS',
-                    sql.VarChar(30),
+                    sql.VarChar(1),
                     r.RUBROS
                 )
 
                 .input(
                     'RUBRO',
-                    sql.VarChar(1),
+                    sql.VarChar(30),
                     r.RUBRO
                 )
 

@@ -1478,7 +1478,12 @@ function armarRegistrosPRIMERAS_SEGUNDAS(
 
 
         if (
-            estado !== 'VALIDO'
+            ![
+                'VALIDO',
+                'EXISTE_ERP'
+            ].includes(
+                estado
+            )
         ) {
             continue;
         }
@@ -1571,6 +1576,32 @@ function armarRegistrosPRIMERAS_SEGUNDAS(
                 `No se encontró la SEGUNDA correspondiente a ` +
                 `${primera.CODIGO_ALFA} (${clave}).`
             );
+        }
+
+
+        const estadoPrimera =
+            texto(
+                primera.ESTADO_VALIDACION
+            ).toUpperCase();
+
+        const estadoSegunda =
+            texto(
+                segunda.ESTADO_VALIDACION
+            ).toUpperCase();
+
+
+        /*
+         * Si ambos productos ya existen en Presea no hay nada nuevo
+         * que relacionar en este lote.
+         *
+         * Si al menos uno es VALIDO, generamos la relación usando
+         * ambos CODIGO_ALFA, aunque su pareja ya exista en ERP.
+         */
+        if (
+            estadoPrimera === 'EXISTE_ERP' &&
+            estadoSegunda === 'EXISTE_ERP'
+        ) {
+            continue;
         }
 
 
@@ -2318,7 +2349,7 @@ async function exportar(
     const registrosPRIMERAS_SEGUNDAS =
         armarRegistrosPRIMERAS_SEGUNDAS(
             alta,
-            detalles
+            detallesTodos
         );
 
 

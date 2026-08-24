@@ -1,328 +1,56 @@
 require('dotenv').config();
 
-const fs = require('fs');
-const path = require('path');
+const fs =
+    require('fs');
+
+const path =
+    require('path');
 
 const exportacionRepository =
     require('../src/repositories/exportacion.repository');
-
-const {
-    escribirDBF
-} =
-    require('../src/services/dbfWriter.service');
 
 const {
     escribirDBFGenerico
 } =
     require('../src/services/dbfWriterGenerico.service');
 
+const {
+    escribirDBF
+} =
+    require('../src/services/dbfWriter.service');
 
-const ftpService =
-    require('../src/services/ftp.service');
 
-
-function texto(valor) {
+function texto(
+    valor
+) {
 
     if (
-        valor === undefined ||
-        valor === null
+        valor === null ||
+        valor === undefined
     ) {
+
         return '';
     }
+
 
     return String(valor).trim();
 }
 
 
-function normalizarTipoProducto(valor) {
+function normalizarTipoProducto(
+    valor
+) {
 
-    return texto(valor)
+    return texto(
+        valor
+    )
         .toUpperCase()
-        .replace(/\s+/g, '_')
-        .replace(/-+/g, '_');
-}
-
-function obtenerTalleERP(
-    tipoProducto,
-    detalle
-) {
-
-    if (
-        tipoProducto === 'MODULO'
-    ) {
-
-        return texto(
-            detalle.CODIGO_MODULO
+        .replace(
+            /[\s-]+/g,
+            '_'
         );
-    }
-
-
-    return texto(
-        detalle.CODIGO_TALLE
-    );
 }
 
-function obtenerDetalleTalleERP(
-    tipoProducto,
-    detalle
-) {
-
-    if (
-        tipoProducto === 'MODULO'
-    ) {
-
-        return texto(
-            detalle.DETALLE_MODULO
-        );
-    }
-
-
-    return texto(
-        detalle.DETALLE_TALLE
-    );
-}
-
-function armarRegistroERP(
-    alta,
-    detalle
-) {
-
-    const tipoProducto =
-        normalizarTipoProducto(
-            detalle.TIPO_PRODUCTO_DETALLE ||
-            alta.TIPO_PRODUCTO
-        );
-
-
-    return {
-
-        DETALLE:
-            texto(
-                detalle.DETALLE_PRODUCTO
-            ),
-
-
-        NIVEL:
-            Number(
-                detalle.NIVEL
-            ),
-
-
-        FECHA_ALTA:
-            detalle.FECHA_CREACION ||
-            alta.FECHA_CREACION,
-
-
-        COD_ALFA:
-            texto(
-                detalle.CODIGO_ALFA
-            ),
-
-
-        MARCA:
-            Number(
-                alta.CODIGO_MARCA
-            ),
-
-
-        COD_SUBG:
-            texto(
-                detalle.CODIGO_SUBGRUPO
-            ),
-
-
-        COD_TEM:
-            texto(
-                alta.CODIGO_TEMPORADA
-            ),
-
-
-        COD_GRUPOC:
-            texto(
-                detalle.CODIGO_GRUPO
-            ),
-
-
-        SEXO:
-            texto(
-                detalle.SEXO
-            ),
-
-
-        CLASIFIC:
-            texto(
-                detalle.CODIGO_CLASIFICACION
-            ),
-
-
-        COLORC:
-            texto(
-                detalle.CODIGO_COLOR
-            ),
-
-
-        LINEA:
-            texto(
-                detalle.CODIGO_LINEA
-            ),
-
-
-        MODC:
-            texto(
-                detalle.CODIGO_MODELO
-            ),
-
-
-        NOMB_ART:
-            texto(
-                detalle.DETALLE_MODELO
-            ),
-
-
-        ORIG_PRO:
-            texto(
-                detalle.CODIGO_ORIGEN
-            ),
-
-
-        RUBROS:
-            texto(
-                alta.DETALLE_RUBRO
-            ),
-
-
-        RUBRO:
-            texto(
-                alta.CODIGO_RUBRO
-            ),
-
-
-        TALLC:
-            obtenerTalleERP(
-                tipoProducto,
-                detalle
-            ),
-
-
-        PARES:
-            Number(
-                detalle.PARES
-            ),
-
-
-        COD_ANO:
-            texto(
-                alta.CODIGO_ANO
-            ),
-
-
-        COD_EDAD:
-            texto(
-                detalle.CODIGO_EDAD
-            ),
-
-
-        RUBRO_FACT:
-            texto(
-                detalle.RUBRO_FACT
-            ),
-
-
-        PAIS:
-            Number(
-                detalle.CODIGO_PAIS
-            ),
-
-
-        COD_DISCIP:
-            texto(
-                detalle.CODIGO_DEPORTE
-            ),
-
-
-        LICENCIAS:
-            texto(
-                detalle.LICENCIA
-            ),
-
-
-        DCLASIFIC:
-            texto(
-                detalle.DETALLE_CLASIFICACION
-            ),
-
-
-        DCOD_TEM:
-            texto(
-                alta.DETALLE_TEMPORADA
-            ),
-
-
-        DCOLORC:
-            texto(
-                detalle.DETALLE_COLOR
-            ),
-
-
-        COSTO:
-            0.001,
-
-
-        DET_LINEA:
-            texto(
-                detalle.DETALLE_LINEA
-            ),
-
-
-        DET_ORIGEN:
-            texto(
-                detalle.DETALLE_ORIGEN
-            ),
-
-
-        DGRUPO:
-            texto(
-                detalle.DETALLE_GRUPO
-            ),
-
-
-        DISCIPLINA:
-            texto(
-                detalle.DETALLE_DEPORTE
-            ),
-
-
-        DMARCA:
-            texto(
-                alta.DETALLE_MARCA
-            ),
-
-
-        DMODC:
-            texto(
-                detalle.DETALLE_MODELO
-            ),
-
-
-        DSUBG:
-            texto(
-                detalle.DETALLE_SUBGRUPO
-            ),
-
-
-        DTALLC:
-            obtenerDetalleTalleERP(
-                tipoProducto,
-                detalle
-            ),
-
-
-        EDAD:
-            texto(
-                detalle.DETALLE_EDAD
-            )
-    };
-}
 
 const camposRELFORMU = [
 
@@ -369,16 +97,13 @@ const camposRELFORMU = [
     },
 
     {
-        /*
-         * El dato siempre se envía vacío.
-         * El ancho solicitado es 15.
-         */
         nombre: 'ARTICULO',
         tipo: 'N',
         largo: 15,
         decimales: 0
     }
 ];
+
 
 const camposRELACION = [
 
@@ -460,6 +185,7 @@ const camposRELACION = [
     }
 ];
 
+
 const mapaColumnaModuloPorTalle = {
 
     '01': 'T01',
@@ -532,6 +258,7 @@ const mapaColumnaModuloPorTalle = {
     '3XL': 'T_3XL'
 };
 
+
 function obtenerColumnaCantidadModulo(
     relacion
 ) {
@@ -584,36 +311,12 @@ function obtenerColumnaCantidadModulo(
     }
 
 
-    if (
-        codigo.startsWith('T_') &&
-        Object.prototype.hasOwnProperty.call(
-            relacion,
-            codigo
-        )
-    ) {
-
-        return codigo;
-    }
-
-
-    if (
-        codigo.startsWith('T') &&
-        Object.prototype.hasOwnProperty.call(
-            relacion,
-            codigo
-        )
-    ) {
-
-        return codigo;
-    }
-
-
     throw new Error(
-        `No se pudo determinar la columna de cantidad ` +
-        `para el talle "${detalle || codigo}" ` +
-        `del módulo ${relacion.COD_ALFA_MODULO}.`
+        `No se pudo determinar la columna de cantidad para el talle ` +
+        `"${detalle || codigo}" del módulo ${relacion.COD_ALFA_MODULO}.`
     );
 }
+
 
 function armarRegistrosRELFORMU(
     alta,
@@ -659,6 +362,7 @@ function armarRegistrosRELFORMU(
         );
 }
 
+
 function armarRegistrosRELACION(
     relaciones
 ) {
@@ -688,8 +392,7 @@ function armarRegistrosRELACION(
             ) {
 
                 throw new Error(
-                    `Cantidad inválida para el insumo ` +
-                    `${relacion.COD_ALFA_INSUMO} ` +
+                    `Cantidad inválida para ${relacion.COD_ALFA_INSUMO} ` +
                     `del módulo ${relacion.COD_ALFA_MODULO}.`
                 );
             }
@@ -718,12 +421,12 @@ function armarRegistrosRELACION(
 
                 DETAARTI:
                     texto(
-                        relacion.DETALLE_PRODUCTO_MODULO
+                        relacion.DETALLE_MODULO
                     ),
 
                 DETAINSU:
                     texto(
-                        relacion.DETALLE_PRODUCTO_INSUMO
+                        relacion.DETALLE_INSUMO
                     ),
 
                 MEDIDAARTI:
@@ -742,551 +445,237 @@ function armarRegistrosRELACION(
     );
 }
 
-const camposMODELOS = [
 
-    {
-        nombre: 'COD_MODELO',
-        tipo: 'C',
-        largo: 6,
-        decimales: 0
-    },
 
-    {
-        nombre: 'MODELO',
-        tipo: 'C',
-        largo: 60,
-        decimales: 0
-    },
+/* ============================================================
+   DBF VACIO CON ESTRUCTURA
+   ============================================================ */
 
-    {
-        nombre: 'MARCA',
-        tipo: 'C',
-        largo: 30,
-        decimales: 0
-    },
-
-    {
-        nombre: 'RUBRO',
-        tipo: 'C',
-        largo: 30,
-        decimales: 0
-    },
-
-    {
-        nombre: 'COD_CURVA',
-        tipo: 'C',
-        largo: 10,
-        decimales: 0
-    },
-
-    {
-        nombre: 'SUBGRUPO',
-        tipo: 'C',
-        largo: 30,
-        decimales: 0
-    },
-
-    {
-        nombre: 'TEMPORADA',
-        tipo: 'C',
-        largo: 20,
-        decimales: 0
-    },
-
-    {
-        nombre: 'CURVA',
-        tipo: 'C',
-        largo: 100,
-        decimales: 0
-    },
-
-    {
-        nombre: 'GRUPO',
-        tipo: 'C',
-        largo: 30,
-        decimales: 0
-    },
-
-    {
-        nombre: 'ANO',
-        tipo: 'C',
-        largo: 2,
-        decimales: 0
-    },
-
-    {
-        nombre: 'COLOR',
-        tipo: 'C',
-        largo: 30,
-        decimales: 0
-    },
-
-    {
-        nombre: 'LICENCIAS',
-        tipo: 'C',
-        largo: 30,
-        decimales: 0
-    },
-
-    {
-        nombre: 'CO_PROV',
-        tipo: 'C',
-        largo: 6,
-        decimales: 0
-    }
-];
-
-function armarRegistrosMODELOS(
-    alta,
-    detalles
+function escribirDBFVacio(
+    rutaArchivo,
+    campos
 ) {
 
-    const tipoAlta =
-        normalizarTipoProducto(
-            alta.TIPO_PRODUCTO
+    if (
+        !Array.isArray(campos) ||
+        campos.length === 0
+    ) {
+
+        throw new Error(
+            'No hay definición de campos para generar el DBF vacío.'
+        );
+    }
+
+
+    const cantidadCampos =
+        campos.length;
+
+
+    const largoCabecera =
+        32 +
+        (
+            cantidadCampos * 32
+        ) +
+        1;
+
+
+    const largoRegistro =
+        1 +
+        campos.reduce(
+            (
+                total,
+                campo
+            ) =>
+                total +
+                Number(
+                    campo.largo || 0
+                ),
+            0
         );
 
 
-    const registros = [];
-    const claves = new Set();
-
-
-    for (
-        const detalle
-        of detalles
-    ) {
-
-        const tipoDetalle =
-            normalizarTipoProducto(
-                detalle.TIPO_PRODUCTO_DETALLE ||
-                alta.TIPO_PRODUCTO
-            );
-
-
-        if (
-            tipoAlta === 'MODULO' &&
-            tipoDetalle !== 'MODULO'
-        ) {
-            continue;
-        }
-
-
-        if (
-            tipoAlta === 'PAR_SUELTO' &&
-            tipoDetalle !== 'PAR_SUELTO'
-        ) {
-            continue;
-        }
-
-
-        const codigoCurva =
-            tipoAlta === 'MODULO'
-                ? texto(detalle.CODIGO_MODULO)
-                : texto(detalle.CODIGO_TALLE);
-
-
-        const curva =
-            tipoAlta === 'MODULO'
-                ? texto(detalle.DETALLE_MODULO)
-                : texto(detalle.DETALLE_TALLE);
-
-
-        const coProv =
-            texto(
-                detalle.CODIGO_PROVEEDOR
-            );
-
-
-        if (
-            !coProv
-        ) {
-            throw new Error(
-                `No se puede generar MODELOS: ` +
-                `el proveedor seleccionado no tiene CODIGO (PBXXXX) ` +
-                `informado en el maestro de proveedores.`
-            );
-        }
-
-
-        const clave = [
-            texto(detalle.CODIGO_MODELO),
-            texto(detalle.CODIGO_COLOR),
-            codigoCurva
-        ].join('|');
-
-
-        if (
-            claves.has(
-                clave
-            )
-        ) {
-            continue;
-        }
-
-
-        claves.add(
-            clave
+    /*
+     * Sin registros:
+     * cabecera + EOF.
+     */
+    const buffer =
+        Buffer.alloc(
+            largoCabecera + 1,
+            0
         );
 
 
-        registros.push({
-
-            COD_MODELO:
-                texto(
-                    detalle.CODIGO_MODELO
-                ),
-
-            MODELO:
-                texto(
-                    detalle.DETALLE_MODELO
-                ),
-
-            MARCA:
-                texto(
-                    alta.DETALLE_MARCA
-                ),
-
-            RUBRO:
-                texto(
-                    alta.DETALLE_RUBRO
-                ),
-
-            COD_CURVA:
-                codigoCurva,
-
-            SUBGRUPO:
-                texto(
-                    detalle.DETALLE_SUBGRUPO
-                ),
-
-            TEMPORADA:
-                texto(
-                    alta.DETALLE_TEMPORADA
-                ),
-
-            CURVA:
-                curva,
-
-            GRUPO:
-                texto(
-                    detalle.DETALLE_GRUPO
-                ),
-
-            ANO:
-                texto(
-                    alta.CODIGO_ANO
-                ),
-
-            COLOR:
-                texto(
-                    detalle.DETALLE_COLOR
-                ),
-
-            LICENCIAS:
-                texto(
-                    detalle.LICENCIA
-                ),
-
-            CO_PROV:
-                texto(
-                    detalle.CODIGO_PROVEEDOR
-                )
-        });
-    }
+    /*
+     * dBASE III
+     */
+    buffer[0] =
+        0x03;
 
 
-    return registros;
-}
+    const ahora =
+        new Date();
 
-const camposPRIMERAS_SEGUNDAS = [
 
-    {
-        nombre: 'CODIGO',
-        tipo: 'N',
-        largo: 15,
-        decimales: 0
-    },
+    buffer[1] =
+        ahora.getFullYear() - 1900;
 
-    {
-        nombre: 'CODIGOR',
-        tipo: 'N',
-        largo: 15,
-        decimales: 0
-    },
+    buffer[2] =
+        ahora.getMonth() + 1;
 
-    {
-        nombre: 'COD_ALFA',
-        tipo: 'C',
-        largo: 15,
-        decimales: 0
-    },
+    buffer[3] =
+        ahora.getDate();
 
-    {
-        nombre: 'COD_ALFAR',
-        tipo: 'C',
-        largo: 15,
-        decimales: 0
-    },
 
-    {
-        nombre: 'DETALLE',
-        tipo: 'C',
-        largo: 50,
-        decimales: 0
-    },
+    /*
+     * Cantidad de registros = 0.
+     */
+    buffer.writeUInt32LE(
+        0,
+        4
+    );
 
-    {
-        nombre: 'DETALLER',
-        tipo: 'C',
-        largo: 50,
-        decimales: 0
-    },
 
-    {
-        nombre: 'HABILITADO',
-        tipo: 'L',
-        largo: 1,
-        decimales: 0
-    }
-];
+    buffer.writeUInt16LE(
+        largoCabecera,
+        8
+    );
 
-function clavePrimeraSegunda(
-    detalle
-) {
 
-    return [
-        texto(detalle.CODIGO_MODELO),
-        texto(detalle.CODIGO_COLOR),
-        texto(detalle.CODIGO_TALLE),
-        texto(detalle.SEXO).toUpperCase()
-    ].join('|');
-}
+    buffer.writeUInt16LE(
+        largoRegistro,
+        10
+    );
 
-function armarRegistrosPRIMERAS_SEGUNDAS(
-    alta,
-    detalles
-) {
 
-    const primeras = new Map();
-    const segundas = new Map();
+    /*
+     * Driver ANSI / Windows.
+     */
+    buffer[29] =
+        0x57;
+
+
+    let offset =
+        32;
 
 
     for (
-        const detalle
-        of detalles
+        const campo
+        of campos
     ) {
 
-        const tipoDetalle =
-            normalizarTipoProducto(
-                detalle.TIPO_PRODUCTO_DETALLE ||
-                alta.TIPO_PRODUCTO
+        const descriptor =
+            Buffer.alloc(
+                32,
+                0
             );
 
 
-        if (
-            tipoDetalle !== 'PAR_SUELTO'
-        ) {
-            continue;
-        }
+        const nombre =
+            Buffer.from(
+                String(
+                    campo.nombre || ''
+                ),
+                'ascii'
+            );
 
 
-        const estado =
-            texto(
-                detalle.ESTADO_VALIDACION
-            ).toUpperCase();
-
-
-        if (
-            ![
-                'VALIDO',
-                'EXPORTADO'
-            ].includes(
-                estado
+        nombre
+            .subarray(
+                0,
+                11
             )
-        ) {
-            continue;
-        }
-
-
-        const clasificacion =
-            texto(
-                detalle.CODIGO_CLASIFICACION
+            .copy(
+                descriptor,
+                0
             );
 
 
-        if (
-            ![
-                '1',
-                '2'
-            ].includes(
-                clasificacion
+        descriptor[11] =
+            String(
+                campo.tipo || 'C'
             )
-        ) {
-            continue;
-        }
+                .charAt(0)
+                .charCodeAt(0);
 
 
-        const clave =
-            clavePrimeraSegunda(
-                detalle
+        descriptor[16] =
+            Number(
+                campo.largo || 0
             );
 
 
-        if (
-            clasificacion === '1'
-        ) {
-
-            if (
-                primeras.has(
-                    clave
-                )
-            ) {
-                throw new Error(
-                    `Existe más de una PRIMERA para ${clave}.`
-                );
-            }
-
-            primeras.set(
-                clave,
-                detalle
+        descriptor[17] =
+            Number(
+                campo.decimales || 0
             );
 
-        } else {
 
-            if (
-                segundas.has(
-                    clave
-                )
-            ) {
-                throw new Error(
-                    `Existe más de una SEGUNDA para ${clave}.`
-                );
-            }
+        descriptor.copy(
+            buffer,
+            offset
+        );
 
-            segundas.set(
-                clave,
-                detalle
-            );
-        }
+
+        offset +=
+            32;
     }
 
 
-    const registros = [];
+    /*
+     * Fin de descriptores.
+     */
+    buffer[offset] =
+        0x0d;
 
 
-    for (
-        const [
-            clave,
-            primera
-        ]
-        of primeras
-    ) {
-
-        const segunda =
-            segundas.get(
-                clave
-            );
+    /*
+     * EOF DBF.
+     */
+    buffer[
+        largoCabecera
+    ] =
+        0x1a;
 
 
-        if (
-            !segunda
-        ) {
-            throw new Error(
-                `No se encontró la SEGUNDA correspondiente a ` +
-                `${primera.CODIGO_ALFA} (${clave}).`
-            );
-        }
-
-
-        registros.push({
-
-            CODIGO:
-                null,
-
-            CODIGOR:
-                null,
-
-            COD_ALFA:
-                texto(
-                    primera.CODIGO_ALFA
-                ),
-
-            COD_ALFAR:
-                texto(
-                    segunda.CODIGO_ALFA
-                ),
-
-            DETALLE:
-                texto(
-                    primera.DETALLE_PRODUCTO
-                ),
-
-            DETALLER:
-                texto(
-                    segunda.DETALLE_PRODUCTO
-                ),
-
-            HABILITADO:
-                true
-        });
-    }
-
-
-    return registros;
+    fs.writeFileSync(
+        rutaArchivo,
+        buffer
+    );
 }
 
 
-function generarDBI(
-    rutaDBI,
+function escribirDBFGenericoPermitiendoVacio(
+    rutaArchivo,
     registros,
-    campos = null,
-    principal = false
+    campos
 ) {
 
-    const rutaDBF =
-        rutaDBI.replace(
-            /\.DBI$/i,
-            '.DBF'
-        );
-
-
     if (
-        fs.existsSync(rutaDBF)
-    ) {
-        fs.unlinkSync(rutaDBF);
-    }
-
-
-    if (
-        fs.existsSync(rutaDBI)
-    ) {
-        fs.unlinkSync(rutaDBI);
-    }
-
-
-    if (
-        principal
+        Array.isArray(registros) &&
+        registros.length > 0
     ) {
 
-        escribirDBF(
-            rutaDBF,
-            registros
-        );
-
-    } else {
-
-        escribirDBFGenerico(
-            rutaDBF,
+        return escribirDBFGenerico(
+            rutaArchivo,
             registros,
             campos
         );
     }
 
 
-    fs.renameSync(
-        rutaDBF,
-        rutaDBI
+    escribirDBFVacio(
+        rutaArchivo,
+        campos
     );
+
+
+    return {
+        campos:
+            campos.length,
+
+        registros:
+            0
+    };
 }
 
 
@@ -1294,27 +683,21 @@ async function main() {
 
     const idAlta =
         Number(
-            process.argv[2]
+            process.argv[2] || 1
         );
 
 
     if (
-        !Number.isInteger(idAlta) ||
+        !Number.isInteger(
+            idAlta
+        ) ||
         idAlta <= 0
     ) {
+
         throw new Error(
-            'Indicá un ID_ALTA válido. Ejemplo: node scripts/probar-exportacion-id.js 15 --ftp'
+            'Indicá un ID_ALTA válido. Ejemplo: node scripts/probar-exportacion-id.js 1'
         );
     }
-
-
-    const enviarFTP =
-        process.argv
-            .slice(3)
-            .some(
-                argumento =>
-                    texto(argumento).toLowerCase() === '--ftp'
-            );
 
 
     const alta =
@@ -1327,6 +710,7 @@ async function main() {
     if (
         !alta
     ) {
+
         throw new Error(
             `No existe el ID_ALTA ${idAlta}.`
         );
@@ -1341,57 +725,39 @@ async function main() {
 
 
     /*
-     * PRUEBA SIN IMPACTO:
-     * - VALIDO permite probar un Alta todavía no exportada.
-     * - EXPORTADO permite regenerar los DBI de un Alta ya exportada.
-     * - EXISTE_ERP queda siempre excluido porque no es producto nuevo.
+     * Para esta prueba NO importa el estado del Alta.
+     * Se toman los productos que originalmente formaron parte
+     * de la exportación o que siguen siendo exportables.
      */
     const detalles =
         detallesTodos.filter(
-            detalle =>
-                [
-                    'VALIDO',
-                    'EXPORTADO'
-                ].includes(
-                    texto(
-                        detalle.ESTADO_VALIDACION
-                    ).toUpperCase()
-                )
+            detalle => [
+                'VALIDO',
+                'EXPORTADO',
+                'EXISTE_ERP'
+            ].includes(
+                texto(
+                    detalle.ESTADO_VALIDACION
+                ).toUpperCase()
+            )
         );
 
 
     if (
         detalles.length === 0
     ) {
+
         throw new Error(
-            `El ID_ALTA ${idAlta} no tiene productos nuevos ` +
-            `con estado VALIDO/EXPORTADO para probar.`
+            `El ID_ALTA ${idAlta} no tiene detalles VALIDO/EXPORTADO/EXISTE_ERP para probar.`
         );
     }
 
 
-    const registrosPRODUCTOS =
-        detalles.map(
-            detalle =>
-                armarRegistroERP(
-                    alta,
-                    detalle
-                )
-        );
-
-
-    const registrosMODELOS =
-        armarRegistrosMODELOS(
-            alta,
-            detalles
-        );
-
-
-    const registrosPRIMERAS_SEGUNDAS =
-        armarRegistrosPRIMERAS_SEGUNDAS(
-            alta,
-            detalles
-        );
+    const relaciones =
+        await exportacionRepository
+            .obtenerRelacionesModuloPrimeraPrueba(
+                idAlta
+            );
 
 
     const registrosRELFORMU =
@@ -1401,47 +767,47 @@ async function main() {
         );
 
 
-    let registrosRELACION = [];
+    /*
+     * Si el Alta no contiene productos MODULO (por ejemplo PAR_SUELTO),
+     * RELFORMU y RELACION se generan igualmente con 0 registros.
+     * El escritor genérico conserva la estructura correcta del DBI.
+     */
 
 
-    if (
-        registrosRELFORMU.length > 0
-    ) {
-
-        const relaciones =
-            await exportacionRepository
-                .obtenerRelacionesModuloPrimeraPrueba(
-                    idAlta
-                );
-
-
-        const codigosModulosExportados =
-            new Set(
-                registrosRELFORMU.map(
-                    registro =>
-                        texto(
-                            registro.CA_ARTICUL
-                        )
-                )
-            );
-
-
-        const relacionesExportables =
-            relaciones.filter(
-                relacion =>
-                    codigosModulosExportados.has(
-                        texto(
-                            relacion.COD_ALFA_MODULO
-                        )
+    /*
+     * IMPORTANTE:
+     * RELACION debe incluir solamente módulos que realmente forman
+     * parte de RELFORMU / de la exportación.
+     *
+     * En lotes históricos puede haber módulos EXISTE_ERP dentro del
+     * mismo ID_ALTA. Esos módulos no deben aparecer en RELACION.
+     */
+    const codigosModulosExportados =
+        new Set(
+            registrosRELFORMU.map(
+                registro =>
+                    texto(
+                        registro.CA_ARTICUL
                     )
-            );
+            )
+        );
 
 
-        registrosRELACION =
-            armarRegistrosRELACION(
-                relacionesExportables
-            );
-    }
+    const relacionesExportables =
+        relaciones.filter(
+            relacion =>
+                codigosModulosExportados.has(
+                    texto(
+                        relacion.COD_ALFA_MODULO
+                    )
+                )
+        );
+
+
+    const registrosRELACION =
+        armarRegistrosRELACION(
+            relacionesExportables
+        );
 
 
     const carpeta =
@@ -1464,285 +830,80 @@ async function main() {
         `PRUEBA_ID_${idAlta}`;
 
 
-    const archivos = [];
-
-
-    const rutaPRODUCTOS =
+    const rutaRELFORMU =
         path.join(
             carpeta,
-            `PRODUCTOS_${sufijo}.DBI`
+            `RELFORMU_${sufijo}.DBI`
         );
 
 
-    generarDBI(
-        rutaPRODUCTOS,
-        registrosPRODUCTOS,
-        null,
-        true
+    const rutaRELACION =
+        path.join(
+            carpeta,
+            `RELACION_${sufijo}.DBI`
+        );
+
+
+    escribirDBFGenericoPermitiendoVacio(
+        rutaRELFORMU,
+        registrosRELFORMU,
+        camposRELFORMU
     );
 
 
-    archivos.push({
-        nombre: 'PRODUCTOS',
-        ruta: rutaPRODUCTOS,
-        cantidad: registrosPRODUCTOS.length,
-        nombreFTP:
-            texto(
-                process.env.FTP_REMOTE_FILENAME
-            ) ||
-            'ALTAS_PRODUCTOS.DBI'
-    });
-
-
-    const rutaMODELOS =
-        path.join(
-            carpeta,
-            `MODELOS_${sufijo}.DBI`
-        );
-
-
-    generarDBI(
-        rutaMODELOS,
-        registrosMODELOS,
-        camposMODELOS
+    escribirDBFGenericoPermitiendoVacio(
+        rutaRELACION,
+        registrosRELACION,
+        camposRELACION
     );
-
-
-    archivos.push({
-        nombre: 'MODELOS',
-        ruta: rutaMODELOS,
-        cantidad: registrosMODELOS.length,
-        nombreFTP:
-            texto(
-                process.env.FTP_REMOTE_FILENAME_MODELOS
-            ) ||
-            'MODELOS_VICBOR_TBL_PRODBASE.DBI'
-    });
-
-
-    const rutaPRIMERAS_SEGUNDAS =
-        path.join(
-            carpeta,
-            `PRIMERAS_SEGUNDAS_${sufijo}.DBI`
-        );
-
-
-    generarDBI(
-        rutaPRIMERAS_SEGUNDAS,
-        registrosPRIMERAS_SEGUNDAS,
-        camposPRIMERAS_SEGUNDAS
-    );
-
-
-    archivos.push({
-        nombre: 'PRIMERAS_SEGUNDAS',
-        ruta: rutaPRIMERAS_SEGUNDAS,
-        cantidad: registrosPRIMERAS_SEGUNDAS.length,
-        nombreFTP:
-            texto(
-                process.env.FTP_REMOTE_FILENAME_PRIMERAS_SEGUNDAS
-            ) ||
-            'PRIMERAS_SEGUNDAS_ATOMIK.DBI'
-    });
-
-
-    if (
-        registrosRELFORMU.length > 0
-    ) {
-
-        const rutaRELFORMU =
-            path.join(
-                carpeta,
-                `RELFORMU_${sufijo}.DBI`
-            );
-
-
-        generarDBI(
-            rutaRELFORMU,
-            registrosRELFORMU,
-            camposRELFORMU
-        );
-
-
-        archivos.push({
-            nombre: 'RELFORMU',
-            ruta: rutaRELFORMU,
-            cantidad: registrosRELFORMU.length,
-            nombreFTP:
-                texto(
-                    process.env.FTP_REMOTE_FILENAME_RELFORMU
-                ) ||
-                'PRODUCTOS_RELFORMU.DBI'
-        });
-
-
-        const rutaRELACION =
-            path.join(
-                carpeta,
-                `RELACION_${sufijo}.DBI`
-            );
-
-
-        generarDBI(
-            rutaRELACION,
-            registrosRELACION,
-            camposRELACION
-        );
-
-
-        archivos.push({
-            nombre: 'RELACION',
-            ruta: rutaRELACION,
-            cantidad: registrosRELACION.length,
-            nombreFTP:
-                texto(
-                    process.env.FTP_REMOTE_FILENAME_RELACION
-                ) ||
-                'PRODUCTOS_RELACION.DBI'
-        });
-    }
-
-
-    const resultadosFTP = [];
-
-
-    if (
-        enviarFTP
-    ) {
-
-        console.log('');
-        console.log('==============================================');
-        console.log(' ENVIANDO ARCHIVOS DE PRUEBA AL FTP');
-        console.log('==============================================');
-
-
-        for (
-            const archivo
-            of archivos
-        ) {
-
-            console.log(
-                `Subiendo ${archivo.nombre} -> ${archivo.nombreFTP}`
-            );
-
-
-            const resultadoFTP =
-                await ftpService
-                    .subirArchivo(
-                        archivo.ruta,
-                        path.basename(
-                            archivo.ruta
-                        ),
-                        archivo.nombreFTP
-                    );
-
-
-            resultadosFTP.push({
-                nombre:
-                    archivo.nombre,
-
-                nombreFTP:
-                    archivo.nombreFTP,
-
-                ...resultadoFTP
-            });
-
-
-            console.log(
-                `OK: ${archivo.nombreFTP}`
-            );
-        }
-
-
-        console.log('==============================================');
-        console.log('');
-    }
 
 
     console.log('');
-    console.log('====================================================');
-    console.log(
-        enviarFTP
-            ? ' PRUEBA COMPLETA DE DBI - CON ENVIO FTP'
-            : ' PRUEBA COMPLETA DE DBI - LOCAL / SIN FTP'
-    );
-    console.log('====================================================');
+    console.log('==============================================');
+    console.log(' PRUEBA DE EXPORTACION SIN IMPACTO');
+    console.log('==============================================');
     console.log(`ID_ALTA: ${idAlta}`);
-    console.log(`CODIGO_ALTA: ${alta.CODIGO_ALTA}`);
-    console.log(`Estado actual: ${alta.ESTADO}`);
-    console.log(`Tipo: ${alta.TIPO_PRODUCTO}`);
+    console.log(`Estado actual del Alta: ${alta.ESTADO}`);
+    console.log(`Tipo de Alta: ${alta.TIPO_PRODUCTO}`);
     console.log('');
-    console.log(
-        `Productos considerados nuevos: ${detalles.length} ` +
-        `(VALIDO/EXPORTADO)`
-    );
-    console.log(
-        `Productos EXISTE_ERP excluidos: ` +
-        `${detallesTodos.length - detalles.length}`
-    );
+    console.log(`RELFORMU: ${registrosRELFORMU.length} registro(s)`);
+    console.log(`  ${rutaRELFORMU}`);
     console.log('');
-
-
-    for (
-        const archivo
-        of archivos
-    ) {
-
-        console.log(
-            `${archivo.nombre}: ${archivo.cantidad} registro(s)`
-        );
-
-        console.log(
-            `  Local: ${archivo.ruta}`
-        );
-
-
-        if (
-            enviarFTP
-        ) {
-            console.log(
-                `  FTP:   ${archivo.nombreFTP}`
-            );
-        }
-
-
-        console.log('');
-    }
-
+    console.log(`RELACION: ${registrosRELACION.length} registro(s)`);
+    console.log(`  ${rutaRELACION}`);
 
     if (
-        registrosRELFORMU.length === 0
+        registrosRELFORMU.length === 0 &&
+        registrosRELACION.length === 0
     ) {
-        console.log(
-            'RELFORMU / RELACION: no corresponden porque no hay módulos nuevos.'
-        );
         console.log('');
+        console.log(
+            'Alta sin relaciones de MODULO: se generaron ambos DBI vacíos con su estructura.'
+        );
     }
-
-
-    console.log('IMPORTANTE:');
 
     if (
-        enviarFTP
+        relaciones.length !==
+        relacionesExportables.length
     ) {
+
         console.log(
-            `  - Se enviaron ${resultadosFTP.length} archivo(s) al FTP.`
-        );
-    } else {
-        console.log(
-            '  - NO se envió nada al FTP. Para enviarlos agregá --ftp.'
+            `  Relaciones excluidas por pertenecer a módulos no exportados: ` +
+            `${relaciones.length - relacionesExportables.length}`
         );
     }
-
-    console.log('  - NO se modificó el estado del Alta.');
-    console.log('  - NO se modificaron estados de detalle.');
-    console.log('  - NO se insertó ALTAS_PRODUCTOS_EXPORTADOS.');
-    console.log('  - COSTO del archivo PRODUCTOS = 0.001.');
-    console.log('====================================================');
+    console.log('');
+    console.log('NO se envió nada al FTP.');
+    console.log('NO se modificó el estado del Alta.');
+    console.log('NO se modificaron estados de detalle.');
+    console.log('NO se insertó ALTAS_PRODUCTOS_EXPORTADOS.');
+    console.log('==============================================');
     console.log('');
 
 
-    process.exit(0);
+    process.exit(
+        0
+    );
 }
 
 
@@ -1751,10 +912,16 @@ main()
         error => {
 
             console.error('');
-            console.error('ERROR PRUEBA EXPORTACION:');
-            console.error(error.stack || error.message);
+            console.error(
+                'ERROR PRUEBA EXPORTACION:'
+            );
+            console.error(
+                error.message
+            );
             console.error('');
 
-            process.exit(1);
+            process.exit(
+                1
+            );
         }
     );

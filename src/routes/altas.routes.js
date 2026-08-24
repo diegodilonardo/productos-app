@@ -191,6 +191,45 @@ router.get('/:id/exportacion/preview', async (req, res) => {
 
 
 /* ============================================================
+   EXPORTAR PREVIEW A EXCEL
+   ============================================================ */
+
+router.get('/:id/exportacion/preview-excel', async (req, res) => {
+    try {
+        const resultado =
+            await exportacionService.exportarPreviewExcel(
+                req.params.id
+            );
+
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${resultado.nombreArchivo}"`
+        );
+
+        res.setHeader(
+            'Content-Length',
+            resultado.buffer.length
+        );
+
+        res.end(
+            resultado.buffer
+        );
+
+    } catch (error) {
+        res.status(400).json({
+            ok: false,
+            mensaje: error.message
+        });
+    }
+});
+
+
+/* ============================================================
    EXPORTAR DBI
    ============================================================ */
 

@@ -6,14 +6,12 @@ const altasRoutes = require("./routes/altas.routes");
 const seguimientoRoutes = require("./routes/seguimiento.routes");
 const imagenesRoutes = require("./routes/imagenes.routes");
 const webRoutes = require("./routes/web.routes");
+const pedidosRoutes = require("./routes/pedidos.routes");
+const pedidosWebRoutes = require('./routes/pedidos.web.routes');
 
-const {
-  configurarHandlebars
-} = require("./config/handlebars");
-
+const { configurarHandlebars } = require("./config/handlebars");
 
 const app = express();
-
 
 /* ============================================================
    HANDLEBARS
@@ -21,20 +19,11 @@ const app = express();
 
 configurarHandlebars(app);
 
-
 /* ============================================================
    ARCHIVOS ESTÁTICOS
    ============================================================ */
 
-app.use(
-  express.static(
-    path.join(
-      process.cwd(),
-      "public"
-    )
-  )
-);
-
+app.use(express.static(path.join(process.cwd(), "public")));
 
 /* ============================================================
    JSON
@@ -45,10 +34,9 @@ app.use(
 
 app.use(
   express.json({
-    limit: "12mb"
-  })
+    limit: "12mb",
+  }),
 );
-
 
 /* ============================================================
    STATUS
@@ -66,92 +54,61 @@ app.get(
   },
 );
 
-
 /* ============================================================
    SEGUIMIENTOS
    ============================================================ */
 
-app.use(
-  "/api/seguimiento",
-  seguimientoRoutes
-);
-
+app.use("/api/seguimiento", seguimientoRoutes);
 
 /* ============================================================
    MAESTROS
    ============================================================ */
 
-app.use(
-  "/api/maestros",
-  maestrosRoutes
-);
-
+app.use("/api/maestros", maestrosRoutes);
 
 /* ============================================================
    ALTAS PRODUCTOS
    ============================================================ */
 
-app.use(
-  "/api/altas",
-  altasRoutes
-);
-
+app.use("/api/altas", altasRoutes);
 
 /* ============================================================
    IMÁGENES PRODUCTOS
    ============================================================ */
 
-app.use(
-  "/api/imagenes",
-  imagenesRoutes
-);
-
+app.use("/api/imagenes", imagenesRoutes);
 
 /* ============================================================
    RUTAS WEB
    IMPORTANTE:
    Deben ir ANTES del 404.
    ============================================================ */
-
-app.use(
-  "/",
-  webRoutes
-);
-
+app.use('/', pedidosWebRoutes);
+app.use("/", webRoutes);
 
 /* ============================================================
    404
    ============================================================ */
 
-app.use(
-  (req, res) => {
+app.use('/api/pedidos', pedidosRoutes);
 
-    /*
-     * Si el usuario pidió una API inexistente,
-     * respondemos JSON.
-     */
-    if (
-      req.originalUrl.startsWith("/api/")
-    ) {
-      return res
-        .status(404)
-        .json({
-          ok: false,
-          mensaje: "Ruta no encontrada.",
-        });
-    }
-
-    /*
-     * Para rutas web inexistentes dejamos
-     * una respuesta simple por ahora.
-     */
-    return res
-      .status(404)
-      .send(
-        "Página no encontrada."
-      );
+app.use((req, res) => {
+  /*
+   * Si el usuario pidió una API inexistente,
+   * respondemos JSON.
+   */
+  if (req.originalUrl.startsWith("/api/")) {
+    return res.status(404).json({
+      ok: false,
+      mensaje: "Ruta no encontrada.",
+    });
   }
-);
 
+  /*
+   * Para rutas web inexistentes dejamos
+   * una respuesta simple por ahora.
+   */
+  return res.status(404).send("Página no encontrada.");
+});
 
 module.exports = app;

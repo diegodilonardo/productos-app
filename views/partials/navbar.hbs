@@ -79,6 +79,35 @@
 
         <li class="nav-item">
           <a
+            id="navNuevoPedido"
+            class="nav-link app-navbar-link"
+            href="/pedidos/nuevo"
+          >
+            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.5"></circle>
+              <path d="M12 8v8M8 12h8"></path>
+              <path d="M8.5 5.2h7"></path>
+            </svg>
+            <span>Nuevo Pedido</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a
+            id="navPedidos"
+            class="nav-link app-navbar-link {{#if (eq pagina 'pedidos')}}active{{/if}}"
+            href="/pedidos"
+          >
+            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h14v12H5z"></path>
+              <path d="M8 7V5h8v2M8 11h8M8 15h5"></path>
+            </svg>
+            <span>Pedidos</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a
             class="nav-link app-navbar-link {{#if (eq pagina 'seguimiento')}}active{{/if}}"
             href="/seguimiento"
           >
@@ -102,3 +131,19 @@
 
   </div>
 </nav>
+
+<script>
+(function () {
+  var path = window.location.pathname || '';
+  var nuevo = document.getElementById('navNuevoPedido');
+  var pedidos = document.getElementById('navPedidos');
+
+  if (path === '/pedidos/nuevo' || path.indexOf('/pedidos/nuevo/') === 0) {
+    if (pedidos) pedidos.classList.remove('active');
+    if (nuevo) nuevo.classList.add('active');
+  } else if (path === '/pedidos' || /^\/pedidos\/\d+/.test(path)) {
+    if (nuevo) nuevo.classList.remove('active');
+    if (pedidos) pedidos.classList.add('active');
+  }
+})();
+</script>

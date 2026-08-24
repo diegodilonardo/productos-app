@@ -107,21 +107,27 @@ function configurarTipoProducto() {
   const clas = document.getElementById('contenedorClasificacion');
   const mod = document.getElementById('contenedorModulo');
   const talle = document.getElementById('contenedorTalle');
+  const proveedor =
+    document.getElementById(
+      'contenedorProveedor'
+    );
 
   if (tipo === 'MODULO') {
     clas.classList.remove('d-none');
     mod.classList.remove('d-none');
     talle.classList.add('d-none');
+    proveedor?.classList.remove('d-none');
+
     document.getElementById('codigoClasificacion').required = true;
     document.getElementById('codigoModulo').required = true;
-    document.getElementById('codigoTalle').required = false;
   } else {
     clas.classList.add('d-none');
     mod.classList.add('d-none');
     talle.classList.remove('d-none');
+    proveedor?.classList.remove('d-none');
+
     document.getElementById('codigoClasificacion').required = false;
     document.getElementById('codigoModulo').required = false;
-    document.getElementById('codigoTalle').required = true;
   }
 }
 
@@ -261,6 +267,31 @@ async function cargarMaestros() {
   colores = listaColores;
   pintarColores(colores);
 
+  const rubroProveedor =
+    encodeURIComponent(
+      altaActual.DETALLE_RUBRO ??
+      altaActual.detalleRubro ??
+      ''
+    );
+
+  const proveedores =
+    await obtenerListado([
+      `/api/maestros/proveedores?rubro=${rubroProveedor}`
+    ]);
+
+  inicializarBuscadorMaestro({
+    clave: 'Proveedor',
+    lista: proveedores,
+    campoCodigo: [
+      'CODIGO',
+      'codigo'
+    ],
+    campoDetalle: [
+      'NVA_RAZON_SOCIAL',
+      'nvaRazonSocial'
+    ]
+  });
+
   if (normalizarTipo(altaActual.TIPO_PRODUCTO) === 'MODULO') {
     modulos = await obtenerListado([
       '/api/maestros/talles-modulos',
@@ -289,18 +320,8 @@ async function cargarMaestros() {
         altaActual.codigoRubro
       );
 
-    cargarSelect(
-      'codigoTalle',
-      tallesFiltrados,
-
-      // IMPORTANTE:
-      // enviamos siempre el CODIGO_TALLE real al backend.
-      ['CODIGO_TALLE', 'codigoTalle'],
-
-      // Al usuario le mostramos el DETALLE_TALLE.
-      ['DETALLE_TALLE', 'detalleTalle'],
-
-      'Seleccionar talle...'
+    pintarTallesParSuelto(
+      tallesFiltrados
     );
   }
 }
@@ -1697,6 +1718,8 @@ function filtrarTallesParSueltoPorRubro(
       'T_XL',
       'T_2X',
       'T_3X',
+      'T_2XL',
+      'T_3XL',
       'T_00'
     ]);
 
@@ -1708,7 +1731,9 @@ function filtrarTallesParSueltoPorRubro(
       'T_L',
       'T_XL',
       'T_2X',
-      'T_3X'
+      'T_3X',
+      'T_2XL',
+      'T_3XL'
     ]);
 
   const permitidosAccesorios =
@@ -1723,7 +1748,13 @@ function filtrarTallesParSueltoPorRubro(
       'L',
       'XL',
       '2X',
-      '3X'
+      '3X',
+      '2XL',
+      '3XL',
+      'T_2X',
+      'T_3X',
+      'T_2XL',
+      'T_3XL'
     ]);
 
   const permitidosPop =
@@ -2234,6 +2265,15 @@ function limpiarBuscadorMaestro(clave) {
 function validarBuscadoresMaestro() {
   const campos = [
     {
+      clave: 'Proveedor',
+      id: 'codigoProveedor',
+      mensaje:
+        'Debe seleccionar un proveedor.'
+    }
+  ];
+
+  campos.push(
+    {
       clave: 'Grupo',
       id: 'codigoGrupo',
       mensaje:
@@ -2275,7 +2315,7 @@ function validarBuscadoresMaestro() {
       mensaje:
         'Debe seleccionar un país.'
     }
-  ];
+  );
 
   for (const campo of campos) {
     if (!valor(campo.id)) {
@@ -2298,9 +2338,237 @@ function validarBuscadoresMaestro() {
 }
 
 
-function pintarColores(lista) {
-  const contenedor = document.getElementById('listaColores');
+
+function pintarTallesParSuelto(lista) {
+  const contenedor =
+    document.getElementById('listaTalles');
+
+  if (!contenedor) return;
+
   contenedor.innerHTML = '';
+
+  for (const fila of (Array.isArray(lista) ? lista : [])) {
+    const codigo =
+      obtenerCampo(
+        fila,
+        ['CODIGO_TALLE', 'codigoTalle']
+      );
+
+    const detalle =
+      obtenerCampo(
+        fila,
+        ['DETALLE_TALLE', 'detalleTalle']
+      );
+
+    if (
+      codigo === undefined ||
+      codigo === null ||
+      String(codigo).trim() === ''
+    ) {
+      continue;
+    }
+
+    const codigoTexto =
+      String(codigo).trim();
+
+    const detalleTexto =
+      String(
+        detalle ?? codigoTexto
+      ).trim();
+
+    const div =
+      document.createElement('div');
+
+    div.className =
+      'form-check talle-item';
+
+    const input =
+      document.createElement('input');
+
+    input.className =
+      'form-check-input talle-check';
+
+    input.type =
+      'checkbox';
+
+    input.value =
+      codigoTexto;
+
+    input.id =
+      `talle_${codigoTexto.replace(/[^A-Za-z0-9_-]/g, '_')}`;
+
+    input.addEventListener(
+      'change',
+      actualizarCantidadTalles
+    );
+
+    const label =
+      document.createElement('label');
+
+    label.className =
+      'form-check-label';
+
+    label.htmlFor =
+      input.id;
+
+    label.textContent =
+      detalleTexto;
+
+    div.append(
+      input,
+      label
+    );
+
+    contenedor.appendChild(
+      div
+    );
+  }
+
+  actualizarCantidadTalles();
+}
+
+
+function obtenerTallesSeleccionados() {
+  return [
+    ...document.querySelectorAll(
+      '.talle-check:checked'
+    )
+  ]
+    .map(
+      input =>
+        String(input.value || '').trim()
+    )
+    .filter(Boolean);
+}
+
+
+function pintarResumenTallesSeleccionados() {
+  const contenedor =
+    document.getElementById(
+      'tallesSeleccionadosResumen'
+    );
+
+  if (!contenedor) return;
+
+  const seleccionados =
+    [
+      ...document.querySelectorAll(
+        '#listaTalles .talle-check:checked'
+      )
+    ];
+
+  contenedor.innerHTML = '';
+
+  for (const input of seleccionados) {
+    const label =
+      document.querySelector(
+        `label[for="${CSS.escape(input.id)}"]`
+      );
+
+    const texto =
+      String(
+        label?.textContent ||
+        input.value ||
+        ''
+      ).trim();
+
+    if (!texto) continue;
+
+    const badge =
+      document.createElement('button');
+
+    badge.type =
+      'button';
+
+    badge.className =
+      'badge rounded-pill text-bg-primary px-3 py-2 border-0';
+
+    badge.title =
+      `Quitar ${texto}`;
+
+    badge.setAttribute(
+      'aria-label',
+      `Quitar talle ${texto}`
+    );
+
+    badge.innerHTML =
+      `${escapar(texto)} <span aria-hidden="true">×</span>`;
+
+    badge.addEventListener(
+      'click',
+      () => {
+        input.checked = false;
+        actualizarCantidadTalles();
+      }
+    );
+
+    contenedor.appendChild(
+      badge
+    );
+  }
+}
+
+
+function actualizarCantidadTalles() {
+  const cantidad =
+    obtenerTallesSeleccionados().length;
+
+  const badge =
+    document.getElementById(
+      'cantidadTalles'
+    );
+
+  if (badge) {
+    badge.textContent =
+      `${cantidad} seleccionado${cantidad === 1 ? '' : 's'}`;
+  }
+
+  pintarResumenTallesSeleccionados();
+}
+
+
+function seleccionarTodosTalles() {
+  document
+    .querySelectorAll('.talle-check')
+    .forEach(
+      item =>
+        item.checked = true
+    );
+
+  actualizarCantidadTalles();
+}
+
+
+function limpiarTallesSeleccionados() {
+  document
+    .querySelectorAll('.talle-check')
+    .forEach(
+      item =>
+        item.checked = false
+    );
+
+  actualizarCantidadTalles();
+}
+
+
+function pintarColores(lista) {
+  const contenedor =
+    document.getElementById('listaColores');
+
+  const seleccionados =
+    new Set(
+      [
+        ...document.querySelectorAll(
+          '#listaColores .color-check:checked'
+        )
+      ].map(
+        input =>
+          String(input.value || '').trim()
+      )
+    );
+
+  contenedor.innerHTML = '';
+
   for (const fila of lista) {
     const codigo = obtenerCampo(fila, ['CODIGO_COLOR','codigoColor']);
     const detalle = obtenerCampo(fila, ['DETALLE_COLOR','detalleColor']);
@@ -2315,6 +2583,11 @@ function pintarColores(lista) {
     input.type = 'checkbox';
     input.value = codigo;
     input.id = `color_${codigo}`;
+    input.checked =
+      seleccionados.has(
+        String(codigo).trim()
+      );
+
     input.addEventListener(
       'change',
       () => {
@@ -2331,18 +2604,117 @@ function pintarColores(lista) {
     div.append(input, label);
     contenedor.appendChild(div);
   }
+
+  actualizarCantidadColores();
 }
 
+function pintarResumenColoresSeleccionados() {
+  const contenedor =
+    document.getElementById(
+      'coloresSeleccionadosResumen'
+    );
+
+  if (!contenedor) return;
+
+  const seleccionados =
+    [
+      ...document.querySelectorAll(
+        '#listaColores .color-check:checked'
+      )
+    ];
+
+  contenedor.innerHTML = '';
+
+  for (const input of seleccionados) {
+    const label =
+      document.querySelector(
+        `label[for="${CSS.escape(input.id)}"]`
+      );
+
+    const texto =
+      String(
+        label?.textContent ||
+        input.value ||
+        ''
+      ).trim();
+
+    if (!texto) continue;
+
+    const badge =
+      document.createElement('button');
+
+    badge.type =
+      'button';
+
+    badge.className =
+      'badge rounded-pill text-bg-primary px-3 py-2 border-0';
+
+    badge.title =
+      `Quitar ${texto}`;
+
+    badge.setAttribute(
+      'aria-label',
+      `Quitar color ${texto}`
+    );
+
+    badge.innerHTML =
+      `${escapar(texto)} <span aria-hidden="true">×</span>`;
+
+    badge.addEventListener(
+      'click',
+      () => {
+        input.checked = false;
+        actualizarCantidadColores();
+        actualizarImagenesProducto();
+      }
+    );
+
+    contenedor.appendChild(
+      badge
+    );
+  }
+}
+
+
 function actualizarCantidadColores() {
-  const cantidad = document.querySelectorAll('.color-check:checked').length;
-  document.getElementById('cantidadColores').textContent = `${cantidad} seleccionado${cantidad === 1 ? '' : 's'}`;
+  const cantidad =
+    document.querySelectorAll(
+      '#listaColores .color-check:checked'
+    ).length;
+
+  document
+    .getElementById('cantidadColores')
+    .textContent =
+      `${cantidad} seleccionado${cantidad === 1 ? '' : 's'}`;
+
+  pintarResumenColoresSeleccionados();
 }
 
 function filtrarColores() {
-  const texto = document.getElementById('buscarColor').value.trim().toUpperCase();
-  document.querySelectorAll('.app-color-item').forEach(item => {
-    item.classList.toggle('d-none', Boolean(texto) && !item.dataset.texto.includes(texto));
-  });
+  const buscador =
+    document.getElementById('buscarColor');
+
+  const texto =
+    normalizarBusqueda(
+      buscador?.value || ''
+    );
+
+  document
+    .querySelectorAll(
+      '#listaColores .app-color-item'
+    )
+    .forEach(item => {
+      const textoItem =
+        normalizarBusqueda(
+          item.dataset.texto || ''
+        );
+
+      item.classList.toggle(
+        'd-none',
+        Boolean(texto) &&
+        !textoItem.includes(texto)
+      );
+    });
 }
 
 function configurarEventos() {
@@ -2380,6 +2752,20 @@ function configurarEventos() {
     ?.addEventListener(
       'click',
       limpiarModuloSeleccionado
+    );
+
+  document
+    .getElementById('btnSeleccionarTodosTalles')
+    ?.addEventListener(
+      'click',
+      seleccionarTodosTalles
+    );
+
+  document
+    .getElementById('btnLimpiarTalles')
+    ?.addEventListener(
+      'click',
+      limpiarTallesSeleccionados
     );
 
   document.getElementById('formProducto').addEventListener('submit', agregarProducto);
@@ -2458,6 +2844,7 @@ async function agregarProducto(event) {
 
   const payload = {
     codigoModelo: valor('codigoModelo'),
+    codigoProveedor: valor('codigoProveedor'),
     codigoGrupo: valor('codigoGrupo'),
     codigoSubgrupo: valor('codigoSubgrupo'),
     codigoLinea: valor('codigoLinea'),
@@ -2513,7 +2900,29 @@ async function agregarProducto(event) {
     payload.codigoModulo = valor('codigoModulo');
 
   } else {
-    payload.codigoTalle = valor('codigoTalle');
+    const codigosTalle =
+      obtenerTallesSeleccionados();
+
+    if (!codigosTalle.length) {
+      mostrarAlerta(
+        'Debe seleccionar al menos un talle.',
+        'warning'
+      );
+      return;
+    }
+
+    /*
+      PAR_SUELTO:
+      aprovechamos el formato lote que el backend ya soporta.
+      Cada talle se envía como una solicitud individual dentro
+      de la misma transacción.
+
+      Ejemplo:
+      2 colores x 5 talles = 10 variantes principales.
+      Cada variante conserva la regla PRIMERA + SEGUNDA.
+    */
+    payload.codigosTalle =
+      codigosTalle;
   }
 
   const btn = document.getElementById('btnAgregarProducto');
@@ -2522,10 +2931,44 @@ async function agregarProducto(event) {
     btn.disabled = true;
     btn.textContent = 'Generando...';
 
+    const tipoActual =
+      normalizarTipo(
+        altaActual.TIPO_PRODUCTO
+      );
+
+    let cuerpoPeticion =
+      payload;
+
+    if (tipoActual === 'PAR_SUELTO') {
+      const codigosTalle =
+        Array.isArray(payload.codigosTalle)
+          ? payload.codigosTalle
+          : [];
+
+      const baseProducto = {
+        ...payload
+      };
+
+      delete baseProducto.codigosTalle;
+
+      cuerpoPeticion = {
+        usuario:
+          payload.usuario,
+
+        productos:
+          codigosTalle.map(
+            codigoTalle => ({
+              ...baseProducto,
+              codigoTalle
+            })
+          )
+      };
+    }
+
     const resultado = extraerDatos(await apiJson(`/api/altas/${ID_ALTA}/detalle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(cuerpoPeticion)
     }));
 
     const cantidad =
@@ -2613,8 +3056,26 @@ async function agregarProducto(event) {
       );
     }
 
-    document.querySelectorAll('.color-check').forEach(item => item.checked = false);
+    /*
+      Después de agregar un producto mantenemos la selección actual:
+      - COLORES: tanto en MODULO como en PAR_SUELTO.
+      - TALLES: en PAR_SUELTO.
+      - CURVA/MODULO: ya se conserva por la lógica existente.
+
+      Esto permite agregar nuevas variantes sin volver a seleccionar
+      las mismas opciones en cada operación.
+    */
+    const buscarColor =
+      document.getElementById('buscarColor');
+
+    if (buscarColor) {
+      buscarColor.value = '';
+      filtrarColores();
+    }
+
     actualizarCantidadColores();
+    actualizarCantidadTalles();
+
     actualizarImagenesProducto();
     await cargarAlta();
 

@@ -526,6 +526,27 @@ function obtenerRubroCodigoAlfaHijoModulo(
 }
 
 
+function normalizarTalleCodigoAlfa(detalleTalle) {
+
+    const talle =
+        normalizarTexto(detalleTalle)
+            .toUpperCase();
+
+    const equivalencias = {
+        S: '0S',
+        M: '0M',
+        L: '0L',
+        '2XL': '2X',
+        '3XL': '3X'
+    };
+
+    return (
+        equivalencias[talle] ||
+        talle
+    );
+}
+
+
 function construirCodigoAlfa({
     alta,
     modelo,
@@ -545,7 +566,9 @@ function construirCodigoAlfa({
     const ultimoSegmento =
         tipoProducto === 'MODULO'
             ? codigoModulo
-            : detalleTalle;
+            : normalizarTalleCodigoAlfa(
+                detalleTalle
+            );
 
     const segmentoRubro =
         normalizarTexto(codigoRubroCodAlfa) ||

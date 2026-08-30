@@ -29,8 +29,25 @@ async function cargarAltas() {
     btn.disabled = true;
     btn.textContent = 'Actualizando...';
 
+    const idEmpresa =
+      obtenerEmpresaActivaAltas();
+
+    if (!idEmpresa) {
+      throw new Error(
+        'Debe seleccionar una empresa desde la barra superior.'
+      );
+    }
+
     const response =
-      await fetch('/api/altas');
+      await fetch(
+        '/api/altas',
+        {
+          headers: {
+            Accept: 'application/json',
+            'x-id-empresa': String(idEmpresa)
+          }
+        }
+      );
 
     let data = null;
 
@@ -60,6 +77,23 @@ async function cargarAltas() {
     btn.disabled = false;
     btn.textContent = 'Actualizar';
   }
+}
+
+function obtenerEmpresaActivaAltas() {
+  const idEmpresa =
+    Number(
+      sessionStorage.getItem(
+        'app.idEmpresa'
+      ) ||
+      sessionStorage.getItem(
+        'pedidos.idEmpresa'
+      )
+    );
+
+  return Number.isInteger(idEmpresa) &&
+    idEmpresa > 0
+    ? idEmpresa
+    : null;
 }
 
 function normalizarListaAltas(data) {

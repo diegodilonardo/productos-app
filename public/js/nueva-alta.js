@@ -20,6 +20,58 @@ const ENDPOINTS = {
 let altaCreada = null;
 
 
+function obtenerEmpresaActivaNuevaAlta() {
+
+    const idEmpresa =
+        Number(
+            sessionStorage.getItem(
+                'app.idEmpresa'
+            ) ||
+            sessionStorage.getItem(
+                'pedidos.idEmpresa'
+            )
+        );
+
+
+    return Number.isInteger(idEmpresa) &&
+        idEmpresa > 0
+        ? idEmpresa
+        : null;
+}
+
+
+function fetchEmpresaNuevaAlta(
+    url,
+    opciones = {}
+) {
+
+    const idEmpresa =
+        obtenerEmpresaActivaNuevaAlta();
+
+
+    if (!idEmpresa) {
+        throw new Error(
+            'Debe seleccionar una empresa desde la barra superior.'
+        );
+    }
+
+
+    return fetch(
+        url,
+        {
+            ...opciones,
+
+            headers: {
+                ...(opciones.headers || {}),
+
+                'x-id-empresa':
+                    String(idEmpresa),
+            },
+        }
+    );
+}
+
+
 document.addEventListener(
     'DOMContentLoaded',
     async () => {
@@ -194,7 +246,7 @@ async function cargarMaestrosIniciales() {
 async function obtenerMaestro(url) {
 
     const response =
-        await fetch(url);
+        await fetchEmpresaNuevaAlta(url);
 
 
     let data = null;
@@ -714,7 +766,7 @@ async function crearAlta(event) {
 
 
         const response =
-            await fetch(
+            await fetchEmpresaNuevaAlta(
                 ENDPOINTS.crearAlta,
                 {
                     method:

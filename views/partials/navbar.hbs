@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg navbar-dark app-navbar">
+<nav class="navbar navbar-expand-xl navbar-dark app-navbar">
   <div class="container-fluid app-navbar-container">
 
     <a
@@ -17,15 +17,15 @@
       </span>
     </a>
 
-    <div id="navbarBrandContext" class="app-navbar-brand-context d-none d-xl-flex">
+    <div id="navbarBrandContext" class="app-navbar-brand-context d-none">
       <select
         id="navbarEmpresaSelector"
         class="form-select form-select-sm app-navbar-company-selector d-none"
         aria-label="Empresa activa"
       ></select>
 
-      <span id="navbarEmpresa" class="app-navbar-company"></span>
-      <span id="navbarMarcas" class="app-navbar-brand-list"></span>
+      <span id="navbarEmpresa" class="app-navbar-company d-none d-xxl-inline"></span>
+      <span id="navbarMarcas" class="app-navbar-brand-list d-none d-xxl-flex"></span>
     </div>
 
     {{#unless (eq pagina 'login')}}
@@ -131,11 +131,6 @@
       </ul>
 
       <div class="app-navbar-right">
-        <div class="app-navbar-system d-none d-xl-flex">
-          <span class="app-navbar-system-dot" aria-hidden="true"></span>
-          <span>SQL Server · Presea</span>
-        </div>
-
         <div id="navbarSesion" class="app-navbar-session d-none">
           <a href="/perfil" class="app-navbar-user text-decoration-none" title="Mi perfil">
             <span id="navbarUsuario" class="app-navbar-user-name"></span>

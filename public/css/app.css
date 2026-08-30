@@ -574,6 +574,9 @@ main .progress {
     --app-navbar-border: rgba(255, 255, 255, .10);
 
     min-height: 68px;
+    position: sticky;
+    top: 0;
+    z-index: 1030;
     padding: 0;
     border-bottom: 1px solid rgba(255, 255, 255, .07);
     background:
@@ -2103,9 +2106,12 @@ main .progress {
 }
 
 .app-navbar-brand-chip.has-logo {
-    min-width: 54px;
-    max-width: 112px;
+    min-width: 104px;
+    max-width: 148px;
+    min-height: 38px;
+    padding: 3px 8px;
     justify-content: center;
+    overflow: hidden;
 }
 
 .app-navbar-brand-chip.has-logo .app-navbar-brand-name {
@@ -2113,17 +2119,59 @@ main .progress {
 }
 
 .app-navbar-brand-logo {
-    max-width: 76px;
-    height: 18px;
+    flex: 0 0 auto;
+    width: 138px;
+    max-width: none;
+    height: 138px;
     object-fit: contain;
+    object-position: center;
+}
+
+.app-navbar-brand-chip.marca-montagne {
+    border-color: rgba(255, 255, 255, .28);
+    background: #eef1f4;
+}
+
+.app-navbar-brand-chip.marca-montagne .app-navbar-brand-logo {
+    width: 132px;
+    height: 132px;
 }
 
 @media (max-width: 1399.98px) {
+    .app-navbar-brand-context {
+        flex: 1 1 auto;
+        margin-right: 12px;
+    }
+
+    .app-navbar-company-selector {
+        width: min(160px, 100%);
+        min-width: 112px;
+    }
+
     .app-navbar-brand-chip {
         max-width: 100px;
     }
 
     .app-navbar-brand-logo {
-        max-width: 62px;
+        width: 126px;
+        height: 126px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .app-navbar-brand {
+        gap: 8px;
+        margin-right: 8px;
+    }
+
+    .app-navbar-brand-context {
+        margin-right: 8px;
+    }
+
+    .app-navbar-company-selector {
+        width: min(124px, 100%);
+        min-width: 96px;
+        padding-left: 8px;
+        font-size: 10px;
     }
 }

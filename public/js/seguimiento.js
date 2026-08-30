@@ -1,8 +1,17 @@
 document.addEventListener('DOMContentLoaded', iniciarSeguimiento);
 
 let altasSeguimiento = [];
+let idEmpresaSeguimiento = null;
 
 async function iniciarSeguimiento() {
+  window.addEventListener(
+    'app:empresa-cambiada',
+    actualizarEmpresaSeguimiento
+  );
+
+  idEmpresaSeguimiento =
+    obtenerEmpresaActivaSeguimiento();
+
   document
     .getElementById('btnActualizarSeguimiento')
     .addEventListener('click', cargarTodo);
@@ -30,6 +39,35 @@ async function iniciarSeguimiento() {
   }
 
   await cargarTodo();
+}
+
+function obtenerEmpresaActivaSeguimiento() {
+  const idEmpresa =
+    Number(
+      sessionStorage.getItem(
+        'app.idEmpresa'
+      ) ||
+      sessionStorage.getItem(
+        'pedidos.idEmpresa'
+      )
+    );
+
+  return Number.isInteger(idEmpresa) &&
+    idEmpresa > 0
+    ? idEmpresa
+    : null;
+}
+
+function actualizarEmpresaSeguimiento(event) {
+  event.preventDefault();
+
+  idEmpresaSeguimiento =
+    Number(
+      event.detail?.idEmpresa
+    ) || null;
+
+  altasSeguimiento = [];
+  cargarTodo();
 }
 
 async function cargarTodo() {
@@ -61,7 +99,18 @@ async function cargarTodo() {
 }
 
 async function apiSeguimiento(url) {
-  const response = await fetch(url);
+  const response = await fetch(
+    url,
+    idEmpresaSeguimiento
+      ? {
+          headers: {
+            Accept: 'application/json',
+            'x-id-empresa':
+              String(idEmpresaSeguimiento)
+          }
+        }
+      : undefined
+  );
 
   let data = null;
   try { data = await response.json(); } catch {}

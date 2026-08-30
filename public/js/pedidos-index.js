@@ -5,6 +5,11 @@ let idEmpresaPedido = null;
 let accesoEmpresaPedido = null;
 
 async function iniciarPedidos() {
+  window.addEventListener(
+    'app:empresa-cambiada',
+    actualizarEmpresaPedidos
+  );
+
   document.getElementById('btnActualizarPedidos')?.addEventListener('click', cargarPedidos);
   document.getElementById('buscarPedido')?.addEventListener('input', pintarPedidosFiltrados);
   document.getElementById('filtroEstadoPedido')?.addEventListener('change', pintarPedidosFiltrados);
@@ -17,6 +22,50 @@ async function iniciarPedidos() {
   } catch (e) {
     mostrarAlerta(e.message, 'danger');
   }
+}
+
+async function actualizarEmpresaPedidos(event) {
+  event.preventDefault();
+
+  idEmpresaPedido =
+    Number(
+      event.detail?.idEmpresa
+    ) || null;
+
+  accesoEmpresaPedido =
+    (contextoUsuario?.empresas || []).find(
+      item =>
+        Number(item.idEmpresa) ===
+        idEmpresaPedido
+    ) || null;
+
+  const selector =
+    document.getElementById(
+      'selectorEmpresaPedido'
+    );
+
+  if (selector) {
+    selector.value =
+      idEmpresaPedido
+        ? String(idEmpresaPedido)
+        : '';
+  }
+
+  if (!idEmpresaPedido) {
+    return;
+  }
+
+  sessionStorage.setItem(
+    'pedidos.idEmpresa',
+    String(idEmpresaPedido)
+  );
+
+  pedidos = [];
+  pintarMetricas();
+  pintarPedidosFiltrados();
+  actualizarPermisosVisuales();
+
+  await cargarPedidos();
 }
 
 async function api(url, opciones) {

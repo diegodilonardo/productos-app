@@ -3,6 +3,11 @@ let altasCargadas = [];
 document.addEventListener('DOMContentLoaded', iniciarPantallaAltas);
 
 async function iniciarPantallaAltas() {
+  window.addEventListener(
+    'app:empresa-cambiada',
+    actualizarEmpresaAltas
+  );
+
   document
     .getElementById('btnActualizarAltas')
     .addEventListener('click', cargarAltas);
@@ -17,6 +22,15 @@ async function iniciarPantallaAltas() {
 
   mostrarMensajeGuardado();
   await cargarAltas();
+}
+
+function actualizarEmpresaAltas(event) {
+  event.preventDefault();
+
+  altasCargadas = [];
+  pintarContadores();
+  pintarAltasFiltradas();
+  cargarAltas();
 }
 
 async function cargarAltas() {

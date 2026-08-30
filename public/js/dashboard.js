@@ -14,6 +14,11 @@ document.addEventListener(
     'DOMContentLoaded',
     async () => {
 
+        window.addEventListener(
+            'app:empresa-cambiada',
+            actualizarEmpresaDashboard
+        );
+
         const btnActualizar =
             document.getElementById(
                 'btnActualizar'
@@ -37,6 +42,18 @@ document.addEventListener(
         }
     }
 );
+
+
+function actualizarEmpresaDashboard(event) {
+    event.preventDefault();
+
+    ID_EMPRESA_DASHBOARD =
+        Number(
+            event.detail?.idEmpresa
+        ) || null;
+
+    cargarDashboard();
+}
 
 
 async function resolverEmpresaActiva() {

@@ -120,7 +120,7 @@ router.get('/pedidos', (req, res) => {
     title: 'Pedidos',
     pagina: 'pedidos',
     style: '/css/pedidos.css',
-    script: '/js/pedidos-index.js',
+    script: '/js/pedidos-index.js?v=2',
   });
 });
 

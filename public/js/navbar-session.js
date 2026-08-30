@@ -161,12 +161,37 @@ function cambiarEmpresaNavbar(event) {
     idEmpresa
   );
 
+  if (navbarContextoUsuario) {
+    pintarSesion(
+      navbarContextoUsuario
+    );
+  }
+
   /*
-   * Recargamos la pantalla actual.
-   * Cada módulo vuelve a pedir sus datos
-   * usando la nueva empresa activa.
+   * Las pantallas migradas actualizan únicamente
+   * sus datos y conservan el navbar montado.
+   * Las pantallas todavía no migradas mantienen
+   * la recarga completa como respaldo seguro.
    */
-  window.location.reload();
+  const cambioEmpresa =
+    new CustomEvent(
+      'app:empresa-cambiada',
+      {
+        cancelable: true,
+        detail: {
+          idEmpresa
+        }
+      }
+    );
+
+  const actualizarSinRecarga =
+    !window.dispatchEvent(
+      cambioEmpresa
+    );
+
+  if (!actualizarSinRecarga) {
+    window.location.reload();
+  }
 }
 
 function guardarEmpresaActiva(
@@ -467,6 +492,18 @@ function marcaVisual(
       0
     );
 
+  const logoConocido =
+    obtenerLogoMarcaConocida(
+      codigo,
+      detalle
+    );
+
+  const claseMarca =
+    obtenerClaseVisualMarca(
+      codigo,
+      detalle
+    );
+
   const logoEmpresa =
     codigo && idEmpresa
       ? (
@@ -487,7 +524,7 @@ function marcaVisual(
     codigo
       ? (
           `<img class="app-navbar-brand-logo" ` +
-          `src="${escNavbar(logoEmpresa || logoGlobal)}" ` +
+          `src="${escNavbar(logoConocido || logoEmpresa || logoGlobal)}" ` +
           `data-fallback="${escNavbar(logoGlobal)}" ` +
           `alt="${escNavbar(detalle)}" ` +
           `onload="this.closest('.app-navbar-brand-chip')?.classList.add('has-logo')" ` +
@@ -496,11 +533,65 @@ function marcaVisual(
       : '';
 
   return (
-    '<span class="app-navbar-brand-chip">' +
+    `<span class="app-navbar-brand-chip ${claseMarca}">` +
       img +
       `<span class="app-navbar-brand-name">${escNavbar(detalle)}</span>` +
     '</span>'
   );
+}
+
+function obtenerClaseVisualMarca(
+  codigo,
+  detalle
+) {
+  const identidad =
+    `${codigo} ${detalle}`
+      .trim()
+      .toUpperCase();
+
+  if (identidad.includes('ATOMIK')) {
+    return 'marca-atomik';
+  }
+
+  if (identidad.includes('MONTAGNE')) {
+    return 'marca-montagne';
+  }
+
+  if (
+    identidad.includes('47 STREET') ||
+    identidad.includes('47_STREET')
+  ) {
+    return 'marca-47-street';
+  }
+
+  return '';
+}
+
+function obtenerLogoMarcaConocida(
+  codigo,
+  detalle
+) {
+  const identidad =
+    `${codigo} ${detalle}`
+      .trim()
+      .toUpperCase();
+
+  if (identidad.includes('ATOMIK')) {
+    return '/img/marcas/0.png';
+  }
+
+  if (identidad.includes('MONTAGNE')) {
+    return '/img/marcas/10.webp';
+  }
+
+  if (
+    identidad.includes('47 STREET') ||
+    identidad.includes('47_STREET')
+  ) {
+    return '/img/marcas/47.png';
+  }
+
+  return '';
 }
 
 function fallbackLogoMarca(

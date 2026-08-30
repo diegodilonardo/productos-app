@@ -18,6 +18,105 @@ main {
         rgba(0, 0, 0, 0.08);
 }
 
+/* ============================================================
+   DASHBOARD V2 - CABECERA Y ESTADOS DE CARGA
+   ============================================================ */
+
+.dashboard-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+    padding: 20px 22px;
+    border: 1px solid #e2e7ec;
+    border-radius: 16px;
+    background: radial-gradient(circle at top right, rgba(13, 110, 253, .10), transparent 36%), linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+    box-shadow: 0 3px 12px rgba(24, 39, 55, .05);
+}
+
+.dashboard-hero-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.dashboard-hero-icon {
+    display: grid;
+    flex: 0 0 auto;
+    width: 58px;
+    height: 58px;
+    place-items: center;
+    border-radius: 15px;
+    background: #eaf3ff;
+    color: #1268df;
+}
+
+.dashboard-hero-icon svg {
+    width: 27px;
+    height: 27px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+}
+
+.dashboard-kicker {
+    margin-bottom: 4px;
+    color: #748190;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.dashboard-v2[aria-busy="true"] .app-card-number {
+    color: #a8b3c0;
+}
+
+.dashboard-loading-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 72px;
+    color: #75849a;
+}
+
+.dashboard-loading-state::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid #d6e2f1;
+    border-top-color: #0d6efd;
+    border-radius: 50%;
+    animation: dashboard-spin .7s linear infinite;
+}
+
+@keyframes dashboard-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 575.98px) {
+    .dashboard-hero {
+        align-items: stretch;
+        padding: 16px;
+    }
+
+    .dashboard-hero > .d-flex {
+        width: 100%;
+    }
+
+    .dashboard-hero > .d-flex .btn {
+        flex: 1;
+    }
+
+    .dashboard-hero-icon {
+        width: 50px;
+        height: 50px;
+    }
+}
+
 .app-card-label {
     color: #6c757d;
     font-size: 0.9rem;
@@ -2106,10 +2205,10 @@ main .progress {
 }
 
 .app-navbar-brand-chip.has-logo {
-    min-width: 104px;
-    max-width: 148px;
-    min-height: 38px;
-    padding: 3px 8px;
+    min-width: 112px;
+    max-width: 124px;
+    min-height: 36px;
+    padding: 2px 6px;
     justify-content: center;
     overflow: hidden;
 }
@@ -2120,9 +2219,9 @@ main .progress {
 
 .app-navbar-brand-logo {
     flex: 0 0 auto;
-    width: 138px;
-    max-width: none;
-    height: 138px;
+    width: 110px;
+    max-width: 100%;
+    height: 34px;
     object-fit: contain;
     object-position: center;
 }
@@ -2133,8 +2232,8 @@ main .progress {
 }
 
 .app-navbar-brand-chip.marca-montagne .app-navbar-brand-logo {
-    width: 132px;
-    height: 132px;
+    width: 110px;
+    height: 34px;
 }
 
 @media (max-width: 1399.98px) {
@@ -2153,8 +2252,8 @@ main .progress {
     }
 
     .app-navbar-brand-logo {
-        width: 126px;
-        height: 126px;
+        width: 104px;
+        height: 32px;
     }
 }
 

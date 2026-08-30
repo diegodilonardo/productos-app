@@ -581,7 +581,7 @@ function obtenerLogoMarcaConocida(
   }
 
   if (identidad.includes('MONTAGNE')) {
-    return '/img/marcas/10.webp';
+    return '/img/marcas/10.png';
   }
 
   if (

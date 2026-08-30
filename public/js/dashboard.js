@@ -152,6 +152,7 @@ function fetchEmpresa(
 async function cargarDashboard() {
 
     ocultarError();
+    pintarCargaDashboard();
 
     const btnActualizar =
         document.getElementById(
@@ -229,9 +230,72 @@ async function cargarDashboard() {
 
     } finally {
 
+        document
+            .getElementById(
+                'dashboardPrincipal'
+            )
+            ?.removeAttribute(
+                'aria-busy'
+            );
+
         btnActualizar.disabled = false;
         btnActualizar.textContent =
             'Actualizar';
+    }
+}
+
+
+function pintarCargaDashboard() {
+    document
+        .getElementById(
+            'dashboardPrincipal'
+        )
+        ?.setAttribute(
+            'aria-busy',
+            'true'
+        );
+
+    for (const id of [
+        'totalAltas',
+        'altasOk',
+        'productosPendientes',
+        'productosConfirmados',
+        'pedidosTotal',
+        'pedidosBorrador',
+        'pedidosValidado',
+        'pedidosAnulado'
+    ]) {
+        const elemento =
+            document.getElementById(id);
+
+        if (elemento) {
+            elemento.textContent = '—';
+        }
+    }
+
+    const pedidosRecientes =
+        document.getElementById(
+            'pedidosRecientes'
+        );
+
+    if (pedidosRecientes) {
+        pedidosRecientes.innerHTML =
+            '<div class="dashboard-loading-state dashboard-pedidos-loading">Actualizando pedidos</div>';
+    }
+
+    const tablaAltas =
+        document.getElementById(
+            'tablaAltas'
+        );
+
+    if (tablaAltas) {
+        tablaAltas.innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center py-4">
+                    <span class="dashboard-loading-state">Actualizando altas</span>
+                </td>
+            </tr>
+        `;
     }
 }
 

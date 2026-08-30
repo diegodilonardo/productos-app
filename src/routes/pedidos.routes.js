@@ -1,459 +1,223 @@
 const express = require('express');
 const pedidosService = require('../services/pedidos.service');
 
+const {
+  requerirAutenticacion,
+  requerirEmpresa,
+  requerirEscrituraEmpresa,
+  requerirAccesoAlta,
+  requerirAccesoPedido
+} = require('../middlewares/auth.middleware');
+
 const router = express.Router();
 
-/* ============================================================
-   LISTAR PEDIDOS
-   ============================================================ */
-router.get('/', async (req, res) => {
-  try {
-    const resultado = await pedidosService.listarPedidos();
+router.use(requerirAutenticacion);
 
-    res.json({
-      ok: true,
-      cantidad: resultado.length,
-      datos: resultado,
-    });
+function usuarioAuditoria(req) {
+  const contexto = req.usuario || req.session?.usuario || {};
+
+  return String(
+    contexto.usuario ??
+    contexto.USUARIO ??
+    contexto.nombreUsuario ??
+    contexto.NOMBRE_USUARIO ??
+    'SISTEMA'
+  ).trim() || 'SISTEMA';
+}
+
+router.get('/', requerirEmpresa, async (req, res) => {
+  try {
+    const datos = await pedidosService.listarPedidos(req.idEmpresa, req.accesoEmpresa);
+    return res.json({ ok: true, cantidad: datos.length, datos });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   ALTAS DISPONIBLES PARA PEDIDOS
-   ============================================================ */
-router.get('/altas-disponibles', async (req, res) => {
+router.get('/altas-disponibles', requerirEmpresa, async (req, res) => {
   try {
-    const resultado = await pedidosService.obtenerAltasDisponibles();
-
-    res.json({
-      ok: true,
-      cantidad: resultado.length,
-      datos: resultado,
-    });
+    const datos = await pedidosService.obtenerAltasDisponibles(req.idEmpresa, req.accesoEmpresa);
+    return res.json({ ok: true, cantidad: datos.length, datos });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   PROVEEDORES PRESENTES EN UN ALTA
-   ============================================================ */
-router.get('/altas/:idAlta/proveedores', async (req, res) => {
+router.get('/altas/:idAlta/proveedores', requerirAccesoAlta, async (req, res) => {
   try {
-    const resultado = await pedidosService.obtenerProveedoresPorAlta(
-      req.params.idAlta
-    );
-
-    res.json({
-      ok: true,
-      cantidad: resultado.length,
-      datos: resultado,
-    });
-  } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
-  }
-});
-
-/* ============================================================
-   PRODUCTOS DISPONIBLES DEL ALTA + PROVEEDOR
-
-   GET /api/pedidos/altas/12/productos?codigoProveedor=80005
-   ============================================================ */
-router.get('/altas/:idAlta/productos', async (req, res) => {
-  try {
-    const resultado = await pedidosService.obtenerProductosDisponibles(
+    const datos = await pedidosService.obtenerProveedoresPorAlta(
       req.params.idAlta,
-      req.query.codigoProveedor
+      req.idEmpresa,
+      req.accesoEmpresa
     );
-
-    res.json({
-      ok: true,
-      cantidad: resultado.length,
-      datos: resultado,
-    });
+    return res.json({ ok: true, cantidad: datos.length, datos });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   CREAR PEDIDO
+router.get('/altas/:idAlta/productos', requerirAccesoAlta, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerProductosDisponibles(
+      req.params.idAlta,
+      req.query.codigoProveedor,
+      req.idEmpresa,
+      req.accesoEmpresa
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
 
-   BODY:
-   {
-     idAlta,
-     codigoProveedor,
-     numeroOrden,
-     moneda,
-     observaciones,
-     usuarioCreacion
-   }
-   ============================================================ */
-router.post('/', async (req, res) => {
+router.post('/', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.crearPedido(
-      req.body || {}
+      req.body || {},
+      req.idEmpresa,
+      req.accesoEmpresa,
+      usuarioAuditoria(req)
     );
-
-    res.status(201).json({
-      ok: true,
-      mensaje: 'Pedido creado correctamente.',
-      resultado,
-    });
+    return res.status(201).json({ ok: true, mensaje: 'Pedido creado correctamente.', resultado });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   LISTAR DETALLE DEL PEDIDO
-   IMPORTANTE: mantener antes de GET /:id
-   ============================================================ */
-router.get('/:id/detalle', async (req, res) => {
+router.get('/:id/detalle', requerirAccesoPedido, async (req, res) => {
   try {
-    const resultado = await pedidosService.listarDetallePedido(
-      req.params.id
-    );
-
-    res.json({
-      ok: true,
-      cantidad: resultado.length,
-      datos: resultado,
-    });
+    const datos = await pedidosService.listarDetallePedido(req.params.id, req.idEmpresa);
+    return res.json({ ok: true, cantidad: datos.length, datos });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   AGREGAR PRODUCTO AL PEDIDO
-
-   BODY:
-   {
-     idProducto,
-     cantidadPares,
-     precioFobPar,
-     adicional,
-     observaciones
-   }
-   ============================================================ */
-router.post('/:id/detalle', async (req, res) => {
+router.post('/:id/detalle', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.agregarProductoPedido(
-      req.params.id,
-      req.body || {}
+      req.params.id, req.body || {}, req.idEmpresa, req.accesoEmpresa
     );
-
-    res.status(201).json({
-      ok: true,
-      mensaje: 'Producto agregado al pedido correctamente.',
-      resultado,
-    });
+    return res.status(201).json({ ok: true, mensaje: 'Producto agregado al pedido correctamente.', resultado });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   MODIFICAR PRODUCTO DEL PEDIDO
-
-   Solo permitido mientras el pedido está en BORRADOR.
-
-   BODY:
-   {
-     cantidadPares,
-     precioFobPar,
-     adicional,
-     observaciones
-   }
-   ============================================================ */
-router.put('/:id/detalle/:idDetalle', async (req, res) => {
+router.put('/:id/detalle/:idDetalle', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.actualizarProductoPedido(
-      req.params.id,
-      req.params.idDetalle,
-      req.body || {}
+      req.params.id, req.params.idDetalle, req.body || {}, req.idEmpresa
     );
-
-    res.json({
-      ok: true,
-      mensaje: 'Producto del pedido actualizado correctamente.',
-      resultado,
-    });
+    return res.json({ ok: true, mensaje: 'Producto del pedido actualizado correctamente.', resultado });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   ELIMINAR PRODUCTO DEL PEDIDO
-
-   Solo permitido mientras el pedido está en BORRADOR.
-   ============================================================ */
-router.delete('/:id/detalle/:idDetalle', async (req, res) => {
+router.delete('/:id/detalle/:idDetalle', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.eliminarProductoPedido(
-      req.params.id,
-      req.params.idDetalle
+      req.params.id, req.params.idDetalle, req.idEmpresa
     );
-
-    res.json({
-      ok: true,
-      mensaje: 'Producto eliminado del pedido correctamente.',
-      resultado,
-    });
+    return res.json({ ok: true, mensaje: 'Producto eliminado del pedido correctamente.', resultado });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-/* ============================================================
-   VALIDAR PEDIDO
-
-   BODY:
-   {
-     usuarioValidacion
-   }
-
-   BORRADOR -> VALIDADO
-   ============================================================ */
-router.post('/:id/validar', async (req, res) => {
+router.post('/:id/validar', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.validarPedido(
-      req.params.id,
-      req.body || {}
+      req.params.id, req.body || {}, req.idEmpresa, usuarioAuditoria(req)
     );
-
-    res.json({
-      ok: true,
-      mensaje: 'Pedido validado correctamente.',
-      resultado,
-    });
+    return res.json({ ok: true, mensaje: 'Pedido validado correctamente.', resultado });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-
-/* ============================================================
-   ANULAR PEDIDO
-
-   BODY:
-   {
-     motivoAnulacion,
-     usuarioAnulacion
-   }
-
-   También acepta los alias: motivo / usuario.
-
-   BORRADOR -> ANULADO
-   VALIDADO -> ANULADO
-   SINCRONIZADO -> NO PERMITIDO
-   ============================================================ */
-router.post('/:id/anular', async (req, res) => {
+router.post('/:id/anular', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.anularPedido(
-      req.params.id,
-      req.body || {}
+      req.params.id, req.body || {}, req.idEmpresa, usuarioAuditoria(req)
     );
-
-    res.json({
-      ok: true,
-      mensaje: 'Pedido anulado correctamente.',
-      resultado,
-    });
+    return res.json({ ok: true, mensaje: 'Pedido anulado correctamente.', resultado });
   } catch (error) {
-    res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-
-
-/* ============================================================
-   EXPORTAR PEDIDO VALIDADO A EXCEL
-
-   GET /api/pedidos/:id/exportacion/pedido-excel
-   ============================================================ */
-router.get('/:id/exportacion/pedido-excel', async (req, res) => {
+router.get('/:id/exportacion/pedido-excel', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.exportarPedidoExcel(
-      req.params.id
+      req.params.id, req.idEmpresa, usuarioAuditoria(req)
     );
-
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${resultado.nombreArchivo}"`
-    );
-    res.setHeader(
-      'X-Cantidad-Registros',
-      String(resultado.cantidadRegistros)
-    );
-
+    res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition',`attachment; filename="${resultado.nombreArchivo}"`);
+    res.setHeader('X-Cantidad-Registros',String(resultado.cantidadRegistros));
     return res.send(resultado.buffer);
   } catch (error) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-
-/* ============================================================
-   EXPORTAR MASTER_DATA_APP DEL PEDIDO VALIDADO
-
-   GET /api/pedidos/:id/exportacion/master-data-app
-   ============================================================ */
-router.get('/:id/exportacion/master-data-app', async (req, res) => {
+router.get('/:id/exportacion/master-data-app', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.exportarMasterDataAppExcel(
-      req.params.id
+      req.params.id, req.idEmpresa, usuarioAuditoria(req)
     );
-
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${resultado.nombreArchivo}"`
-    );
-    res.setHeader(
-      'X-Cantidad-Registros',
-      String(resultado.cantidadRegistros)
-    );
-
+    res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition',`attachment; filename="${resultado.nombreArchivo}"`);
+    res.setHeader('X-Cantidad-Registros',String(resultado.cantidadRegistros));
     return res.send(resultado.buffer);
   } catch (error) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-
-/* ============================================================
-   EXPORTAR PREC_FOB.DBI DEL PEDIDO VALIDADO
-
-   GET /api/pedidos/:id/exportacion/prec-fob
-   ============================================================ */
-router.get('/:id/exportacion/prec-fob', async (req, res) => {
+router.get('/:id/exportacion/prec-fob', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.exportarPrecFobDBI(
-      req.params.id
+      req.params.id, req.idEmpresa, usuarioAuditoria(req)
     );
-
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${resultado.nombreArchivo}"`
-    );
-    res.setHeader(
-      'X-Cantidad-Registros',
-      String(resultado.cantidadRegistros)
-    );
-
+    res.setHeader('Content-Type','application/octet-stream');
+    res.setHeader('Content-Disposition',`attachment; filename="${resultado.nombreArchivo}"`);
+    res.setHeader('X-Cantidad-Registros',String(resultado.cantidadRegistros));
     return res.send(resultado.buffer);
   } catch (error) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-
-/* ============================================================
-   HISTORIAL DE EXPORTACIONES DEL PEDIDO
-
-   GET /api/pedidos/:id/exportaciones
-   ============================================================ */
-router.get('/:id/exportaciones', async (req, res) => {
+router.get('/:id/exportaciones', requerirAccesoPedido, async (req, res) => {
   try {
-    const resultado = await pedidosService.listarExportacionesPedido(
-      req.params.id
-    );
-
-    return res.json({
-      ok: true,
-      cantidad: resultado.length,
-      datos: resultado,
-    });
+    const datos = await pedidosService.listarExportacionesPedido(req.params.id, req.idEmpresa);
+    return res.json({ ok: true, cantidad: datos.length, datos });
   } catch (error) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 
-
-/* ============================================================
-   OBTENER PEDIDO POR ID
-   IMPORTANTE: dejar esta ruta al final.
-   ============================================================ */
-router.get('/:id', async (req, res) => {
+router.get('/:id/destinos-exportacion', requerirAccesoPedido, async (req, res) => {
   try {
-    const resultado = await pedidosService.obtenerPedidoPorId(
-      req.params.id
+    const resultado = await pedidosService.obtenerDestinosExportacionPedido(
+      req.params.id,
+      req.idEmpresa
     );
-
-    if (!resultado) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'Pedido no encontrado.',
-      });
-    }
-
-    return res.json({
-      ok: true,
-      resultado,
-    });
+    return res.json({ ok: true, resultado });
   } catch (error) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: error.message,
-    });
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.get('/:id', requerirAccesoPedido, async (req, res) => {
+  try {
+    const resultado = await pedidosService.obtenerPedidoPorId(req.params.id, req.idEmpresa);
+    if (!resultado) return res.status(404).json({ ok: false, mensaje: 'Pedido no encontrado.' });
+    return res.json({ ok: true, resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
 });
 

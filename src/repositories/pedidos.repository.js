@@ -4,39 +4,53 @@ const { getConnection, sql } = require('../config/database');
    ALTAS DISPONIBLES PARA PEDIDOS
    - Solo altas completamente generadas en ERP.
    ============================================================ */
-async function obtenerAltasDisponibles() {
+async function obtenerAltasDisponibles(idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool.request().query(`
-    SELECT
-      A.ID_ALTA,
-      A.CODIGO_ALTA,
-      A.CODIGO_MARCA,
-      A.DETALLE_MARCA,
-      A.CODIGO_RUBRO,
-      A.DETALLE_RUBRO,
-      A.TIPO_PRODUCTO,
-      A.CODIGO_TEMPORADA,
-      A.DETALLE_TEMPORADA,
-      A.CODIGO_ANO,
-      (
-        SELECT TOP 1
-          CASE
-            WHEN NULLIF(LTRIM(RTRIM(DL.LICENCIA)), '') IS NULL
-              THEN 'SIN LICENCIA'
-            ELSE LTRIM(RTRIM(DL.LICENCIA))
-          END
-        FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
-        WHERE DL.ID_ALTA = A.ID_ALTA
-        ORDER BY DL.ID_DETALLE
-      ) AS LICENCIA_ALTA,
-      A.ESTADO,
-      A.FECHA_CREACION
-    FROM dbo.ALTAS_PRODUCTOS A
-    WHERE A.ESTADO = 'GENERADO_OK_EN_ERP'
-    ORDER BY A.ID_ALTA DESC;
-  `);
-
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .query(`
+      SELECT
+        A.ID_ALTA, A.ID_EMPRESA, A.CODIGO_ALTA,
+        A.CODIGO_MARCA, A.DETALLE_MARCA,
+        A.CODIGO_RUBRO, A.DETALLE_RUBRO,
+        A.TIPO_PRODUCTO,
+        A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA,
+        A.CODIGO_ANO,
+        (
+          SELECT TOP 1
+            CASE
+              WHEN NULLIF(LTRIM(RTRIM(DL.LICENCIA)), '') IS NULL
+                THEN 'SIN LICENCIA'
+              ELSE LTRIM(RTRIM(DL.LICENCIA))
+            END
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
+          WHERE DL.ID_EMPRESA = A.ID_EMPRESA
+            AND DL.ID_ALTA = A.ID_ALTA
+          ORDER BY DL.ID_DETALLE
+        ) AS LICENCIA_ALTA,
+        (
+          SELECT COUNT(DISTINCT P2.ID_PRODUCTO)
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE D2
+          INNER JOIN dbo.PRODUCTOS P2
+            ON P2.ID_EMPRESA = D2.ID_EMPRESA
+           AND P2.CODIGO_ALFA = D2.CODIGO_ALFA
+           AND P2.ACTIVO = 1
+          WHERE D2.ID_EMPRESA = A.ID_EMPRESA
+            AND D2.ID_ALTA = A.ID_ALTA
+            AND (
+              (A.TIPO_PRODUCTO = 'MODULO' AND D2.TIPO_PRODUCTO_DETALLE = 'MODULO')
+              OR
+              (A.TIPO_PRODUCTO = 'PAR_SUELTO'
+               AND D2.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+               AND D2.CODIGO_CLASIFICACION = '1')
+            )
+        ) AS CANTIDAD_PRODUCTOS_PEDIDO,
+        A.ESTADO, A.FECHA_CREACION
+      FROM dbo.ALTAS_PRODUCTOS A
+      WHERE A.ID_EMPRESA = @ID_EMPRESA
+        AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
+      ORDER BY A.ID_ALTA DESC;
+    `);
   return resultado.recordset;
 }
 
@@ -44,42 +58,37 @@ async function obtenerAltasDisponibles() {
    OBTENER ALTA DISPONIBLE POR ID
    - Se usa para validar que el Alta pueda originar un Pedido.
    ============================================================ */
-async function obtenerAltaDisponiblePorId(idAlta) {
+async function obtenerAltaDisponiblePorId(idAlta, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_ALTA', sql.Int, idAlta)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
       SELECT TOP 1
-        A.ID_ALTA,
-        A.CODIGO_ALTA,
-        A.CODIGO_MARCA,
-        A.DETALLE_MARCA,
-        A.CODIGO_RUBRO,
-        A.DETALLE_RUBRO,
+        A.ID_ALTA, A.ID_EMPRESA, A.CODIGO_ALTA,
+        A.CODIGO_MARCA, A.DETALLE_MARCA,
+        A.CODIGO_RUBRO, A.DETALLE_RUBRO,
         A.TIPO_PRODUCTO,
-        A.CODIGO_TEMPORADA,
-        A.DETALLE_TEMPORADA,
+        A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA,
         A.CODIGO_ANO,
-      (
-        SELECT TOP 1
-          CASE
-            WHEN NULLIF(LTRIM(RTRIM(DL.LICENCIA)), '') IS NULL
-              THEN 'SIN LICENCIA'
-            ELSE LTRIM(RTRIM(DL.LICENCIA))
-          END
-        FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
-        WHERE DL.ID_ALTA = A.ID_ALTA
-        ORDER BY DL.ID_DETALLE
-      ) AS LICENCIA_ALTA,
+        (
+          SELECT TOP 1
+            CASE
+              WHEN NULLIF(LTRIM(RTRIM(DL.LICENCIA)), '') IS NULL
+                THEN 'SIN LICENCIA'
+              ELSE LTRIM(RTRIM(DL.LICENCIA))
+            END
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
+          WHERE DL.ID_EMPRESA = A.ID_EMPRESA
+            AND DL.ID_ALTA = A.ID_ALTA
+          ORDER BY DL.ID_DETALLE
+        ) AS LICENCIA_ALTA,
         A.ESTADO
       FROM dbo.ALTAS_PRODUCTOS A
-      WHERE
-        A.ID_ALTA = @ID_ALTA
-        AND A.ESTADO = 'GENERADO_OK_EN_ERP';
+      WHERE A.ID_EMPRESA = @ID_EMPRESA
+        AND A.ID_ALTA = @ID_ALTA
+        AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP');
     `);
-
   return resultado.recordset[0] || null;
 }
 
@@ -90,43 +99,37 @@ async function obtenerAltaDisponiblePorId(idAlta) {
    - Solo se muestran proveedores que tengan al menos un producto
      confirmado y activo en PRODUCTOS.
    ============================================================ */
-async function obtenerProveedoresPorAlta(idAlta) {
+async function obtenerProveedoresPorAlta(idAlta, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_ALTA', sql.Int, idAlta)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
       SELECT DISTINCT
         D.CODIGO_PROVEEDOR,
         D.DETALLE_PROVEEDOR
       FROM dbo.ALTAS_PRODUCTOS_DETALLE D
       INNER JOIN dbo.ALTAS_PRODUCTOS A
-        ON A.ID_ALTA = D.ID_ALTA
+        ON A.ID_EMPRESA = D.ID_EMPRESA
+       AND A.ID_ALTA = D.ID_ALTA
       INNER JOIN dbo.PRODUCTOS P
-        ON P.CODIGO_ALFA = D.CODIGO_ALFA
-      WHERE
-        D.ID_ALTA = @ID_ALTA
-        AND A.ESTADO = 'GENERADO_OK_EN_ERP'
+        ON P.ID_EMPRESA = D.ID_EMPRESA
+       AND P.CODIGO_ALFA = D.CODIGO_ALFA
+      WHERE D.ID_EMPRESA = @ID_EMPRESA
+        AND D.ID_ALTA = @ID_ALTA
+        AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
         AND P.ACTIVO = 1
         AND NULLIF(LTRIM(RTRIM(D.CODIGO_PROVEEDOR)), '') IS NOT NULL
         AND NULLIF(LTRIM(RTRIM(D.DETALLE_PROVEEDOR)), '') IS NOT NULL
-        AND
-        (
-          (
-            A.TIPO_PRODUCTO = 'MODULO'
-            AND D.TIPO_PRODUCTO_DETALLE = 'MODULO'
-          )
+        AND (
+          (A.TIPO_PRODUCTO = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
           OR
-          (
-            A.TIPO_PRODUCTO = 'PAR_SUELTO'
-            AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
-            AND D.CODIGO_CLASIFICACION = '1'
-          )
+          (A.TIPO_PRODUCTO = 'PAR_SUELTO'
+           AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+           AND D.CODIGO_CLASIFICACION = '1')
         )
       ORDER BY D.DETALLE_PROVEEDOR;
     `);
-
   return resultado.recordset;
 }
 
@@ -139,90 +142,53 @@ async function obtenerProveedoresPorAlta(idAlta) {
    - Producto debe existir en PRODUCTOS y estar ACTIVO.
    - CODIGO_ALFA es la identidad utilizada para enlazar con ERP.
    ============================================================ */
-async function obtenerProductosDisponibles(idAlta, codigoProveedor) {
+async function obtenerProductosDisponibles(idAlta, codigoProveedor, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_ALTA', sql.Int, idAlta)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .input('CODIGO_PROVEEDOR', sql.VarChar(30), codigoProveedor)
     .query(`
       SELECT
-        P.ID_PRODUCTO,
-        P.CODIGO_ALFA,
-        P.CODIGO_ERP,
-        COALESCE(P.CODIGO_EAN, P.EAN) AS CODIGO_EAN,
+        P.ID_PRODUCTO, P.ID_EMPRESA, P.CODIGO_ALFA,
+        P.CODIGO_ERP, COALESCE(P.CODIGO_EAN, P.EAN) AS CODIGO_EAN,
         P.ACTIVO,
-
-        A.ID_ALTA,
-        A.CODIGO_ALTA,
+        A.ID_ALTA, A.CODIGO_ALTA,
         A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
-        A.CODIGO_ANO,
-        A.CODIGO_TEMPORADA,
-
-        D.ID_DETALLE,
-        D.TIPO_PRODUCTO_DETALLE,
-
-        D.CODIGO_MODELO,
-        D.DETALLE_MODELO,
-
-        D.CODIGO_COLOR,
-        D.DETALLE_COLOR,
-
+        A.CODIGO_ANO, A.CODIGO_TEMPORADA,
+        D.ID_DETALLE, D.TIPO_PRODUCTO_DETALLE,
+        D.CODIGO_MODELO, D.DETALLE_MODELO,
+        D.CODIGO_COLOR, D.DETALLE_COLOR,
         D.DETALLE_PRODUCTO,
-
-        D.CODIGO_TALLE,
-        D.DETALLE_TALLE,
-
-        D.CODIGO_MODULO,
-        D.DETALLE_MODULO,
-
+        D.CODIGO_TALLE, D.DETALLE_TALLE,
+        D.CODIGO_MODULO, D.DETALLE_MODULO,
         D.PARES,
-
-        D.CODIGO_EDAD,
-        D.DETALLE_EDAD,
-
-        D.CODIGO_CLASIFICACION,
-        D.DETALLE_CLASIFICACION,
-
-        D.CODIGO_PROVEEDOR,
-        D.DETALLE_PROVEEDOR
-
+        D.CODIGO_EDAD, D.DETALLE_EDAD,
+        D.CODIGO_CLASIFICACION, D.DETALLE_CLASIFICACION,
+        D.CODIGO_PROVEEDOR, D.DETALLE_PROVEEDOR
       FROM dbo.ALTAS_PRODUCTOS_DETALLE D
-
       INNER JOIN dbo.ALTAS_PRODUCTOS A
-        ON A.ID_ALTA = D.ID_ALTA
-
+        ON A.ID_EMPRESA = D.ID_EMPRESA
+       AND A.ID_ALTA = D.ID_ALTA
       INNER JOIN dbo.PRODUCTOS P
-        ON P.CODIGO_ALFA = D.CODIGO_ALFA
-
-      WHERE
-        D.ID_ALTA = @ID_ALTA
+        ON P.ID_EMPRESA = D.ID_EMPRESA
+       AND P.CODIGO_ALFA = D.CODIGO_ALFA
+      WHERE D.ID_EMPRESA = @ID_EMPRESA
+        AND D.ID_ALTA = @ID_ALTA
         AND D.CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR
-        AND A.ESTADO = 'GENERADO_OK_EN_ERP'
+        AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
         AND P.ACTIVO = 1
-        AND
-        (
-          (
-            A.TIPO_PRODUCTO = 'MODULO'
-            AND D.TIPO_PRODUCTO_DETALLE = 'MODULO'
-          )
+        AND (
+          (A.TIPO_PRODUCTO = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
           OR
-          (
-            A.TIPO_PRODUCTO = 'PAR_SUELTO'
-            AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
-            AND D.CODIGO_CLASIFICACION = '1'
-          )
+          (A.TIPO_PRODUCTO = 'PAR_SUELTO'
+           AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+           AND D.CODIGO_CLASIFICACION = '1')
         )
-
       ORDER BY
-        D.DETALLE_MODELO,
-        D.DETALLE_COLOR,
-        D.DETALLE_MODULO,
-        D.DETALLE_TALLE,
-        P.CODIGO_ALFA;
+        D.DETALLE_MODELO, D.DETALLE_COLOR,
+        D.DETALLE_MODULO, D.DETALLE_TALLE, P.CODIGO_ALFA;
     `);
-
   return resultado.recordset;
 }
 
@@ -232,30 +198,25 @@ async function obtenerProductosDisponibles(idAlta, codigoProveedor) {
      única mientras el pedido no esté ANULADO.
    - Un pedido ANULADO no bloquea una nueva creación posterior.
    ============================================================ */
-async function buscarPedidoDuplicadoActivo(idAlta, codigoProveedor, numeroOrden) {
+async function buscarPedidoDuplicadoActivo(idAlta, codigoProveedor, numeroOrden, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_ALTA', sql.Int, idAlta)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .input('CODIGO_PROVEEDOR', sql.VarChar(30), codigoProveedor)
     .input('NUMERO_ORDEN', sql.VarChar(50), numeroOrden)
     .query(`
       SELECT TOP 1
-        ID_PEDIDO,
-        CODIGO_PEDIDO,
-        ESTADO,
-        NUMERO_ORDEN,
-        CODIGO_PROVEEDOR
+        ID_PEDIDO, ID_EMPRESA, CODIGO_PEDIDO,
+        ESTADO, NUMERO_ORDEN, CODIGO_PROVEEDOR
       FROM dbo.PEDIDOS
-      WHERE
-        ID_ALTA = @ID_ALTA
+      WHERE ID_EMPRESA = @ID_EMPRESA
+        AND ID_ALTA = @ID_ALTA
         AND CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR
         AND NUMERO_ORDEN = @NUMERO_ORDEN
         AND ESTADO <> 'ANULADO'
       ORDER BY ID_PEDIDO DESC;
     `);
-
   return resultado.recordset[0] || null;
 }
 
@@ -283,6 +244,7 @@ async function crearPedido(datos, generarCodigoPedido) {
      * Evita que dos solicitudes simultáneas creen el mismo pedido.
      */
     const duplicadoResult = await new sql.Request(transaction)
+      .input('ID_EMPRESA_DUP', sql.Int, datos.ID_EMPRESA)
       .input('ID_ALTA_DUP', sql.Int, datos.ID_ALTA)
       .input('CODIGO_PROVEEDOR_DUP', sql.VarChar(30), datos.CODIGO_PROVEEDOR)
       .input('NUMERO_ORDEN_DUP', sql.VarChar(50), datos.NUMERO_ORDEN)
@@ -293,7 +255,8 @@ async function crearPedido(datos, generarCodigoPedido) {
           ESTADO
         FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
         WHERE
-          ID_ALTA = @ID_ALTA_DUP
+          ID_EMPRESA = @ID_EMPRESA_DUP
+          AND ID_ALTA = @ID_ALTA_DUP
           AND CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR_DUP
           AND NUMERO_ORDEN = @NUMERO_ORDEN_DUP
           AND ESTADO <> 'ANULADO';
@@ -309,6 +272,7 @@ async function crearPedido(datos, generarCodigoPedido) {
     }
 
     const insertado = await new sql.Request(transaction)
+      .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_ALTA', sql.Int, datos.ID_ALTA)
       .input('CODIGO_PROVEEDOR', sql.VarChar(30), datos.CODIGO_PROVEEDOR)
       .input('DETALLE_PROVEEDOR', sql.VarChar(150), datos.DETALLE_PROVEEDOR)
@@ -320,6 +284,7 @@ async function crearPedido(datos, generarCodigoPedido) {
         INSERT INTO dbo.PEDIDOS
         (
           CODIGO_PEDIDO,
+          ID_EMPRESA,
           ID_ALTA,
           CODIGO_PROVEEDOR,
           DETALLE_PROVEEDOR,
@@ -335,6 +300,7 @@ async function crearPedido(datos, generarCodigoPedido) {
         VALUES
         (
           NULL,
+          @ID_EMPRESA,
           @ID_ALTA,
           @CODIGO_PROVEEDOR,
           @DETALLE_PROVEEDOR,
@@ -362,6 +328,7 @@ async function crearPedido(datos, generarCodigoPedido) {
     });
 
     const actualizado = await new sql.Request(transaction)
+      .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_PEDIDO', sql.BigInt, idPedido)
       .input('CODIGO_PEDIDO', sql.VarChar(100), codigoPedido)
       .query(`
@@ -371,7 +338,8 @@ async function crearPedido(datos, generarCodigoPedido) {
           FECHA_ACTUALIZACION = SYSDATETIME()
         OUTPUT INSERTED.*
         WHERE
-          ID_PEDIDO = @ID_PEDIDO
+          ID_EMPRESA = @ID_EMPRESA
+          AND ID_PEDIDO = @ID_PEDIDO
           AND ESTADO = 'BORRADOR';
       `);
 
@@ -409,91 +377,83 @@ async function crearPedido(datos, generarCodigoPedido) {
    LISTAR PEDIDOS
    - Incluye Alta y totales calculados del detalle.
    ============================================================ */
-async function listarPedidos() {
+async function listarPedidos(idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool.request().query(`
-    SELECT
-      P.ID_PEDIDO,
-      P.CODIGO_PEDIDO,
-      P.ID_ALTA,
-      A.CODIGO_ALTA,
-      A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
-      A.DETALLE_MARCA,
-      A.DETALLE_RUBRO,
-      A.CODIGO_TEMPORADA,
-      A.DETALLE_TEMPORADA,
-      A.CODIGO_ANO,
-      P.CODIGO_PROVEEDOR,
-      P.DETALLE_PROVEEDOR,
-      P.NUMERO_ORDEN,
-      P.MONEDA,
-      P.ESTADO,
-      P.OBSERVACIONES,
-      P.FECHA_CREACION,
-      P.USUARIO_CREACION,
-      P.FECHA_VALIDACION,
-      P.USUARIO_VALIDACION,
-      P.FECHA_SINCRONIZACION,
-      P.FECHA_ANULACION,
-      P.USUARIO_ANULACION,
-      P.MOTIVO_ANULACION,
-      COUNT(D.ID_PEDIDO_DETALLE) AS CANTIDAD_PRODUCTOS,
-      COALESCE(SUM(CAST(D.CANTIDAD_PARES AS BIGINT)), 0) AS TOTAL_PARES,
-      COALESCE(SUM(D.TOTAL_FOB), 0) AS TOTAL_FOB,
-      COALESCE(SUM(CAST(D.CANTIDAD_PARES AS DECIMAL(18,4)) * D.ADICIONAL), 0) AS TOTAL_ADICIONALES,
-      COALESCE(SUM(D.TOTAL_PRODUCTO), 0) AS TOTAL_PEDIDO,
-
-      COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) AS CANTIDAD_EXPORTACIONES,
-      COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) AS TIENE_PEDIDO_EXCEL,
-      COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) AS TIENE_MASTER_DATA_APP,
-      COALESCE(EXP.TIENE_PREC_FOB, 0) AS TIENE_PREC_FOB,
-
-      CASE
-        WHEN COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) = 0 THEN 'NO_EXPORTADO'
-        WHEN COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) = 1
-         AND COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) = 1
-         AND COALESCE(EXP.TIENE_PREC_FOB, 0) = 1 THEN 'COMPLETO'
-        ELSE 'PARCIAL'
-      END AS ESTADO_EXPORTACION
-
-    FROM dbo.PEDIDOS P
-    INNER JOIN dbo.ALTAS_PRODUCTOS A
-      ON A.ID_ALTA = P.ID_ALTA
-    LEFT JOIN dbo.PEDIDOS_DETALLE D
-      ON D.ID_PEDIDO = P.ID_PEDIDO
-
-    OUTER APPLY
-    (
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .query(`
       SELECT
-        COUNT(*) AS CANTIDAD_EXPORTACIONES,
-        MAX(CASE WHEN E.TIPO_EXPORTACION = 'PEDIDO_EXCEL' THEN 1 ELSE 0 END) AS TIENE_PEDIDO_EXCEL,
-        MAX(CASE WHEN E.TIPO_EXPORTACION = 'MASTER_DATA_APP' THEN 1 ELSE 0 END) AS TIENE_MASTER_DATA_APP,
-        MAX(CASE WHEN E.TIPO_EXPORTACION = 'PREC_FOB' THEN 1 ELSE 0 END) AS TIENE_PREC_FOB
-      FROM dbo.PEDIDOS_EXPORTACIONES E
-      WHERE
-        E.ID_PEDIDO = P.ID_PEDIDO
-        AND E.ESTADO = 'OK'
-    ) EXP
-
-    GROUP BY
-      P.ID_PEDIDO, P.CODIGO_PEDIDO, P.ID_ALTA,
-      A.CODIGO_ALTA, A.TIPO_PRODUCTO,
-      A.DETALLE_MARCA, A.DETALLE_RUBRO,
-      A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA, A.CODIGO_ANO,
-      P.CODIGO_PROVEEDOR, P.DETALLE_PROVEEDOR,
-      P.NUMERO_ORDEN, P.MONEDA, P.ESTADO,
-      P.OBSERVACIONES, P.FECHA_CREACION, P.USUARIO_CREACION,
-      P.FECHA_VALIDACION, P.USUARIO_VALIDACION,
-      P.FECHA_SINCRONIZACION, P.FECHA_ANULACION,
-      P.USUARIO_ANULACION, P.MOTIVO_ANULACION,
-      EXP.CANTIDAD_EXPORTACIONES,
-      EXP.TIENE_PEDIDO_EXCEL,
-      EXP.TIENE_MASTER_DATA_APP,
-      EXP.TIENE_PREC_FOB
-    ORDER BY P.ID_PEDIDO DESC;
-  `);
-
+        P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA,
+        A.CODIGO_ALTA,
+        A.CODIGO_MARCA, A.DETALLE_MARCA,
+        A.CODIGO_RUBRO, A.DETALLE_RUBRO,
+        A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
+        A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA, A.CODIGO_ANO,
+        (
+          SELECT TOP 1
+            CASE
+              WHEN NULLIF(LTRIM(RTRIM(DL.LICENCIA)), '') IS NULL THEN 'SIN LICENCIA'
+              ELSE LTRIM(RTRIM(DL.LICENCIA))
+            END
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
+          WHERE DL.ID_EMPRESA = A.ID_EMPRESA
+            AND DL.ID_ALTA = A.ID_ALTA
+          ORDER BY DL.ID_DETALLE
+        ) AS LICENCIA_ALTA,
+        P.CODIGO_PROVEEDOR, P.DETALLE_PROVEEDOR,
+        P.NUMERO_ORDEN, P.MONEDA, P.ESTADO, P.OBSERVACIONES,
+        P.FECHA_CREACION, P.USUARIO_CREACION,
+        P.FECHA_VALIDACION, P.USUARIO_VALIDACION,
+        P.FECHA_SINCRONIZACION,
+        P.FECHA_ANULACION, P.USUARIO_ANULACION, P.MOTIVO_ANULACION,
+        COUNT(D.ID_PEDIDO_DETALLE) AS CANTIDAD_PRODUCTOS,
+        COALESCE(SUM(CAST(D.CANTIDAD_PARES AS BIGINT)), 0) AS TOTAL_PARES,
+        COALESCE(SUM(D.TOTAL_FOB), 0) AS TOTAL_FOB,
+        COALESCE(SUM(CAST(D.CANTIDAD_PARES AS DECIMAL(18,4)) * D.ADICIONAL), 0) AS TOTAL_ADICIONALES,
+        COALESCE(SUM(D.TOTAL_PRODUCTO), 0) AS TOTAL_PEDIDO,
+        COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) AS CANTIDAD_EXPORTACIONES,
+        COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) AS TIENE_PEDIDO_EXCEL,
+        COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) AS TIENE_MASTER_DATA_APP,
+        COALESCE(EXP.TIENE_PREC_FOB, 0) AS TIENE_PREC_FOB,
+        CASE
+          WHEN COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) = 0 THEN 'NO_EXPORTADO'
+          WHEN COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) = 1
+           AND COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) = 1
+           AND COALESCE(EXP.TIENE_PREC_FOB, 0) = 1 THEN 'COMPLETO'
+          ELSE 'PARCIAL'
+        END AS ESTADO_EXPORTACION
+      FROM dbo.PEDIDOS P
+      INNER JOIN dbo.ALTAS_PRODUCTOS A
+        ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = P.ID_ALTA
+      LEFT JOIN dbo.PEDIDOS_DETALLE D
+        ON D.ID_EMPRESA = P.ID_EMPRESA AND D.ID_PEDIDO = P.ID_PEDIDO
+      OUTER APPLY (
+        SELECT
+          COUNT(*) AS CANTIDAD_EXPORTACIONES,
+          MAX(CASE WHEN E.TIPO_EXPORTACION = 'PEDIDO_EXCEL' THEN 1 ELSE 0 END) AS TIENE_PEDIDO_EXCEL,
+          MAX(CASE WHEN E.TIPO_EXPORTACION = 'MASTER_DATA_APP' THEN 1 ELSE 0 END) AS TIENE_MASTER_DATA_APP,
+          MAX(CASE WHEN E.TIPO_EXPORTACION = 'PREC_FOB' THEN 1 ELSE 0 END) AS TIENE_PREC_FOB
+        FROM dbo.PEDIDOS_EXPORTACIONES E
+        WHERE E.ID_EMPRESA = P.ID_EMPRESA
+          AND E.ID_PEDIDO = P.ID_PEDIDO
+          AND E.ESTADO = 'OK'
+      ) EXP
+      WHERE P.ID_EMPRESA = @ID_EMPRESA
+      GROUP BY
+        P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA,
+        A.ID_EMPRESA, A.ID_ALTA,
+        A.CODIGO_ALTA, A.CODIGO_MARCA, A.DETALLE_MARCA,
+        A.CODIGO_RUBRO, A.DETALLE_RUBRO, A.TIPO_PRODUCTO,
+        A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA, A.CODIGO_ANO,
+        P.CODIGO_PROVEEDOR, P.DETALLE_PROVEEDOR,
+        P.NUMERO_ORDEN, P.MONEDA, P.ESTADO, P.OBSERVACIONES,
+        P.FECHA_CREACION, P.USUARIO_CREACION, P.FECHA_VALIDACION,
+        P.USUARIO_VALIDACION, P.FECHA_SINCRONIZACION,
+        P.FECHA_ANULACION, P.USUARIO_ANULACION, P.MOTIVO_ANULACION,
+        EXP.CANTIDAD_EXPORTACIONES, EXP.TIENE_PEDIDO_EXCEL,
+        EXP.TIENE_MASTER_DATA_APP, EXP.TIENE_PREC_FOB
+      ORDER BY P.ID_PEDIDO DESC;
+    `);
   return resultado.recordset;
 }
 
@@ -501,24 +461,26 @@ async function listarPedidos() {
    OBTENER PEDIDO POR ID
    - Incluye datos básicos del Alta para validar el detalle.
    ============================================================ */
-async function obtenerPedidoPorId(idPedido) {
+async function obtenerPedidoPorId(idPedido, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_PEDIDO', sql.BigInt, idPedido)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
       SELECT TOP 1
         P.*,
         A.CODIGO_ALTA,
+        A.CODIGO_MARCA,
+        A.DETALLE_MARCA,
         A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
         A.ESTADO AS ESTADO_ALTA
       FROM dbo.PEDIDOS P
       INNER JOIN dbo.ALTAS_PRODUCTOS A
-        ON A.ID_ALTA = P.ID_ALTA
-      WHERE P.ID_PEDIDO = @ID_PEDIDO;
+        ON A.ID_EMPRESA = P.ID_EMPRESA
+       AND A.ID_ALTA = P.ID_ALTA
+      WHERE P.ID_EMPRESA = @ID_EMPRESA
+        AND P.ID_PEDIDO = @ID_PEDIDO;
     `);
-
   return resultado.recordset[0] || null;
 }
 
@@ -556,6 +518,7 @@ async function agregarProductoPedido(datos) {
     await transaction.begin();
 
     const pedidoResult = await new sql.Request(transaction)
+      .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_PEDIDO', sql.BigInt, datos.ID_PEDIDO)
       .query(`
         SELECT TOP 1
@@ -564,7 +527,7 @@ async function agregarProductoPedido(datos) {
           CODIGO_PROVEEDOR,
           ESTADO
         FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
-        WHERE ID_PEDIDO = @ID_PEDIDO;
+        WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO;
       `);
 
     const pedido = pedidoResult.recordset[0] || null;
@@ -580,13 +543,15 @@ async function agregarProductoPedido(datos) {
     }
 
     const existente = await new sql.Request(transaction)
+      .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_PEDIDO', sql.BigInt, datos.ID_PEDIDO)
       .input('ID_PRODUCTO', sql.BigInt, datos.ID_PRODUCTO)
       .query(`
         SELECT TOP 1 ID_PEDIDO_DETALLE
         FROM dbo.PEDIDOS_DETALLE
         WHERE
-          ID_PEDIDO = @ID_PEDIDO
+          ID_EMPRESA = @ID_EMPRESA
+          AND ID_PEDIDO = @ID_PEDIDO
           AND ID_PRODUCTO = @ID_PRODUCTO;
       `);
 
@@ -595,6 +560,7 @@ async function agregarProductoPedido(datos) {
     }
 
     const insertado = await new sql.Request(transaction)
+      .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_PEDIDO', sql.BigInt, datos.ID_PEDIDO)
       .input('ID_PRODUCTO', sql.BigInt, datos.ID_PRODUCTO)
       .input('TIPO_PRODUCTO', sql.VarChar(15), datos.TIPO_PRODUCTO)
@@ -622,6 +588,7 @@ async function agregarProductoPedido(datos) {
       .query(`
         INSERT INTO dbo.PEDIDOS_DETALLE
         (
+          ID_EMPRESA,
           ID_PEDIDO,
           ID_PRODUCTO,
           TIPO_PRODUCTO,
@@ -652,6 +619,7 @@ async function agregarProductoPedido(datos) {
         OUTPUT INSERTED.*
         VALUES
         (
+          @ID_EMPRESA,
           @ID_PEDIDO,
           @ID_PRODUCTO,
           @TIPO_PRODUCTO,
@@ -682,11 +650,12 @@ async function agregarProductoPedido(datos) {
       `);
 
     await new sql.Request(transaction)
+      .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_PEDIDO', sql.BigInt, datos.ID_PEDIDO)
       .query(`
         UPDATE dbo.PEDIDOS
         SET FECHA_ACTUALIZACION = SYSDATETIME()
-        WHERE ID_PEDIDO = @ID_PEDIDO;
+        WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO;
       `);
 
     await transaction.commit();
@@ -707,25 +676,18 @@ async function agregarProductoPedido(datos) {
 /* ============================================================
    LISTAR DETALLE DEL PEDIDO
    ============================================================ */
-async function listarDetallePedido(idPedido) {
+async function listarDetallePedido(idPedido, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_PEDIDO', sql.BigInt, idPedido)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
-      SELECT
-        D.*
-      FROM dbo.PEDIDOS_DETALLE D
-      WHERE D.ID_PEDIDO = @ID_PEDIDO
-      ORDER BY
-        D.DETALLE_MODELO,
-        D.DETALLE_COLOR,
-        D.DETALLE_MODULO,
-        D.DETALLE_TALLE,
-        D.ID_PEDIDO_DETALLE;
+      SELECT *
+      FROM dbo.PEDIDOS_DETALLE
+      WHERE ID_EMPRESA = @ID_EMPRESA
+        AND ID_PEDIDO = @ID_PEDIDO
+      ORDER BY ID_PEDIDO_DETALLE;
     `);
-
   return resultado.recordset;
 }
 
@@ -1225,77 +1187,53 @@ async function marcarPedidoAnulado(
    - Devuelve solo los productos incluidos en el pedido.
    - Recupera snapshots del Alta + datos ERP + curva maestra.
    ============================================================ */
-async function obtenerDatosMasterPedido(idPedido) {
+async function obtenerDatosMasterPedido(idPedido, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_PEDIDO', sql.BigInt, idPedido)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
       SELECT
-        PD.ID_PEDIDO_DETALLE,
-        PD.TIPO_PRODUCTO,
-        PD.CODIGO_ALFA,
+        PD.ID_PEDIDO_DETALLE, PD.TIPO_PRODUCTO, PD.CODIGO_ALFA,
         PD.CODIGO_ERP AS CODIGO_ERP_PEDIDO,
-        PD.CODIGO_MODELO,
-        PD.DETALLE_MODELO,
-        PD.CODIGO_COLOR,
-        PD.DETALLE_COLOR,
-        PD.DETALLE_PRODUCTO,
-        PD.CODIGO_TALLE,
-        PD.DETALLE_TALLE,
+        PD.CODIGO_MODELO, PD.DETALLE_MODELO,
+        PD.CODIGO_COLOR, PD.DETALLE_COLOR, PD.DETALLE_PRODUCTO,
+        PD.CODIGO_TALLE, PD.DETALLE_TALLE,
         PD.CODIGO_MODULO AS CODIGO_MODULO_PEDIDO,
         PD.DETALLE_MODULO AS DETALLE_MODULO_PEDIDO,
-        PD.DETALLE_EDAD,
-        PD.PARES_MODULO,
-        PD.PRECIO_FOB_PAR,
-
-        P.CODIGO_PROVEEDOR,
-        P.DETALLE_PROVEEDOR,
-
-        A.CODIGO_ANO,
-        A.CODIGO_TEMPORADA,
-        A.DETALLE_TEMPORADA,
-        A.CODIGO_MARCA,
-        A.DETALLE_MARCA,
-
-        D.CODIGO_GRUPO,
-        D.DETALLE_GRUPO,
-        D.CODIGO_SUBGRUPO,
-        D.DETALLE_SUBGRUPO,
-        D.CODIGO_LINEA,
-        D.DETALLE_LINEA,
-        D.CODIGO_DEPORTE,
-        D.DETALLE_DEPORTE,
-        D.CODIGO_EDAD,
-        D.SEXO,
-        D.CODIGO_CLASIFICACION,
-        D.DETALLE_CLASIFICACION,
-        D.CODIGO_PAIS,
-        D.DETALLE_PAIS,
-
+        PD.DETALLE_EDAD, PD.PARES_MODULO, PD.PRECIO_FOB_PAR,
+        P.CODIGO_PROVEEDOR, P.DETALLE_PROVEEDOR,
+        A.CODIGO_ANO, A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA,
+        A.CODIGO_MARCA, A.DETALLE_MARCA,
+        D.CODIGO_GRUPO, D.DETALLE_GRUPO,
+        D.CODIGO_SUBGRUPO, D.DETALLE_SUBGRUPO,
+        D.CODIGO_LINEA, D.DETALLE_LINEA,
+        D.CODIGO_DEPORTE, D.DETALLE_DEPORTE,
+        D.CODIGO_EDAD, D.SEXO,
+        D.CODIGO_CLASIFICACION, D.DETALLE_CLASIFICACION,
+        D.CODIGO_PAIS, D.DETALLE_PAIS,
         PR.CODIGO AS CODIGO_INTERNO_PRODUCTO,
         PR.CODIGO_ERP AS CODIGO_ERP_PRODUCTO,
-
         TM.*
-
       FROM dbo.PEDIDOS_DETALLE PD
       INNER JOIN dbo.PEDIDOS P
-        ON P.ID_PEDIDO = PD.ID_PEDIDO
+        ON P.ID_EMPRESA = PD.ID_EMPRESA AND P.ID_PEDIDO = PD.ID_PEDIDO
       INNER JOIN dbo.ALTAS_PRODUCTOS A
-        ON A.ID_ALTA = P.ID_ALTA
+        ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = P.ID_ALTA
       INNER JOIN dbo.ALTAS_PRODUCTOS_DETALLE D
-        ON D.ID_ALTA = P.ID_ALTA
+        ON D.ID_EMPRESA = P.ID_EMPRESA
+       AND D.ID_ALTA = P.ID_ALTA
        AND D.CODIGO_ALFA = PD.CODIGO_ALFA
        AND D.CODIGO_PROVEEDOR = P.CODIGO_PROVEEDOR
       INNER JOIN dbo.PRODUCTOS PR
-        ON PR.ID_PRODUCTO = PD.ID_PRODUCTO
+        ON PR.ID_EMPRESA = PD.ID_EMPRESA AND PR.ID_PRODUCTO = PD.ID_PRODUCTO
       LEFT JOIN dbo.MAESTRO_TALLES_MODULOS TM
-        ON TM.CODIGO_MODULO = PD.CODIGO_MODULO
-      WHERE PD.ID_PEDIDO = @ID_PEDIDO
+        ON TM.ID_EMPRESA = PD.ID_EMPRESA
+       AND TM.CODIGO_MODULO = PD.CODIGO_MODULO
+      WHERE PD.ID_EMPRESA = @ID_EMPRESA
+        AND PD.ID_PEDIDO = @ID_PEDIDO
       ORDER BY PD.ID_PEDIDO_DETALLE;
     `);
-
   return resultado.recordset;
 }
 
@@ -1308,9 +1246,8 @@ async function obtenerDatosMasterPedido(idPedido) {
    ============================================================ */
 async function registrarExportacionPedido(datos) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
     .input('ID_PEDIDO', sql.BigInt, datos.ID_PEDIDO)
     .input('TIPO_EXPORTACION', sql.VarChar(30), datos.TIPO_EXPORTACION)
     .input('NOMBRE_ARCHIVO', sql.VarChar(255), datos.NOMBRE_ARCHIVO)
@@ -1321,29 +1258,18 @@ async function registrarExportacionPedido(datos) {
     .query(`
       INSERT INTO dbo.PEDIDOS_EXPORTACIONES
       (
-        ID_PEDIDO,
-        TIPO_EXPORTACION,
-        NOMBRE_ARCHIVO,
-        FECHA_EXPORTACION,
-        USUARIO_EXPORTACION,
-        CANTIDAD_REGISTROS,
-        ESTADO,
-        OBSERVACIONES
+        ID_EMPRESA, ID_PEDIDO, TIPO_EXPORTACION, NOMBRE_ARCHIVO,
+        FECHA_EXPORTACION, USUARIO_EXPORTACION,
+        CANTIDAD_REGISTROS, ESTADO, OBSERVACIONES
       )
       OUTPUT INSERTED.*
       VALUES
       (
-        @ID_PEDIDO,
-        @TIPO_EXPORTACION,
-        @NOMBRE_ARCHIVO,
-        SYSDATETIME(),
-        @USUARIO_EXPORTACION,
-        @CANTIDAD_REGISTROS,
-        @ESTADO,
-        @OBSERVACIONES
+        @ID_EMPRESA, @ID_PEDIDO, @TIPO_EXPORTACION, @NOMBRE_ARCHIVO,
+        SYSDATETIME(), @USUARIO_EXPORTACION,
+        @CANTIDAD_REGISTROS, @ESTADO, @OBSERVACIONES
       );
     `);
-
   return resultado.recordset[0] || null;
 }
 
@@ -1351,29 +1277,54 @@ async function registrarExportacionPedido(datos) {
 /* ============================================================
    LISTAR EXPORTACIONES DE UN PEDIDO
    ============================================================ */
-async function listarExportacionesPedido(idPedido) {
+async function listarExportacionesPedido(idPedido, idEmpresa) {
   const pool = await getConnection();
-
-  const resultado = await pool
-    .request()
+  const resultado = await pool.request()
     .input('ID_PEDIDO', sql.BigInt, idPedido)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
       SELECT
-        ID_EXPORTACION,
-        ID_PEDIDO,
-        TIPO_EXPORTACION,
-        NOMBRE_ARCHIVO,
-        FECHA_EXPORTACION,
-        USUARIO_EXPORTACION,
-        CANTIDAD_REGISTROS,
-        ESTADO,
-        OBSERVACIONES
+        ID_EXPORTACION, ID_EMPRESA, ID_PEDIDO, TIPO_EXPORTACION,
+        NOMBRE_ARCHIVO, FECHA_EXPORTACION, USUARIO_EXPORTACION,
+        CANTIDAD_REGISTROS, ESTADO, OBSERVACIONES
       FROM dbo.PEDIDOS_EXPORTACIONES
-      WHERE ID_PEDIDO = @ID_PEDIDO
+      WHERE ID_EMPRESA = @ID_EMPRESA
+        AND ID_PEDIDO = @ID_PEDIDO
       ORDER BY ID_EXPORTACION DESC;
     `);
-
   return resultado.recordset;
+}
+
+
+/* ============================================================
+   DESTINOS DE EXPORTACION DEL PEDIDO POR EMPRESA / MARCA
+   - No reutiliza la configuracion FTP de Altas.
+   - No aplica ningun destino por defecto.
+   ============================================================ */
+async function obtenerConfiguracionExportacionPedido(idEmpresa, codigoMarca) {
+  const pool = await getConnection();
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('CODIGO_MARCA', sql.VarChar(30), String(codigoMarca || '').trim())
+    .query(`
+      SELECT TOP 1
+        C.ID_PEDIDO_EXPORT_CONFIG,
+        C.ID_EMPRESA_MARCA,
+        EM.ID_EMPRESA,
+        EM.CODIGO_MARCA,
+        C.RUTA_PEDIDO_EXCEL,
+        C.RUTA_MASTER_DATA_APP,
+        C.RUTA_PREC_FOB,
+        C.ACTIVA,
+        C.FECHA_ACTUALIZACION
+      FROM dbo.PEDIDOS_EXPORT_CONFIG C
+      INNER JOIN dbo.EMPRESAS_MARCAS EM
+        ON EM.ID_EMPRESA_MARCA = C.ID_EMPRESA_MARCA
+      WHERE EM.ID_EMPRESA = @ID_EMPRESA
+        AND EM.CODIGO_MARCA = @CODIGO_MARCA
+        AND EM.ACTIVA = 1;
+    `);
+  return resultado.recordset[0] || null;
 }
 
 module.exports = {
@@ -1396,4 +1347,5 @@ module.exports = {
   obtenerDatosMasterPedido,
   registrarExportacionPedido,
   listarExportacionesPedido,
+  obtenerConfiguracionExportacionPedido,
 };

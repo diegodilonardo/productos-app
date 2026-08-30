@@ -1,0 +1,65 @@
+<div class="login-shell" id="loginApp" data-next="{{next}}">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-mark">PA</div>
+      <div>
+        <div class="login-kicker">PRODUCTOS APP</div>
+        <h1 class="h3 mb-1">Iniciar sesión</h1>
+        <p class="text-secondary mb-0">
+          Ingresá con tu usuario para acceder a la aplicación.
+        </p>
+      </div>
+    </div>
+
+    <div id="alertaLogin" class="alert d-none mt-4" role="alert"></div>
+
+    <form id="formLogin" class="mt-4" autocomplete="on" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="usuario">Usuario</label>
+        <input
+          id="usuario"
+          name="usuario"
+          class="form-control form-control-lg"
+          type="text"
+          maxlength="100"
+          autocomplete="username"
+          required
+          autofocus
+        >
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="password">Contraseña</label>
+        <div class="input-group input-group-lg">
+          <input
+            id="password"
+            name="password"
+            class="form-control"
+            type="password"
+            autocomplete="current-password"
+            required
+          >
+          <button
+            id="btnMostrarPassword"
+            class="btn btn-outline-secondary"
+            type="button"
+          >
+            Mostrar
+          </button>
+        </div>
+      </div>
+
+      <button
+        id="btnIngresar"
+        class="btn btn-primary btn-lg w-100"
+        type="submit"
+      >
+        Ingresar
+      </button>
+    </form>
+
+    <div class="login-foot">
+      La empresa, marcas, rubros, licencias y rol se obtienen de tus permisos.
+    </div>
+  </div>
+</div>

@@ -1,0 +1,17 @@
+LOGOS DINÁMICOS POR MARCA
+
+El navbar busca automáticamente:
+  /public/img/marcas/<CODIGO_MARCA>.png
+
+Ejemplos actuales:
+  10.png = MONTAGNE
+  47.png = 47 STREET
+
+Cuando agreguemos ATOMIK por código de marca, usar exactamente:
+  <CODIGO_ATOMIK>.png
+
+Si el archivo no existe, el sistema NO falla:
+muestra el nombre de la marca como badge de texto.
+
+Recomendación:
+PNG transparente, horizontal, aprox. 240x80 px.

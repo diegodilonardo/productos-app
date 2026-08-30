@@ -4,6 +4,12 @@ const ftp =
 const path =
     require('path');
 
+const fs =
+    require('fs');
+
+const crypto =
+    require('crypto');
+
 
 function texto(valor) {
 
@@ -29,6 +35,652 @@ function booleano(valor) {
     ].includes(
         texto(valor).toUpperCase()
     );
+}
+
+
+function enteroSeguro(valor, defecto, minimo, maximo) {
+
+    const numero = Number(valor);
+
+    if (!Number.isInteger(numero)) {
+        return defecto;
+    }
+
+    return Math.min(
+        maximo,
+        Math.max(minimo, numero)
+    );
+}
+
+
+function esperar(ms) {
+
+    return new Promise(resolve => {
+        setTimeout(resolve, ms);
+    });
+}
+
+
+function esErrorTransitorio(error) {
+
+    const codigo =
+        error && error.code !== undefined
+            ? error.code
+            : null;
+
+    const codigosRed = new Set([
+        'ETIMEDOUT',
+        'ECONNRESET',
+        'ECONNREFUSED',
+        'ECONNABORTED',
+        'EHOSTUNREACH',
+        'ENETUNREACH',
+        'EPIPE'
+    ]);
+
+    if (codigosRed.has(String(codigo || '').toUpperCase())) {
+        return true;
+    }
+
+    /*
+     * Códigos FTP temporales: el servidor indica que la operación
+     * podría funcionar si se vuelve a intentar más tarde.
+     * No incluimos 530/550 porque autenticación, permisos o rutas
+     * incorrectas no se corrigen repitiendo inmediatamente.
+     */
+    if ([421, 425, 426, 450, 451, 452].includes(Number(codigo))) {
+        return true;
+    }
+
+    const mensaje =
+        texto(
+            error && error.message
+                ? error.message
+                : error
+        ).toLowerCase();
+
+    return [
+        'timeout',
+        'timed out',
+        'control socket',
+        'data socket',
+        'socket closed',
+        'connection closed',
+        'connection reset',
+        'connection refused',
+        'network is unreachable',
+        'host is unreachable',
+        'econnreset',
+        'econnrefused',
+        'etimedout'
+    ].some(fragmento =>
+        mensaje.includes(fragmento)
+    );
+}
+
+
+async function ejecutarConRetry(
+    etiqueta,
+    operacion
+) {
+
+    const intentosMaximos =
+        enteroSeguro(
+            process.env.FTP_RETRY_ATTEMPTS,
+            2,
+            1,
+            3
+        );
+
+    const demoraMs =
+        enteroSeguro(
+            process.env.FTP_RETRY_DELAY_MS,
+            1500,
+            0,
+            30000
+        );
+
+    let ultimoError = null;
+
+    for (
+        let intento = 1;
+        intento <= intentosMaximos;
+        intento++
+    ) {
+
+        try {
+
+            return await operacion(intento);
+
+        } catch (error) {
+
+            ultimoError = error;
+
+            const transitorio =
+                esErrorTransitorio(error);
+
+            const quedanIntentos =
+                intento < intentosMaximos;
+
+            if (
+                !transitorio ||
+                !quedanIntentos
+            ) {
+                throw error;
+            }
+
+            console.warn(
+                `[FTP] ${etiqueta} falló por error transitorio. ` +
+                `Reintento ${intento + 1}/${intentosMaximos} ` +
+                `en ${demoraMs} ms. Detalle: ${
+                    error && error.message
+                        ? error.message
+                        : String(error)
+                }`
+            );
+
+            if (demoraMs > 0) {
+                await esperar(demoraMs);
+            }
+        }
+    }
+
+    throw ultimoError;
+}
+
+
+
+
+class FtpCircuitOpenError extends Error {
+
+    constructor(mensaje) {
+        super(mensaje);
+        this.name = 'FtpCircuitOpenError';
+        this.code = 'FTP_CIRCUIT_OPEN';
+    }
+}
+
+
+function configuracionCircuitBreaker() {
+
+    return {
+        umbral:
+            enteroSeguro(
+                process.env.FTP_CIRCUIT_FAILURE_THRESHOLD,
+                2,
+                1,
+                20
+            ),
+
+        abiertoMs:
+            enteroSeguro(
+                process.env.FTP_CIRCUIT_OPEN_MS,
+                15 * 60 * 1000,
+                1000,
+                3600000
+            ),
+
+        pruebaMaxMs:
+            enteroSeguro(
+                process.env.FTP_CIRCUIT_HALF_OPEN_MAX_MS,
+                30000,
+                1000,
+                300000
+            ),
+
+        carpeta:
+            texto(
+                process.env.FTP_CIRCUIT_STATE_PATH
+            ) ||
+            path.join(
+                process.cwd(),
+                'tmp',
+                'ftp-circuit-breaker'
+            )
+    };
+}
+
+
+function claveCircuito(config) {
+
+    return `${config.host}:${config.port}`;
+}
+
+
+function archivoCircuito(config) {
+
+    const cfg =
+        configuracionCircuitBreaker();
+
+    const hash =
+        crypto
+            .createHash('sha256')
+            .update(claveCircuito(config))
+            .digest('hex')
+            .slice(0, 24);
+
+    return {
+        cfg,
+        estado:
+            path.join(
+                cfg.carpeta,
+                `${hash}.state`
+            ),
+        lock:
+            path.join(
+                cfg.carpeta,
+                `${hash}.lock`
+            )
+    };
+}
+
+
+async function leerEstadoCircuito(ruta) {
+
+    try {
+        const contenido =
+            await fs.promises.readFile(
+                ruta,
+                'utf8'
+            );
+
+        const estado =
+            JSON.parse(contenido);
+
+        return estado && typeof estado === 'object'
+            ? estado
+            : null;
+
+    } catch (error) {
+
+        if (error && error.code === 'ENOENT') {
+            return null;
+        }
+
+        /*
+         * Un archivo de estado ilegible no debe bloquear FTP.
+         * Lo tratamos como circuito cerrado y permitimos autocorrección.
+         */
+        console.warn(
+            '[FTP] No se pudo leer el estado del circuit breaker:',
+            error && error.message
+                ? error.message
+                : String(error)
+        );
+
+        return null;
+    }
+}
+
+
+async function escribirEstadoCircuito(
+    ruta,
+    estado
+) {
+
+    const temporal =
+        `${ruta}.${process.pid}.${Date.now()}.tmp`;
+
+    await fs.promises.writeFile(
+        temporal,
+        JSON.stringify(estado, null, 2),
+        'utf8'
+    );
+
+    /*
+     * Estamos bajo lock. Eliminamos primero el destino para que el
+     * reemplazo sea portable también en Windows.
+     */
+    await fs.promises.rm(
+        ruta,
+        {
+            force: true
+        }
+    );
+
+    await fs.promises.rename(
+        temporal,
+        ruta
+    );
+}
+
+
+async function conLockCircuito(
+    config,
+    accion
+) {
+
+    const rutas =
+        archivoCircuito(config);
+
+    await fs.promises.mkdir(
+        rutas.cfg.carpeta,
+        {
+            recursive: true
+        }
+    );
+
+    const inicio = Date.now();
+    const maxEsperaMs = 3000;
+    const lockStaleMs = 60000;
+
+    while (true) {
+
+        try {
+            await fs.promises.mkdir(
+                rutas.lock
+            );
+            break;
+
+        } catch (error) {
+
+            if (!error || error.code !== 'EEXIST') {
+                throw error;
+            }
+
+            try {
+                const stat =
+                    await fs.promises.stat(
+                        rutas.lock
+                    );
+
+                if (
+                    Date.now() - stat.mtimeMs >
+                    lockStaleMs
+                ) {
+                    await fs.promises.rm(
+                        rutas.lock,
+                        {
+                            recursive: true,
+                            force: true
+                        }
+                    );
+                    continue;
+                }
+            } catch (_) {}
+
+            if (
+                Date.now() - inicio >=
+                maxEsperaMs
+            ) {
+                throw new Error(
+                    'No se pudo obtener el lock del circuit breaker FTP.'
+                );
+            }
+
+            await esperar(50);
+        }
+    }
+
+    try {
+        return await accion(rutas);
+    } finally {
+        await fs.promises.rm(
+            rutas.lock,
+            {
+                recursive: true,
+                force: true
+            }
+        );
+    }
+}
+
+
+async function autorizarOperacionCircuito(config) {
+
+    return conLockCircuito(
+        config,
+        async rutas => {
+
+            const ahora = Date.now();
+            const clave = claveCircuito(config);
+            const estado =
+                await leerEstadoCircuito(
+                    rutas.estado
+                );
+
+            if (!estado) {
+                return {
+                    modo: 'CLOSED'
+                };
+            }
+
+            if (estado.estado === 'OPEN') {
+
+                if (
+                    Number(estado.abiertoHasta || 0) >
+                    ahora
+                ) {
+                    const faltanMs =
+                        Number(estado.abiertoHasta) -
+                        ahora;
+
+                    throw new FtpCircuitOpenError(
+                        `Circuit breaker OPEN para ${clave}. ` +
+                        `Nuevo intento habilitado en aproximadamente ` +
+                        `${Math.ceil(faltanMs / 1000)} s.`
+                    );
+                }
+
+                const nuevoEstado = {
+                    ...estado,
+                    estado: 'HALF_OPEN',
+                    pruebaPid: process.pid,
+                    pruebaDesde: ahora,
+                    pruebaHasta:
+                        ahora +
+                        rutas.cfg.pruebaMaxMs,
+                    actualizadoEn: ahora
+                };
+
+                await escribirEstadoCircuito(
+                    rutas.estado,
+                    nuevoEstado
+                );
+
+                console.log(
+                    `[FTP] Circuit breaker HALF_OPEN para ${clave}. ` +
+                    'Se habilita una única prueba.'
+                );
+
+                return {
+                    modo: 'HALF_OPEN'
+                };
+            }
+
+            if (estado.estado === 'HALF_OPEN') {
+
+                if (
+                    Number(estado.pruebaHasta || 0) >
+                    ahora
+                ) {
+                    throw new FtpCircuitOpenError(
+                        `Circuit breaker HALF_OPEN para ${clave}. ` +
+                        'Ya hay una prueba FTP en curso.'
+                    );
+                }
+
+                const nuevoEstado = {
+                    ...estado,
+                    estado: 'HALF_OPEN',
+                    pruebaPid: process.pid,
+                    pruebaDesde: ahora,
+                    pruebaHasta:
+                        ahora +
+                        rutas.cfg.pruebaMaxMs,
+                    actualizadoEn: ahora
+                };
+
+                await escribirEstadoCircuito(
+                    rutas.estado,
+                    nuevoEstado
+                );
+
+                return {
+                    modo: 'HALF_OPEN'
+                };
+            }
+
+            return {
+                modo: 'CLOSED'
+            };
+        }
+    );
+}
+
+
+async function registrarExitoCircuito(config) {
+
+    await conLockCircuito(
+        config,
+        async rutas => {
+
+            const estado =
+                await leerEstadoCircuito(
+                    rutas.estado
+                );
+
+            if (estado) {
+                await fs.promises.rm(
+                    rutas.estado,
+                    {
+                        force: true
+                    }
+                );
+
+                console.log(
+                    `[FTP] Circuit breaker CLOSED para ${claveCircuito(config)}.`
+                );
+            }
+        }
+    );
+}
+
+
+async function registrarFalloCircuito(
+    config,
+    error,
+    modoOperacion
+) {
+
+    if (!esErrorTransitorio(error)) {
+        return;
+    }
+
+    await conLockCircuito(
+        config,
+        async rutas => {
+
+            const ahora = Date.now();
+            const clave = claveCircuito(config);
+            const estadoActual =
+                await leerEstadoCircuito(
+                    rutas.estado
+                );
+
+            const fallosPrevios =
+                Number(
+                    estadoActual &&
+                    estadoActual.fallosConsecutivos
+                        ? estadoActual.fallosConsecutivos
+                        : 0
+                );
+
+            const fallos =
+                modoOperacion === 'HALF_OPEN'
+                    ? rutas.cfg.umbral
+                    : fallosPrevios + 1;
+
+            if (
+                modoOperacion === 'HALF_OPEN' ||
+                fallos >= rutas.cfg.umbral
+            ) {
+
+                const abiertoHasta =
+                    ahora +
+                    rutas.cfg.abiertoMs;
+
+                await escribirEstadoCircuito(
+                    rutas.estado,
+                    {
+                        version: 1,
+                        clave,
+                        estado: 'OPEN',
+                        fallosConsecutivos: fallos,
+                        abiertoDesde: ahora,
+                        abiertoHasta,
+                        ultimoError:
+                            error && error.message
+                                ? error.message
+                                : String(error),
+                        actualizadoEn: ahora
+                    }
+                );
+
+                console.warn(
+                    `[FTP] Circuit breaker OPEN para ${clave} ` +
+                    `durante ${Math.ceil(rutas.cfg.abiertoMs / 1000)} s. ` +
+                    `Fallos consecutivos: ${fallos}.`
+                );
+
+                return;
+            }
+
+            await escribirEstadoCircuito(
+                rutas.estado,
+                {
+                    version: 1,
+                    clave,
+                    estado: 'CLOSED',
+                    fallosConsecutivos: fallos,
+                    ultimoError:
+                        error && error.message
+                            ? error.message
+                            : String(error),
+                    actualizadoEn: ahora
+                }
+            );
+
+            console.warn(
+                `[FTP] Fallo transitorio ${fallos}/${rutas.cfg.umbral} ` +
+                `para ${clave}. Circuit breaker continúa CLOSED.`
+            );
+        }
+    );
+}
+
+
+async function ejecutarConCircuitBreaker(
+    config,
+    operacion
+) {
+
+    const autorizacion =
+        await autorizarOperacionCircuito(
+            config
+        );
+
+    try {
+
+        const resultado =
+            await operacion();
+
+        await registrarExitoCircuito(
+            config
+        );
+
+        return resultado;
+
+    } catch (error) {
+
+        await registrarFalloCircuito(
+            config,
+            error,
+            autorizacion.modo
+        );
+
+        throw error;
+    }
 }
 
 
@@ -130,7 +782,8 @@ function obtenerConfiguracion() {
 async function subirArchivo(
     rutaLocal,
     nombreArchivo,
-    nombreRemoto = null
+    nombreRemoto = null,
+    rutaRemota = null
 ) {
 
     const config =
@@ -144,112 +797,119 @@ async function subirArchivo(
         config.remoteFilename;
 
 
-    const cliente =
-        new ftp.Client(
-            config.timeout
-        );
-
-
-    /*
-     * Dejar en false normalmente.
-     * Activar temporalmente solo si necesitamos diagnosticar FTP.
-     */
-    cliente.ftp.verbose =
-        booleano(
-            process.env.FTP_VERBOSE
-        );
+    const carpetaRemota =
+        (
+            texto(
+                rutaRemota
+            ) ||
+            config.remotePath
+        )
+            .replace(
+                /\\+/g,
+                '/'
+            )
+            .replace(
+                /\/+$/g,
+                ''
+            );
 
 
     try {
 
-        await cliente.access({
-            host:
-                config.host,
+        return await ejecutarConCircuitBreaker(
+            config,
+            async () => ejecutarConRetry(
+                `Subida ${archivoRemoto}`,
+                async () => {
 
-            port:
-                config.port,
+                const cliente =
+                    new ftp.Client(
+                        config.timeout
+                    );
 
-            user:
-                config.user,
+                cliente.ftp.verbose =
+                    booleano(
+                        process.env.FTP_VERBOSE
+                    );
 
-            password:
-                config.password,
+                try {
 
-            secure:
-                config.secure
-        });
+                    await cliente.access({
+                        host:
+                            config.host,
+
+                        port:
+                            config.port,
+
+                        user:
+                            config.user,
+
+                        password:
+                            config.password,
+
+                        secure:
+                            config.secure
+                    });
 
 
-        /*
-         * ensureDir acepta también rutas relativas.
-         * Para este proyecto:
-         * altas_productos_vicbor
-         */
-        await cliente.ensureDir(
-            config.remotePath
+                    await cliente.ensureDir(
+                        carpetaRemota
+                    );
+
+
+                    await cliente.uploadFrom(
+                        rutaLocal,
+                        archivoRemoto
+                    );
+
+
+                    const rutaRemotaFinal =
+                        [
+                            carpetaRemota,
+                            archivoRemoto
+                        ]
+                            .filter(Boolean)
+                            .join('/');
+
+
+                    return {
+                        enviado:
+                            true,
+
+                        host:
+                            config.host,
+
+                        port:
+                            config.port,
+
+                        carpeta:
+                            carpetaRemota,
+
+                        archivoLocal:
+                            nombreArchivo,
+
+                        archivoFTP:
+                            archivoRemoto,
+
+                        rutaRemota:
+                            rutaRemotaFinal,
+
+                        secure:
+                            config.secure
+                    };
+
+                } finally {
+
+                    cliente.close();
+                }
+                }
+            )
         );
-
-
-        /*
-         * IMPORTANTE:
-         * - nombreArchivo = nombre LOCAL del DBI (se conserva tal cual).
-         * - config.remoteFilename = nombre GENERICO usado únicamente en FTP.
-         *
-         * Ejemplo:
-         * Local: PRODUCTOS_ALTA_20260820_001.DBI
-         * FTP:   ALTAS_PRODUCTOS.DBI
-         */
-        await cliente.uploadFrom(
-            rutaLocal,
-            archivoRemoto
-        );
-
-
-        const rutaRemota =
-            [
-                config.remotePath
-                    .replace(
-                        /[\\/]+$/g,
-                        ''
-                    ),
-
-                archivoRemoto
-            ]
-                .filter(Boolean)
-                .join('/');
-
-
-        return {
-            enviado:
-                true,
-
-            host:
-                config.host,
-
-            port:
-                config.port,
-
-            carpeta:
-                config.remotePath,
-
-            archivoLocal:
-                nombreArchivo,
-
-            archivoFTP:
-                archivoRemoto,
-
-            rutaRemota,
-
-            secure:
-                config.secure
-        };
-
 
     } catch (error) {
 
         const mensajeOriginal =
-            error &&
-            error.message
+            error && error.message
                 ? error.message
                 : String(error);
 
@@ -257,19 +917,174 @@ async function subirArchivo(
         throw new Error(
             `No se pudo enviar el DBI al FTP ` +
             `${config.host}:${config.port}/` +
-            `${config.remotePath}. ` +
+            `${carpetaRemota}. ` +
             `El archivo local quedó conservado para reintentar. ` +
             `Detalle: ${mensajeOriginal}`
         );
+    }
+}
+
+/* =============================================================
+   DESCARGAR ARCHIVOS DESDE UNA CARPETA FTP
+   ============================================================= */
+
+async function descargarArchivos(
+    remotePath,
+    archivos,
+    carpetaLocal
+) {
+
+    const config =
+        obtenerConfiguracion();
+
+    const carpetaFTP =
+        texto(remotePath);
+
+    if (!carpetaFTP) {
+
+        throw new Error(
+            'La ruta remota FTP de maestros está vacía.'
+        );
+    }
+
+    if (
+        !Array.isArray(archivos) ||
+        archivos.length === 0
+    ) {
+
+        throw new Error(
+            'No se informaron archivos para descargar.'
+        );
+    }
+
+    await fs.promises.mkdir(
+        carpetaLocal,
+        {
+            recursive: true
+        }
+    );
 
 
-    } finally {
+    try {
 
-        cliente.close();
+        return await ejecutarConCircuitBreaker(
+            config,
+            async () => ejecutarConRetry(
+                `Descarga ${carpetaFTP}`,
+                async () => {
+
+                const cliente =
+                    new ftp.Client(
+                        config.timeout
+                    );
+
+                cliente.ftp.verbose =
+                    booleano(
+                        process.env.FTP_VERBOSE
+                    );
+
+                try {
+
+                    await cliente.access({
+                        host:
+                            config.host,
+
+                        port:
+                            config.port,
+
+                        user:
+                            config.user,
+
+                        password:
+                            config.password,
+
+                        secure:
+                            config.secure
+                    });
+
+
+                    await cliente.cd(
+                        carpetaFTP
+                    );
+
+
+                    const descargados = [];
+
+                    for (
+                        const nombreArchivo
+                        of archivos
+                    ) {
+
+                        const nombre =
+                            texto(
+                                nombreArchivo
+                            );
+
+                        if (!nombre) {
+                            continue;
+                        }
+
+
+                        const rutaLocal =
+                            path.join(
+                                carpetaLocal,
+                                nombre
+                            );
+
+
+                        await cliente.downloadTo(
+                            rutaLocal,
+                            nombre
+                        );
+
+
+                        descargados.push({
+                            archivo:
+                                nombre,
+
+                            rutaLocal
+                        });
+                    }
+
+
+                    return {
+                        carpetaFTP,
+
+                        carpetaLocal,
+
+                        cantidad:
+                            descargados.length,
+
+                        archivos:
+                            descargados
+                    };
+
+                } finally {
+
+                    cliente.close();
+                }
+                }
+            )
+        );
+
+    } catch (error) {
+
+        const mensajeOriginal =
+            error && error.message
+                ? error.message
+                : String(error);
+
+
+        throw new Error(
+            `No se pudieron descargar los maestros desde ` +
+            `${config.host}:${config.port}${carpetaFTP}. ` +
+            `Detalle: ${mensajeOriginal}`
+        );
     }
 }
 
 
 module.exports = {
-    subirArchivo
+    subirArchivo,
+    descargarArchivos
 };

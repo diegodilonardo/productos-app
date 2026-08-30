@@ -97,6 +97,37 @@ const maestros = {
 
 
     /* =========================================================
+       CONCEPTOS
+       ========================================================= */
+
+    CONCEPTOS: {
+        nombre: 'TBL_CONCEPTOS',
+        archivo: 'TBL_CONCEPTOS.TXT',
+        tabla: 'MAESTRO_CONCEPTOS',
+        staging: 'STG_MAESTRO_CONCEPTOS',
+
+        columnas: [
+            {
+                archivo: 0,
+                nombre: 'CODIGO_CONCEPTO',
+                tipo: 'VARCHAR',
+                longitud: 2,
+                requerido: true
+            },
+            {
+                archivo: 1,
+                nombre: 'DETALLE_CONCEPTO',
+                tipo: 'VARCHAR',
+                longitud: 30,
+                requerido: true
+            }
+        ],
+
+        clave: 'CODIGO_CONCEPTO'
+    },
+
+
+    /* =========================================================
        DEPORTES
        ========================================================= */
 

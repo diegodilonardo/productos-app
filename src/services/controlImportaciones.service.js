@@ -1,18 +1,31 @@
 const { getConnection, sql } = require('../config/database');
 
 
-async function obtenerUltimoHashOK(maestro) {
+async function obtenerUltimoHashOK(
+    maestro,
+    idEmpresa
+) {
 
     const pool = await getConnection();
 
     const resultado = await pool
         .request()
-        .input('MAESTRO', sql.VarChar(100), maestro)
+        .input(
+            'MAESTRO',
+            sql.VarChar(100),
+            maestro
+        )
+        .input(
+            'ID_EMPRESA',
+            sql.Int,
+            idEmpresa
+        )
         .query(`
             SELECT TOP 1
                 HASH_ARCHIVO
             FROM dbo.CONTROL_IMPORTACIONES
             WHERE MAESTRO = @MAESTRO
+              AND ID_EMPRESA = @ID_EMPRESA
               AND ESTADO IN ('OK', 'SIN_CAMBIOS')
               AND HASH_ARCHIVO IS NOT NULL
             ORDER BY ID_IMPORTACION DESC;
@@ -32,7 +45,8 @@ async function crearControlImportacion({
     estado,
     hash,
     tamano,
-    fechaArchivo
+    fechaArchivo,
+    idEmpresa
 }) {
 
     const pool = await getConnection();
@@ -69,6 +83,11 @@ async function crearControlImportacion({
             sql.DateTime2,
             fechaArchivo
         )
+        .input(
+            'ID_EMPRESA',
+            sql.Int,
+            idEmpresa
+        )
         .query(`
             INSERT INTO dbo.CONTROL_IMPORTACIONES
             (
@@ -78,7 +97,8 @@ async function crearControlImportacion({
                 ESTADO,
                 HASH_ARCHIVO,
                 TAMANO_ARCHIVO,
-                FECHA_ARCHIVO
+                FECHA_ARCHIVO,
+                ID_EMPRESA
             )
             OUTPUT INSERTED.ID_IMPORTACION
             VALUES
@@ -89,7 +109,8 @@ async function crearControlImportacion({
                 @ESTADO,
                 @HASH_ARCHIVO,
                 @TAMANO_ARCHIVO,
-                @FECHA_ARCHIVO
+                @FECHA_ARCHIVO,
+                @ID_EMPRESA
             );
         `);
 

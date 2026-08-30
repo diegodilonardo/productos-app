@@ -4,72 +4,80 @@ const { getConnection, sql } = require("../config/database");
    CABECERA - MAESTROS
    ============================================================ */
 
-async function buscarMarca(codigoMarca) {
+async function buscarMarca(codigoMarca, idEmpresa) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
-    .input("CODIGO_MARCA", sql.VarChar(3), codigoMarca).query(`
+    .input("CODIGO_MARCA", sql.VarChar(3), codigoMarca)
+    .input("ID_EMPRESA", sql.Int, idEmpresa).query(`
             SELECT TOP 1
                 CODIGO_MARCA,
                 DETALLE_MARCA
             FROM dbo.MAESTRO_MARCAS
             WHERE
                 CODIGO_MARCA = @CODIGO_MARCA
+                AND ID_EMPRESA = @ID_EMPRESA
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarRubro(codigoRubro) {
+async function buscarRubro(codigoRubro, idEmpresa) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
-    .input("CODIGO_RUBRO", sql.VarChar(1), codigoRubro).query(`
+    .input("CODIGO_RUBRO", sql.VarChar(1), codigoRubro)
+    .input("ID_EMPRESA", sql.Int, idEmpresa).query(`
             SELECT TOP 1
                 CODIGO_RUBRO,
                 DETALLE_RUBRO
             FROM dbo.MAESTRO_RUBROS
             WHERE
                 CODIGO_RUBRO = @CODIGO_RUBRO
+                AND ID_EMPRESA = @ID_EMPRESA
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarTemporada(codigoTemporada) {
+async function buscarTemporada(codigoTemporada, idEmpresa) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
-    .input("CODIGO_TEMPORADA", sql.VarChar(1), codigoTemporada).query(`
+    .input("CODIGO_TEMPORADA", sql.VarChar(1), codigoTemporada)
+    .input("ID_EMPRESA", sql.Int, idEmpresa).query(`
             SELECT TOP 1
                 CODIGO_TEMPORADA,
                 DETALLE_TEMPORADA
             FROM dbo.MAESTRO_TEMPORADAS
             WHERE
                 CODIGO_TEMPORADA = @CODIGO_TEMPORADA
+                AND ID_EMPRESA = @ID_EMPRESA
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarAno(codigoAno) {
+async function buscarAno(codigoAno, idEmpresa) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
-    .input("CODIGO_ANO", sql.VarChar(2), codigoAno).query(`
+    .input("CODIGO_ANO", sql.VarChar(2), codigoAno)
+    .input("ID_EMPRESA", sql.Int, idEmpresa).query(`
             SELECT TOP 1
                 CODIGO_ANO,
                 DETALLE_ANO
             FROM dbo.MAESTRO_ANOS
             WHERE
                 CODIGO_ANO = @CODIGO_ANO
+                AND ID_EMPRESA = @ID_EMPRESA
                 AND ACTIVO = 1;
         `);
 
@@ -85,6 +93,8 @@ async function crearAlta(datos) {
 
   const resultado = await pool
     .request()
+
+    .input("ID_EMPRESA", sql.Int, datos.idEmpresa)
 
     .input("CODIGO_ALTA", sql.VarChar(50), datos.codigoAlta)
 
@@ -107,6 +117,7 @@ async function crearAlta(datos) {
     .input("USUARIO_CREACION", sql.VarChar(100), datos.usuarioCreacion).query(`
             INSERT INTO dbo.ALTAS_PRODUCTOS
             (
+                ID_EMPRESA,
                 CODIGO_ALTA,
 
                 CODIGO_MARCA,
@@ -132,6 +143,7 @@ async function crearAlta(datos) {
 
             VALUES
             (
+                @ID_EMPRESA,
                 @CODIGO_ALTA,
 
                 @CODIGO_MARCA,
@@ -161,10 +173,12 @@ async function crearAlta(datos) {
    LISTAR CABECERAS
    ============================================================ */
 
-async function listarAltas() {
+async function listarAltas(idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().query(`
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa)
+    .query(`
             SELECT
                 A.ID_ALTA,
                 A.CODIGO_ALTA,
@@ -213,6 +227,7 @@ async function listarAltas() {
                 ) AS CANTIDAD_PRODUCTOS
 
             FROM dbo.ALTAS_PRODUCTOS A
+            WHERE A.ID_EMPRESA = @ID_EMPRESA
 
             ORDER BY
                 A.ID_ALTA DESC;
@@ -313,11 +328,12 @@ async function obtenerDetalleAlta(idAlta) {
    MAESTROS DEL DETALLE
    ============================================================ */
 
-async function buscarModelo(codigoModelo, marca, rubro) {
+async function buscarModelo(codigoModelo, marca, rubro, idEmpresa) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa)
 
     .input("CODIGO_MODELO", sql.VarChar(6), codigoModelo)
 
@@ -334,7 +350,9 @@ async function buscarModelo(codigoModelo, marca, rubro) {
             FROM dbo.MAESTRO_MODELOS
 
             WHERE
-                CODIGO_MODELO = @CODIGO_MODELO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_MODELO = @CODIGO_MODELO
                 AND MARCA_MODELO = @MARCA
                 AND RUBRO_MODELO = @RUBRO
                 AND ACTIVO = 1;
@@ -344,7 +362,23 @@ async function buscarModelo(codigoModelo, marca, rubro) {
 }
 
 
-async function buscarProveedor(codigo, rubro = null) {
+async function buscarProveedor(
+  codigo,
+  rubro = null,
+  idEmpresa,
+  codigoMarca
+) {
+  /*
+   * El maestro de proveedores no es por empresa/marca.
+   * La habilitación funcional del Alta se determina por:
+   *   - CODIGO
+   *   - ACTIVO
+   *   - RUBRO
+   *
+   * Conservamos idEmpresa/codigoMarca en la firma para no romper
+   * las llamadas multiempresa existentes, pero no se usan como
+   * filtro de proveedor.
+   */
   const pool = await getConnection();
 
   const resultado = await pool
@@ -353,226 +387,258 @@ async function buscarProveedor(codigo, rubro = null) {
     .input("RUBRO", sql.VarChar(100), rubro)
     .query(`
       SELECT TOP 1
-        CODIGO,
-        PRESEA,
-        RUBRO,
-        NVA_RAZON_SOCIAL
-      FROM dbo.MAESTRO_PROVEEDORES
+        P.CODIGO,
+        P.PRESEA,
+        P.RUBRO,
+        P.NVA_RAZON_SOCIAL
+      FROM dbo.MAESTRO_PROVEEDORES P
       WHERE
-        CODIGO = @CODIGO
-        AND ACTIVO = 1
+        P.CODIGO = @CODIGO
+        AND P.ACTIVO = 1
         AND
         (
           @RUBRO IS NULL
-          OR UPPER(
-               LTRIM(RTRIM(ISNULL(RUBRO, '')))
-             ) =
-             UPPER(
-               LTRIM(RTRIM(@RUBRO))
-             )
+          OR UPPER(LTRIM(RTRIM(ISNULL(P.RUBRO, '')))) =
+             UPPER(LTRIM(RTRIM(@RUBRO)))
         );
     `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarGrupo(codigo) {
+async function buscarGrupo(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(2), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(2), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_GRUPO,
                 DETALLE_GRUPO
             FROM dbo.MAESTRO_GRUPOS
             WHERE
-                CODIGO_GRUPO = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_GRUPO = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarSubgrupo(codigo) {
+async function buscarSubgrupo(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(2), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(2), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_SUBGRUPO,
                 DETALLE_SUBGRUPO
             FROM dbo.MAESTRO_SUBGRUPOS
             WHERE
-                CODIGO_SUBGRUPO = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_SUBGRUPO = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarLinea(codigo) {
+async function buscarLinea(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(4), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(4), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_LINEA,
                 DETALLE_LINEA
             FROM dbo.MAESTRO_LINEA
             WHERE
-                CODIGO_LINEA = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_LINEA = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarDeporte(codigo) {
+async function buscarDeporte(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(3), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(3), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_DEPORTE,
                 DETALLE_DEPORTE
             FROM dbo.MAESTRO_DEPORTES
             WHERE
-                CODIGO_DEPORTE = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_DEPORTE = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarEdad(codigo) {
+async function buscarEdad(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(1), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(1), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_EDAD,
                 DETALLE_EDAD
             FROM dbo.MAESTRO_EDADES
             WHERE
-                CODIGO_EDAD = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_EDAD = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarSexo(sexo) {
+async function buscarSexo(sexo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("SEXO", sql.VarChar(3), sexo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("SEXO", sql.VarChar(3), sexo)
     .query(`
             SELECT TOP 1
                 SEXO
             FROM dbo.MAESTRO_SEXO
             WHERE
-                SEXO = @SEXO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 SEXO = @SEXO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarClasificacion(codigo) {
+async function buscarClasificacion(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(1), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(1), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_CLASIFICACION,
                 DETALLE_CLASIFICACION
             FROM dbo.MAESTRO_CLASIFICACION
             WHERE
-                CODIGO_CLASIFICACION = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_CLASIFICACION = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarColor(codigo) {
+async function buscarColor(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(2), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(2), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_COLOR,
                 DETALLE_COLOR
             FROM dbo.MAESTRO_COLORES
             WHERE
-                CODIGO_COLOR = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_COLOR = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarPais(codigo) {
+async function buscarPais(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(3), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(3), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_PAIS,
                 DETALLE_PAIS
             FROM dbo.MAESTRO_PAISES
             WHERE
-                CODIGO_PAIS = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_PAIS = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarOrigen(codigo) {
+async function buscarOrigen(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(1), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(1), codigo)
     .query(`
             SELECT TOP 1
                 CODIGO_ORIGEN,
                 DETALLE_ORIGEN
             FROM dbo.MAESTRO_ORIGENES
             WHERE
-                CODIGO_ORIGEN = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_ORIGEN = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarTalle(codigo) {
+async function buscarTalle(codigo, idEmpresa) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa)
     .input("CODIGO", sql.VarChar(10), codigo).query(`
             SELECT TOP 1
                 CODIGO_TALLE,
                 DETALLE_TALLE
             FROM dbo.MAESTRO_TALLES
             WHERE
-                CODIGO_TALLE = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_TALLE = @CODIGO
                 AND ACTIVO = 1;
         `);
 
   return resultado.recordset[0] || null;
 }
 
-async function buscarModulo(codigo) {
+async function buscarModulo(codigo, idEmpresa) {
   const pool = await getConnection();
 
-  const resultado = await pool.request().input("CODIGO", sql.VarChar(2), codigo)
+  const resultado = await pool.request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa).input("CODIGO", sql.VarChar(2), codigo)
     .query(`
             SELECT TOP 1
                 *
             FROM dbo.MAESTRO_TALLES_MODULOS
             WHERE
-                CODIGO_MODULO = @CODIGO
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 CODIGO_MODULO = @CODIGO
                 AND ACTIVO = 1
                 AND ES_CONSISTENTE = 1;
         `);
@@ -584,11 +650,12 @@ async function buscarModulo(codigo) {
    RUBRO FACTURACION
    ============================================================ */
 
-async function buscarRubroFacturacion(marcaEmpresa, rubroFacturacion) {
+async function buscarRubroFacturacion(marcaEmpresa, rubroFacturacion, idEmpresa) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa)
 
     .input("MARCA_EMPRESA", sql.VarChar(30), marcaEmpresa)
 
@@ -602,7 +669,9 @@ async function buscarRubroFacturacion(marcaEmpresa, rubroFacturacion) {
             FROM dbo.MAESTRO_RUBRO_FACT
 
             WHERE
-                MARCA_EMPRESA = @MARCA_EMPRESA
+        ID_EMPRESA = @ID_EMPRESA
+        AND                 ID_EMPRESA = @ID_EMPRESA
+                AND                 MARCA_EMPRESA = @MARCA_EMPRESA
                 AND RUBRO_FACTURACION =
                     @RUBRO_FACTURACION
                 AND ACTIVO = 1;
@@ -615,7 +684,7 @@ async function buscarRubroFacturacion(marcaEmpresa, rubroFacturacion) {
    VALIDAR EXISTENCIA ERP
    ============================================================ */
 
-async function buscarProductoERP(tipoProducto, codigoAlfa) {
+async function buscarProductoERP(tipoProducto, codigoAlfa, idEmpresa) {
   const pool = await getConnection();
 
   /*
@@ -643,6 +712,7 @@ async function buscarProductoERP(tipoProducto, codigoAlfa) {
    */
   const resultado = await pool
     .request()
+    .input("ID_EMPRESA", sql.Int, idEmpresa)
     .input(
       "CODIGO_ALFA",
       sql.VarChar(30),
@@ -660,7 +730,8 @@ async function buscarProductoERP(tipoProducto, codigoAlfa) {
       FROM dbo.PRODUCTOS
 
       WHERE
-        UPPER(
+        ID_EMPRESA = @ID_EMPRESA
+        AND         UPPER(
           LTRIM(
             RTRIM(
               ISNULL(CODIGO_ALFA, '')
@@ -735,7 +806,8 @@ async function reconciliarExistenciaERPAlta(idAlta) {
           P0.CODIGO_EAN
         FROM dbo.PRODUCTOS AS P0
         WHERE
-          UPPER(
+          P0.ID_EMPRESA = D.ID_EMPRESA
+          AND           UPPER(
             LTRIM(
               RTRIM(
                 ISNULL(P0.CODIGO_ALFA, '')
@@ -819,7 +891,12 @@ async function buscarCodigoAlfaEnOtraAlta(idAltaActual, codigoAlfa) {
                 ON A.ID_ALTA = D.ID_ALTA
 
             WHERE
-                D.CODIGO_ALFA = @CODIGO_ALFA
+                D.ID_EMPRESA = (
+                  SELECT ID_EMPRESA
+                  FROM dbo.ALTAS_PRODUCTOS
+                  WHERE ID_ALTA = @ID_ALTA_ACTUAL
+                )
+                AND D.CODIGO_ALFA = @CODIGO_ALFA
                 AND D.ID_ALTA <> @ID_ALTA_ACTUAL
                 AND ISNULL(A.ESTADO, '') <> 'ANULADO'
 
@@ -846,6 +923,24 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
   await transaction.begin();
 
   try {
+    const empresaAltaResultado =
+      await new sql.Request(transaction)
+        .input("ID_ALTA_EMPRESA", sql.Int, idAlta)
+        .query(`
+          SELECT TOP 1 ID_EMPRESA
+          FROM dbo.ALTAS_PRODUCTOS
+          WHERE ID_ALTA = @ID_ALTA_EMPRESA;
+        `);
+
+    const idEmpresa =
+      empresaAltaResultado.recordset?.[0]?.ID_EMPRESA;
+
+    if (!idEmpresa) {
+      throw new Error(
+        'No se pudo resolver la empresa del alta.'
+      );
+    }
+
     const creados = [];
     const idsTemporales = new Map();
 
@@ -864,6 +959,7 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
 
       const resultado = await new sql.Request(transaction)
         .input("ID_ALTA", sql.BigInt, idAlta)
+        .input("ID_EMPRESA", sql.Int, idEmpresa)
         .input("CODIGO_MODELO", sql.VarChar(6), d.CODIGO_MODELO)
         .input("DETALLE_MODELO", sql.VarChar(60), d.DETALLE_MODELO)
         .input("LICENCIA", sql.VarChar(30), d.LICENCIA)
@@ -924,6 +1020,7 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
           INSERT INTO dbo.ALTAS_PRODUCTOS_DETALLE
           (
             ID_ALTA,
+            ID_EMPRESA,
             CODIGO_MODELO,
             DETALLE_MODELO,
             LICENCIA,
@@ -971,6 +1068,7 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
           VALUES
           (
             @ID_ALTA,
+            @ID_EMPRESA,
             @CODIGO_MODELO,
             @DETALLE_MODELO,
             @LICENCIA,
@@ -1359,6 +1457,38 @@ async function marcarAltaValidada(idAlta, usuario) {
 
 
 /* ============================================================
+   CERRAR ALTA SIN NOVEDADES ERP
+
+   Se usa cuando, al validar, TODOS los productos ya existen
+   en Presea. No se genera exportación ni queda pendiente ERP.
+   ============================================================ */
+async function marcarAltaSinNovedadesERP(idAlta, usuario) {
+  const pool = await getConnection();
+
+  const resultado = await pool
+    .request()
+    .input("ID_ALTA", sql.BigInt, idAlta)
+    .input("USUARIO_VALIDACION", sql.VarChar(100), usuario)
+    .query(`
+      UPDATE dbo.ALTAS_PRODUCTOS
+      SET
+        ESTADO = 'SIN_NOVEDADES_ERP',
+        FECHA_VALIDACION = SYSDATETIME(),
+        USUARIO_VALIDACION = @USUARIO_VALIDACION,
+        FECHA_EXPORTACION = NULL,
+        USUARIO_EXPORTACION = NULL,
+        ARCHIVO_EXPORTADO = NULL
+      OUTPUT INSERTED.*
+      WHERE
+        ID_ALTA = @ID_ALTA
+        AND ESTADO = 'BORRADOR';
+    `);
+
+  return resultado.recordset[0] || null;
+}
+
+
+/* ============================================================
    MARCAR ALTA COMO ANULADA
    ============================================================ */
 
@@ -1428,5 +1558,6 @@ module.exports = {
   eliminarDetalle,
   buscarDuplicadosAlta,
   marcarAltaValidada,
+  marcarAltaSinNovedadesERP,
   marcarAltaAnulada,
 };

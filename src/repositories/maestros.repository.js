@@ -1,30 +1,37 @@
 const {
-    getConnection,
-    sql
+  getConnection,
+  sql
 } = require('../config/database');
 
 
 async function obtenerMaestroSimple({
-    tabla,
-    columnas,
-    orden
+  tabla,
+  columnas,
+  orden,
+  idEmpresa
 }) {
 
-    const pool =
-        await getConnection();
+  const pool =
+    await getConnection();
 
+  const resultado =
+    await pool
+      .request()
+      .input(
+        'ID_EMPRESA',
+        sql.Int,
+        idEmpresa
+      )
+      .query(`
+        SELECT
+          ${columnas.join(', ')}
+        FROM dbo.${tabla}
+        WHERE ACTIVO = 1
+          AND ID_EMPRESA = @ID_EMPRESA
+        ORDER BY ${orden};
+      `);
 
-    const resultado =
-        await pool.request().query(`
-            SELECT
-                ${columnas.join(', ')}
-            FROM dbo.${tabla}
-            WHERE ACTIVO = 1
-            ORDER BY ${orden};
-        `);
-
-
-    return resultado.recordset;
+  return resultado.recordset;
 }
 
 
@@ -33,52 +40,65 @@ async function obtenerMaestroSimple({
    ============================================================ */
 
 async function buscarProveedores({
-    rubro
+  rubro = null,
+  idEmpresa,
+  codigoMarca = null
 } = {}) {
 
-    const pool =
-        await getConnection();
+  /*
+    MAESTRO_PROVEEDORES es un maestro global.
 
-    const request =
-        pool.request();
+    Se conservan idEmpresa y codigoMarca en la firma por compatibilidad
+    con services/routes existentes, pero NO intervienen en la selección.
 
-    let where = `
-        WHERE ACTIVO = 1
-    `;
+    Regla de elegibilidad:
+    - proveedor activo
+    - rubro del proveedor = rubro del Alta, cuando se informa rubro
+  */
 
-    if (rubro) {
+  const pool =
+    await getConnection();
 
-        request.input(
-            'RUBRO',
-            sql.VarChar(100),
-            String(rubro).trim()
-        );
+  const request =
+    pool.request()
+      .input(
+        'RUBRO',
+        sql.VarChar(100),
+        rubro
+      );
 
-        where += `
-            AND UPPER(
-                LTRIM(RTRIM(ISNULL(RUBRO, '')))
-            ) =
-            UPPER(
-                LTRIM(RTRIM(@RUBRO))
-            )
-        `;
-    }
+  const resultado =
+    await request.query(`
+      SELECT
+        P.CODIGO,
+        P.PRESEA,
+        P.RUBRO,
+        P.NVA_RAZON_SOCIAL
+      FROM dbo.MAESTRO_PROVEEDORES P
+      WHERE
+        P.ACTIVO = 1
+        AND
+        (
+          @RUBRO IS NULL
+          OR UPPER(
+               LTRIM(
+                 RTRIM(
+                   ISNULL(P.RUBRO, '')
+                 )
+               )
+             ) =
+             UPPER(
+               LTRIM(
+                 RTRIM(@RUBRO)
+               )
+             )
+        )
+      ORDER BY
+        P.NVA_RAZON_SOCIAL,
+        P.CODIGO;
+    `);
 
-    const resultado =
-        await request.query(`
-            SELECT
-                CODIGO,
-                PRESEA,
-                RUBRO,
-                NVA_RAZON_SOCIAL
-            FROM dbo.MAESTRO_PROVEEDORES
-            ${where}
-            ORDER BY
-                NVA_RAZON_SOCIAL,
-                CODIGO;
-        `);
-
-    return resultado.recordset;
+  return resultado.recordset;
 }
 
 
@@ -87,118 +107,115 @@ async function buscarProveedores({
    ============================================================ */
 
 async function buscarModelos({
-    marca,
-    rubro,
-    texto,
-    licencia
+  marca,
+  rubro,
+  texto,
+  licencia,
+  idEmpresa
 }) {
 
-    const pool =
-        await getConnection();
+  const pool =
+    await getConnection();
 
+  const request =
+    pool.request()
+      .input(
+        'ID_EMPRESA',
+        sql.Int,
+        idEmpresa
+      );
 
-    const request =
-        pool.request();
+  let where = `
+    WHERE ACTIVO = 1
+      AND ID_EMPRESA = @ID_EMPRESA
+  `;
 
+  if (marca) {
 
-    let where = `
-        WHERE ACTIVO = 1
+    request.input(
+      'MARCA',
+      sql.VarChar(30),
+      marca
+    );
+
+    where += `
+      AND MARCA_MODELO = @MARCA
     `;
+  }
 
+  if (rubro) {
 
-    if (marca) {
+    request.input(
+      'RUBRO',
+      sql.VarChar(20),
+      rubro
+    );
 
-        request.input(
-            'MARCA',
-            sql.VarChar(30),
-            marca
-        );
+    where += `
+      AND RUBRO_MODELO = @RUBRO
+    `;
+  }
 
-        where += `
-            AND MARCA_MODELO = @MARCA
-        `;
+  if (licencia) {
+
+    if (licencia === '__SIN_LICENCIA__') {
+
+      where += `
+        AND
+        (
+          LICENCIA IS NULL
+          OR LTRIM(RTRIM(LICENCIA)) = ''
+        )
+      `;
+
+    } else {
+
+      request.input(
+        'LICENCIA',
+        sql.VarChar(100),
+        licencia
+      );
+
+      where += `
+        AND LTRIM(RTRIM(LICENCIA)) = @LICENCIA
+      `;
     }
+  }
 
+  if (texto) {
 
-    if (rubro) {
+    request.input(
+      'TEXTO',
+      sql.VarChar(100),
+      `%${texto}%`
+    );
 
-        request.input(
-            'RUBRO',
-            sql.VarChar(20),
-            rubro
-        );
+    where += `
+      AND
+      (
+        CODIGO_MODELO LIKE @TEXTO
+        OR DETALLE_MODELO LIKE @TEXTO
+        OR LICENCIA LIKE @TEXTO
+      )
+    `;
+  }
 
-        where += `
-            AND RUBRO_MODELO = @RUBRO
-        `;
-    }
+  const resultado =
+    await request.query(`
+      SELECT TOP 200
+        CODIGO_MODELO,
+        RUBRO_MODELO,
+        DETALLE_MODELO,
+        LICENCIA,
+        MARCA_MODELO
+      FROM dbo.MAESTRO_MODELOS
+      ${where}
+      ORDER BY
+        DETALLE_MODELO,
+        CODIGO_MODELO;
+    `);
 
-
-    if (licencia) {
-
-        if (licencia === '__SIN_LICENCIA__') {
-
-            where += `
-                AND
-                (
-                    LICENCIA IS NULL
-                    OR LTRIM(RTRIM(LICENCIA)) = ''
-                )
-            `;
-
-        } else {
-
-            request.input(
-                'LICENCIA',
-                sql.VarChar(100),
-                licencia
-            );
-
-            where += `
-                AND LTRIM(RTRIM(LICENCIA)) = @LICENCIA
-            `;
-        }
-    }
-
-
-    if (texto) {
-
-        request.input(
-            'TEXTO',
-            sql.VarChar(100),
-            `%${texto}%`
-        );
-
-        where += `
-            AND
-            (
-                CODIGO_MODELO LIKE @TEXTO
-                OR DETALLE_MODELO LIKE @TEXTO
-                OR LICENCIA LIKE @TEXTO
-            )
-        `;
-    }
-
-
-    const resultado =
-        await request.query(`
-            SELECT TOP 200
-                CODIGO_MODELO,
-                RUBRO_MODELO,
-                DETALLE_MODELO,
-                LICENCIA,
-                MARCA_MODELO
-            FROM dbo.MAESTRO_MODELOS
-
-            ${where}
-
-            ORDER BY
-                DETALLE_MODELO,
-                CODIGO_MODELO;
-        `);
-
-
-    return resultado.recordset;
+  return resultado.recordset;
 }
 
 
@@ -207,96 +224,102 @@ async function buscarModelos({
    ============================================================ */
 
 async function buscarLicenciasModelos({
-    marca,
-    rubro
+  marca,
+  rubro,
+  idEmpresa
 }) {
 
-    const pool =
-        await getConnection();
+  const pool =
+    await getConnection();
 
-    const request =
-        pool.request();
+  const request =
+    pool.request()
+      .input(
+        'ID_EMPRESA',
+        sql.Int,
+        idEmpresa
+      );
 
-    let where = `
-        WHERE ACTIVO = 1
+  let where = `
+    WHERE ACTIVO = 1
+      AND ID_EMPRESA = @ID_EMPRESA
+  `;
+
+  if (marca) {
+
+    request.input(
+      'MARCA',
+      sql.VarChar(30),
+      marca
+    );
+
+    where += `
+      AND MARCA_MODELO = @MARCA
     `;
+  }
 
-    if (marca) {
+  if (rubro) {
 
-        request.input(
-            'MARCA',
-            sql.VarChar(30),
-            marca
-        );
+    request.input(
+      'RUBRO',
+      sql.VarChar(20),
+      rubro
+    );
 
-        where += `
-            AND MARCA_MODELO = @MARCA
-        `;
-    }
+    where += `
+      AND RUBRO_MODELO = @RUBRO
+    `;
+  }
 
-    if (rubro) {
+  const resultado =
+    await request.query(`
+      SELECT
+        CODIGO_LICENCIA,
+        DETALLE_LICENCIA
+      FROM
+      (
+        SELECT DISTINCT
+          LTRIM(RTRIM(LICENCIA))
+            AS CODIGO_LICENCIA,
+          LTRIM(RTRIM(LICENCIA))
+            AS DETALLE_LICENCIA
+        FROM dbo.MAESTRO_MODELOS
+        ${where}
+        AND NULLIF(
+          LTRIM(RTRIM(LICENCIA)),
+          ''
+        ) IS NOT NULL
 
-        request.input(
-            'RUBRO',
-            sql.VarChar(20),
-            rubro
-        );
+        UNION ALL
 
-        where += `
-            AND RUBRO_MODELO = @RUBRO
-        `;
-    }
+        SELECT
+          '__SIN_LICENCIA__'
+            AS CODIGO_LICENCIA,
+          'Sin licencia'
+            AS DETALLE_LICENCIA
+        WHERE EXISTS
+        (
+          SELECT 1
+          FROM dbo.MAESTRO_MODELOS
+          ${where}
+          AND
+          (
+            LICENCIA IS NULL
+            OR LTRIM(RTRIM(LICENCIA)) = ''
+          )
+        )
+      ) AS L
+      ORDER BY
+        CASE
+          WHEN CODIGO_LICENCIA =
+               '__SIN_LICENCIA__'
+          THEN 0
+          ELSE 1
+        END,
+        DETALLE_LICENCIA;
+    `);
 
-    const resultado =
-        await request.query(`
-            SELECT
-                CODIGO_LICENCIA,
-                DETALLE_LICENCIA
-            FROM
-            (
-                SELECT DISTINCT
-                    LTRIM(RTRIM(LICENCIA))
-                        AS CODIGO_LICENCIA,
-                    LTRIM(RTRIM(LICENCIA))
-                        AS DETALLE_LICENCIA
-                FROM dbo.MAESTRO_MODELOS
-                ${where}
-                AND NULLIF(
-                    LTRIM(RTRIM(LICENCIA)),
-                    ''
-                ) IS NOT NULL
-
-                UNION ALL
-
-                SELECT
-                    '__SIN_LICENCIA__'
-                        AS CODIGO_LICENCIA,
-                    'Sin licencia'
-                        AS DETALLE_LICENCIA
-                WHERE EXISTS
-                (
-                    SELECT 1
-                    FROM dbo.MAESTRO_MODELOS
-                    ${where}
-                    AND
-                    (
-                        LICENCIA IS NULL
-                        OR LTRIM(RTRIM(LICENCIA)) = ''
-                    )
-                )
-            ) AS L
-
-            ORDER BY
-                CASE
-                    WHEN CODIGO_LICENCIA =
-                        '__SIN_LICENCIA__'
-                    THEN 0
-                    ELSE 1
-                END,
-                DETALLE_LICENCIA;
-        `);
-
-    return resultado.recordset;
+  return resultado.recordset;
 }
 
 
@@ -304,31 +327,37 @@ async function buscarLicenciasModelos({
    TALLES MODULOS
    ============================================================ */
 
-async function obtenerTallesModulos() {
+async function obtenerTallesModulos(idEmpresa) {
 
-    const pool =
-        await getConnection();
+  const pool =
+    await getConnection();
 
+  const resultado =
+    await pool
+      .request()
+      .input(
+        'ID_EMPRESA',
+        sql.Int,
+        idEmpresa
+      )
+      .query(`
+        SELECT *
+        FROM dbo.MAESTRO_TALLES_MODULOS
+        WHERE
+          ACTIVO = 1
+          AND ES_CONSISTENTE = 1
+          AND ID_EMPRESA = @ID_EMPRESA
+        ORDER BY CODIGO_MODULO;
+      `);
 
-    const resultado =
-        await pool.request().query(`
-            SELECT *
-            FROM dbo.MAESTRO_TALLES_MODULOS
-            WHERE
-                ACTIVO = 1
-                AND ES_CONSISTENTE = 1
-            ORDER BY CODIGO_MODULO;
-        `);
-
-
-    return resultado.recordset;
+  return resultado.recordset;
 }
 
 
 module.exports = {
-    obtenerMaestroSimple,
-    buscarProveedores,
-    buscarModelos,
-    buscarLicenciasModelos,
-    obtenerTallesModulos
+  obtenerMaestroSimple,
+  buscarProveedores,
+  buscarModelos,
+  buscarLicenciasModelos,
+  obtenerTallesModulos
 };

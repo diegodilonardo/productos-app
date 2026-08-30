@@ -68,6 +68,7 @@ async function buscarModelosPorAlta(
 
         WHERE
           M.ACTIVO = 1
+          AND M.ID_EMPRESA = A.ID_EMPRESA
 
           AND UPPER(LTRIM(RTRIM(ISNULL(M.MARCA_MODELO, ''))))
               =

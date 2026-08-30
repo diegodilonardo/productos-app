@@ -14,15 +14,35 @@ const modelosBusquedaService =
 const borradorExcelService =
     require('../services/borradorExcel.service');
 
+const {
+    requerirAutenticacion,
+    requerirEmpresa,
+    requerirEscrituraEmpresa,
+    requerirAccesoAlta
+} =
+    require('../middlewares/auth.middleware');
+
+
+router.use(
+    requerirAutenticacion
+);
+
 
 /* ============================================================
    CREAR ALTA
    ============================================================ */
 
-router.post('/', async (req, res) => {
+router.post('/', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado =
-            await altasService.crearAlta(req.body || {});
+            await altasService.crearAlta(
+                {
+                    ...(req.body || {}),
+                    idEmpresa: req.idEmpresa,
+                    usuario: req.usuario.usuario
+                },
+                req.usuario
+            );
 
         res.status(201).json({
             ok: true,
@@ -42,10 +62,10 @@ router.post('/', async (req, res) => {
    LISTAR ALTAS
    ============================================================ */
 
-router.get('/', async (req, res) => {
+router.get('/', requerirEmpresa, async (req, res) => {
     try {
         const resultado =
-            await altasService.listarAltas();
+            await altasService.listarAltas(req.idEmpresa);
 
         res.json({
             ok: true,
@@ -64,12 +84,16 @@ router.get('/', async (req, res) => {
    AGREGAR DETALLE / PRODUCTOS
    ============================================================ */
 
-router.post('/:id/detalle', async (req, res) => {
+router.post('/:id/detalle', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado =
             await altasService.agregarDetalle(
                 req.params.id,
-                req.body || {}
+                {
+                    ...(req.body || {}),
+                    usuario: req.usuario.usuario
+                },
+                req.usuario
             );
 
         res.status(201).json({
@@ -91,7 +115,7 @@ router.post('/:id/detalle', async (req, res) => {
    ELIMINAR DETALLE
    ============================================================ */
 
-router.delete('/:id/detalle/:idDetalle', async (req, res) => {
+router.delete('/:id/detalle/:idDetalle', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado =
             await altasService.eliminarDetalle(
@@ -117,12 +141,15 @@ router.delete('/:id/detalle/:idDetalle', async (req, res) => {
    VALIDAR ALTA
    ============================================================ */
 
-router.post('/:id/validar', async (req, res) => {
+router.post('/:id/validar', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado =
             await altasService.validarAlta(
                 req.params.id,
-                req.body || {}
+                {
+                    ...(req.body || {}),
+                    usuario: req.usuario.usuario
+                }
             );
 
         res.json({
@@ -143,12 +170,15 @@ router.post('/:id/validar', async (req, res) => {
    ANULAR ALTA
    ============================================================ */
 
-router.post('/:id/anular', async (req, res) => {
+router.post('/:id/anular', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado =
             await altasService.anularAlta(
                 req.params.id,
-                req.body || {}
+                {
+                    ...(req.body || {}),
+                    usuario: req.usuario.usuario
+                }
             );
 
         res.json({
@@ -169,7 +199,7 @@ router.post('/:id/anular', async (req, res) => {
    PREVIEW EXPORTACION
    ============================================================ */
 
-router.get('/:id/exportacion/preview', async (req, res) => {
+router.get('/:id/exportacion/preview', requerirAccesoAlta, async (req, res) => {
     try {
         const resultado =
             await exportacionService.obtenerPreview(
@@ -194,7 +224,7 @@ router.get('/:id/exportacion/preview', async (req, res) => {
    EXPORTAR PREVIEW A EXCEL
    ============================================================ */
 
-router.get('/:id/exportacion/preview-excel', async (req, res) => {
+router.get('/:id/exportacion/preview-excel', requerirAccesoAlta, async (req, res) => {
     try {
         const resultado =
             await exportacionService.exportarPreviewExcel(
@@ -233,12 +263,15 @@ router.get('/:id/exportacion/preview-excel', async (req, res) => {
    EXPORTAR DBI
    ============================================================ */
 
-router.post('/:id/exportar', async (req, res) => {
+router.post('/:id/exportar', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado =
             await exportacionService.exportar(
                 req.params.id,
-                req.body || {}
+                {
+                    ...(req.body || {}),
+                    usuario: req.usuario.usuario
+                }
             );
 
         res.json({
@@ -260,7 +293,7 @@ router.post('/:id/exportar', async (req, res) => {
    SOLO ESTADO BORRADOR
    ============================================================ */
 
-router.get('/:id/borrador-excel', async (req, res) => {
+router.get('/:id/borrador-excel', requerirAccesoAlta, async (req, res) => {
     try {
 
         const protocolo =
@@ -321,7 +354,7 @@ router.get('/:id/borrador-excel', async (req, res) => {
    BUSCAR MODELOS DEL ALTA
    ============================================================ */
 
-router.get('/:id/modelos', async (req, res) => {
+router.get('/:id/modelos', requerirAccesoAlta, async (req, res) => {
     try {
         const resultado =
             await modelosBusquedaService.buscarModelosPorAlta(
@@ -350,7 +383,7 @@ router.get('/:id/modelos', async (req, res) => {
    IMPORTANTE: DEJAR ESTA RUTA AL FINAL
    ============================================================ */
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requerirAccesoAlta, async (req, res) => {
     try {
         const resultado =
             await altasService.obtenerAlta(req.params.id);

@@ -1,26 +1,210 @@
 document.addEventListener('DOMContentLoaded', iniciarPedidos);
 let pedidos = [];
+let contextoUsuario = null;
+let idEmpresaPedido = null;
+let accesoEmpresaPedido = null;
 
-async function iniciarPedidos(){
-  document.getElementById('btnActualizarPedidos')?.addEventListener('click',cargarPedidos);
-  document.getElementById('buscarPedido')?.addEventListener('input',pintarPedidosFiltrados);
-  document.getElementById('filtroEstadoPedido')?.addEventListener('change',pintarPedidosFiltrados);
-  document.getElementById('filtroExportacionPedido')?.addEventListener('change',pintarPedidosFiltrados);
-  document.getElementById('ordenPedidos')?.addEventListener('change',pintarPedidosFiltrados);
-  document.getElementById('btnLimpiarFiltrosPedidos')?.addEventListener('click',limpiarFiltros);
-  document.querySelectorAll('[data-filtro-estado]').forEach(btn=>btn.addEventListener('click',()=>{const f=document.getElementById('filtroEstadoPedido');if(f)f.value=btn.dataset.filtroEstado||'';pintarPedidosFiltrados();}));
+async function iniciarPedidos() {
+  document.getElementById('btnActualizarPedidos')?.addEventListener('click', cargarPedidos);
+  document.getElementById('buscarPedido')?.addEventListener('input', pintarPedidosFiltrados);
+  document.getElementById('filtroEstadoPedido')?.addEventListener('change', pintarPedidosFiltrados);
+  document.getElementById('filtroExportacionPedido')?.addEventListener('change', pintarPedidosFiltrados);
+  document.getElementById('selectorEmpresaPedido')?.addEventListener('change', cambiarEmpresaPedido);
+
+  try {
+    const listo = await cargarContextoPedido();
+    if (listo) await cargarPedidos();
+  } catch (e) {
+    mostrarAlerta(e.message, 'danger');
+  }
+}
+
+async function api(url, opciones) {
+  const r = await fetch(url, opciones);
+  let d = null; try { d = await r.json(); } catch {}
+  if (!r.ok || d?.ok === false) throw new Error(d?.mensaje || `Error HTTP ${r.status}`);
+  return d;
+}
+
+async function cargarContextoPedido() {
+  const data = await api('/api/auth/me');
+  contextoUsuario = data?.usuario || null;
+
+  if (!contextoUsuario) {
+    throw new Error('Debe iniciar sesión.');
+  }
+
+  const empresas = Array.isArray(contextoUsuario.empresas) ? contextoUsuario.empresas : [];
+  if (!empresas.length) {
+    throw new Error('El usuario no tiene empresas habilitadas.');
+  }
+
+  const select = document.getElementById('selectorEmpresaPedido');
+  const guardada = Number(sessionStorage.getItem('pedidos.idEmpresa'));
+  const guardadaValida = empresas.some(x => Number(x.idEmpresa) === guardada);
+
+  if (empresas.length === 1) {
+    idEmpresaPedido = Number(empresas[0].idEmpresa);
+  } else if (guardadaValida) {
+    idEmpresaPedido = guardada;
+  } else {
+    idEmpresaPedido = null;
+  }
+
+  if (select) {
+    select.innerHTML =
+      '<option value="">Seleccionar empresa...</option>' +
+      empresas.map(x =>
+        `<option value="${esc(x.idEmpresa)}">${esc(x.empresa || x.codigoEmpresa || x.idEmpresa)}</option>`
+      ).join('');
+
+    select.classList.toggle('d-none', empresas.length <= 1);
+    select.value = idEmpresaPedido ? String(idEmpresaPedido) : '';
+  }
+
+  if (!idEmpresaPedido) {
+    pedidos = [];
+    pintarMetricas();
+    pintarPedidosFiltrados();
+    mostrarAlerta('Seleccione una empresa para consultar Pedidos.', 'info');
+    actualizarPermisosVisuales();
+    return false;
+  }
+
+  accesoEmpresaPedido = empresas.find(x => Number(x.idEmpresa) === Number(idEmpresaPedido)) || null;
+  sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
+  actualizarPermisosVisuales();
+  return true;
+}
+
+async function cambiarEmpresaPedido() {
+  const select = document.getElementById('selectorEmpresaPedido');
+  idEmpresaPedido = Number(select?.value || 0) || null;
+
+  if (!idEmpresaPedido) {
+    sessionStorage.removeItem('pedidos.idEmpresa');
+    accesoEmpresaPedido = null;
+    pedidos = [];
+    pintarMetricas();
+    pintarPedidosFiltrados();
+    actualizarPermisosVisuales();
+    mostrarAlerta('Seleccione una empresa para consultar Pedidos.', 'info');
+    return;
+  }
+
+  accesoEmpresaPedido =
+    (contextoUsuario?.empresas || []).find(
+      x => Number(x.idEmpresa) === Number(idEmpresaPedido)
+    ) || null;
+
+  sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
+  actualizarPermisosVisuales();
   await cargarPedidos();
 }
-async function api(url,opciones){const r=await fetch(url,opciones);let d=null;try{d=await r.json();}catch{}if(!r.ok||d?.ok===false)throw new Error(d?.mensaje||`Error HTTP ${r.status}`);return d;}
-async function cargarPedidos(){ocultarAlerta();const btn=document.getElementById('btnActualizarPedidos');try{if(btn){btn.disabled=true;btn.textContent='Actualizando...';}const data=await api('/api/pedidos');pedidos=Array.isArray(data?.datos)?data.datos:[];pintarMetricas();pintarPedidosFiltrados();}catch(e){mostrarAlerta(e.message,'danger');}finally{if(btn){btn.disabled=false;btn.textContent='Actualizar';}}}
-function pintarMetricas(){setTexto('metTotal',pedidos.length);setTexto('metBorrador',pedidos.filter(x=>estado(x)==='BORRADOR').length);setTexto('metValidado',pedidos.filter(x=>estado(x)==='VALIDADO').length);setTexto('metAnulado',pedidos.filter(x=>estado(x)==='ANULADO').length);}
-function limpiarFiltros(){document.getElementById('buscarPedido').value='';document.getElementById('filtroEstadoPedido').value='';document.getElementById('filtroExportacionPedido').value='';document.getElementById('ordenPedidos').value='FECHA_DESC';pintarPedidosFiltrados();}
-function pintarPedidosFiltrados(){const q=(document.getElementById('buscarPedido')?.value||'').trim().toUpperCase(),e=document.getElementById('filtroEstadoPedido')?.value||'',ex=document.getElementById('filtroExportacionPedido')?.value||'',orden=document.getElementById('ordenPedidos')?.value||'FECHA_DESC';const lista=pedidos.filter(p=>{const bolsa=[p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN,p.DETALLE_RUBRO,p.DETALLE_TEMPORADA,p.CODIGO_ANO,p.DETALLE_MARCA].join(' ').toUpperCase();return(!q||bolsa.includes(q))&&(!e||estado(p)===e)&&(!ex||estadoExportacion(p)===ex);});ordenarPedidos(lista,orden);actualizarTarjetaActiva(e);setTexto('resumenListadoPedidos',`Mostrando ${lista.length} de ${pedidos.length} pedidos`);pintarTarjetas(lista);}
-function actualizarTarjetaActiva(estadoSeleccionado){document.querySelectorAll('[data-metric-card]').forEach(card=>card.classList.toggle('is-active',(card.dataset.metricCard||'')===estadoSeleccionado));}
-function ordenarPedidos(lista,criterio){const texto=v=>String(v??'').trim().toLocaleUpperCase('es-AR'),numero=v=>Number(v||0),tiempo=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?0:d.getTime();};lista.sort((a,b)=>{switch(criterio){case'FECHA_ASC':return tiempo(a.FECHA_CREACION)-tiempo(b.FECHA_CREACION)||numero(a.ID_PEDIDO)-numero(b.ID_PEDIDO);case'ORDEN_ASC':return texto(a.NUMERO_ORDEN).localeCompare(texto(b.NUMERO_ORDEN),'es')||numero(b.ID_PEDIDO)-numero(a.ID_PEDIDO);case'PROVEEDOR_ASC':return texto(a.DETALLE_PROVEEDOR).localeCompare(texto(b.DETALLE_PROVEEDOR),'es')||numero(b.ID_PEDIDO)-numero(a.ID_PEDIDO);case'PARES_DESC':return numero(b.TOTAL_PARES)-numero(a.TOTAL_PARES)||numero(b.ID_PEDIDO)-numero(a.ID_PEDIDO);case'TOTAL_DESC':return numero(b.TOTAL_PEDIDO)-numero(a.TOTAL_PEDIDO)||numero(b.ID_PEDIDO)-numero(a.ID_PEDIDO);default:return tiempo(b.FECHA_CREACION)-tiempo(a.FECHA_CREACION)||numero(b.ID_PEDIDO)-numero(a.ID_PEDIDO);}});}
-function pintarTarjetas(lista){const c=document.getElementById('tarjetasPedidos');c.innerHTML='';if(!lista.length){c.innerHTML='<div class="pedido-card-empty">No hay pedidos para mostrar.</div>';return;}for(const p of lista){const article=document.createElement('article');article.className=`pedido-list-card${estado(p)==='ANULADO'?' is-cancelled':''}`;const motivo=estado(p)==='ANULADO'&&p.MOTIVO_ANULACION?`<div class="pedido-card-reason" title="${esc(p.MOTIVO_ANULACION)}">${esc(p.MOTIVO_ANULACION)}</div>`:'';article.innerHTML=`
-<div class="pedido-list-card-head"><div class="pedido-list-card-title-row"><span class="pedido-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 11h6M9 15h6"/></svg></span><div class="pedido-card-main"><div class="pedido-card-code" title="${esc(p.CODIGO_PEDIDO||'-')}">${esc(p.CODIGO_PEDIDO||'-')}</div><div class="pedido-card-subtitle"><strong>${esc(p.DETALLE_PROVEEDOR||'-')}</strong> · Orden ${esc(p.NUMERO_ORDEN||'-')}</div></div></div><div class="pedido-card-badges"><span class="badge ${claseEstado(estado(p))}">${esc(estado(p))}</span>${badgeExportacionSolo(p)}</div></div>
-<div class="pedido-card-info"><div><span class="pedido-card-label">Alta</span><span class="pedido-card-value" title="${esc(p.CODIGO_ALTA||'-')}">${esc(p.CODIGO_ALTA||'-')}</span></div><div><span class="pedido-card-label">Rubro</span><span class="pedido-card-value" title="${esc(p.DETALLE_RUBRO||'-')}">${esc(p.DETALLE_RUBRO||'-')}</span></div><div><span class="pedido-card-label">Temporada</span><span class="pedido-card-value is-short" title="${esc(p.DETALLE_TEMPORADA||p.CODIGO_TEMPORADA||'-')}">${esc(p.DETALLE_TEMPORADA||p.CODIGO_TEMPORADA||'-')}</span></div><div><span class="pedido-card-label">Año</span><span class="pedido-card-value is-short" title="${esc(p.CODIGO_ANO||'-')}">${esc(p.CODIGO_ANO||'-')}</span></div></div>
-<div class="pedido-card-numbers"><div class="pedido-number"><span class="pedido-number-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg></span><div><span>Productos</span><strong>${num(p.CANTIDAD_PRODUCTOS)}</strong></div></div><div class="pedido-number"><span class="pedido-number-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20c0-3 2-5 5-5s5 2 5 5M11 20c0-3 2-5 5-5s5 2 5 5"/></svg></span><div><span>Pares</span><strong>${num(p.TOTAL_PARES)}</strong></div></div><div class="pedido-number"><span class="pedido-number-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15 8.5c-.7-.5-1.7-.8-3-.8-1.7 0-3 .8-3 2s1 1.8 3 2.3 3 1.1 3 2.3-1.3 2-3 2c-1.3 0-2.4-.3-3.2-.9M12 5.5v13"/></svg></span><div><span>Total</span><strong>${esc(p.MONEDA||'USD')} ${dinero(p.TOTAL_PEDIDO)}</strong></div></div></div>
-<div class="pedido-card-foot"><div class="pedido-card-foot-meta"><div class="pedido-card-foot-line">Fecha ${fecha(p.FECHA_CREACION)}${Number(p.CANTIDAD_EXPORTACIONES||0)>0?` · ${num(p.CANTIDAD_EXPORTACIONES)} salida${Number(p.CANTIDAD_EXPORTACIONES)===1?'':'s'}`:''}</div>${motivo}</div><a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div>`;c.appendChild(article);}}
-function estado(p){return String(p?.ESTADO||'').toUpperCase();}function estadoExportacion(p){return String(p?.ESTADO_EXPORTACION||'NO_EXPORTADO').toUpperCase();}function badgeExportacionSolo(p){const e=estadoExportacion(p),clase=e==='COMPLETO'?'text-bg-success':e==='PARCIAL'?'text-bg-warning':'text-bg-secondary',texto=e==='NO_EXPORTADO'?'NO EXPORTADO':e;return `<span class="badge ${clase}">${esc(texto)}</span>`;}function claseEstado(e){return e==='BORRADOR'?'text-bg-secondary':e==='VALIDADO'?'text-bg-success':e==='ANULADO'?'text-bg-danger':'text-bg-secondary';}function num(v){return Number(v||0).toLocaleString('es-AR');}function dinero(v){return Number(v||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:4});}function fecha(v){if(!v)return'-';return new Date(v).toLocaleDateString('es-AR');}function setTexto(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}function mostrarAlerta(m,t){const e=document.getElementById('alertaPedidos');e.className=`alert alert-${t}`;e.textContent=m;}function ocultarAlerta(){const e=document.getElementById('alertaPedidos');e.className='alert d-none';e.textContent='';}
+
+function puedeEscribirPedido() {
+  if (contextoUsuario?.superAdmin) return true;
+  return ['SUPER_ADMIN','ADMIN','OPERADOR'].includes(
+    String(accesoEmpresaPedido?.rol || '').trim().toUpperCase()
+  );
+}
+
+function actualizarPermisosVisuales() {
+  const botonNuevo = document.getElementById('btnNuevoPedido');
+  if (botonNuevo) {
+    botonNuevo.classList.toggle('d-none', !idEmpresaPedido || !puedeEscribirPedido());
+  }
+
+  const badge = document.getElementById('rolPedido');
+  if (badge) {
+    const rol = contextoUsuario?.superAdmin
+      ? 'SUPER_ADMIN'
+      : String(accesoEmpresaPedido?.rol || '').toUpperCase();
+
+    badge.textContent = rol ? `Rol: ${rol}` : '';
+    badge.classList.toggle('d-none', !rol);
+  }
+}
+
+function opcionesEmpresa(opciones = {}) {
+  if (!idEmpresaPedido) {
+    throw new Error('Debe seleccionar una empresa.');
+  }
+
+  return {
+    ...opciones,
+    headers: {
+      ...(opciones.headers || {}),
+      'x-id-empresa': String(idEmpresaPedido)
+    }
+  };
+}
+
+async function cargarPedidos() {
+  ocultarAlerta();
+  const btn = document.getElementById('btnActualizarPedidos');
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Actualizando...'; }
+    const data = await api('/api/pedidos', opcionesEmpresa());
+    pedidos = Array.isArray(data?.datos) ? data.datos : [];
+    pintarMetricas();
+    pintarPedidosFiltrados();
+  } catch (e) { mostrarAlerta(e.message, 'danger'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Actualizar'; } }
+}
+
+function pintarMetricas() {
+  setTexto('metTotal', pedidos.length);
+  setTexto('metBorrador', pedidos.filter(x => estado(x)==='BORRADOR').length);
+  setTexto('metValidado', pedidos.filter(x => estado(x)==='VALIDADO').length);
+  setTexto('metAnulado', pedidos.filter(x => estado(x)==='ANULADO').length);
+}
+
+function pintarPedidosFiltrados() {
+  const q = (document.getElementById('buscarPedido')?.value || '').trim().toUpperCase();
+  const e = document.getElementById('filtroEstadoPedido')?.value || '';
+  const ex = document.getElementById('filtroExportacionPedido')?.value || '';
+  const lista = pedidos.filter(p => {
+    const texto = [p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN].join(' ').toUpperCase();
+    return (!q || texto.includes(q)) && (!e || estado(p)===e) && (!ex || estadoExportacion(p)===ex);
+  });
+  pintarTabla(lista);
+}
+
+function pintarTabla(lista) {
+  const tbody = document.getElementById('tablaPedidos');
+  tbody.innerHTML = '';
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center py-5 text-secondary">No hay pedidos para mostrar.</td></tr>';
+    return;
+  }
+  for (const p of lista) {
+    const tr = document.createElement('tr');
+    if (estado(p)==='ANULADO') tr.classList.add('opacity-75');
+    tr.innerHTML = `
+      <td><div class="pedido-code">${esc(p.CODIGO_PEDIDO || '-')}</div><div class="pedido-muted">ID ${esc(p.ID_PEDIDO)}</div></td>
+      <td>${esc(p.CODIGO_ALTA || '-')}</td>
+      <td><div class="fw-semibold">${esc(p.DETALLE_PROVEEDOR || '-')}</div><div class="pedido-muted">${esc(p.CODIGO_PROVEEDOR || '')}</div></td>
+      <td>${esc(p.NUMERO_ORDEN || '-')}</td>
+      <td>${num(p.CANTIDAD_PRODUCTOS)}</td>
+      <td>${num(p.TOTAL_PARES)}</td>
+      <td>${esc(p.MONEDA || 'USD')} ${dinero(p.TOTAL_PEDIDO)}</td>
+      <td><span class="badge ${claseEstado(estado(p))}">${esc(estado(p))}</span>${estado(p)==='ANULADO' && p.MOTIVO_ANULACION ? `<div class="pedido-muted mt-1" title="${esc(p.MOTIVO_ANULACION)}">${esc(p.MOTIVO_ANULACION)}</div>`:''}</td>
+      <td>${badgeExportacion(p)}</td>
+      <td>${fecha(p.FECHA_CREACION)}</td>
+      <td><a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver</a></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function estado(p){return String(p?.ESTADO||'').toUpperCase();}
+function estadoExportacion(p){return String(p?.ESTADO_EXPORTACION||'NO_EXPORTADO').toUpperCase();}
+function badgeExportacion(p){const e=estadoExportacion(p);const clase=e==='COMPLETO'?'text-bg-success':e==='PARCIAL'?'text-bg-warning':'text-bg-secondary';const texto=e==='NO_EXPORTADO'?'NO EXPORTADO':e;const cantidad=Number(p?.CANTIDAD_EXPORTACIONES||0);const detalle=cantidad>0?`<div class="pedido-muted mt-1">${num(cantidad)} salida${cantidad===1?'':'s'}</div>`:'';return `<span class="badge ${clase}">${esc(texto)}</span>${detalle}`;}
+function claseEstado(e){return e==='BORRADOR'?'text-bg-secondary':e==='VALIDADO'?'text-bg-success':e==='SINCRONIZADO'?'text-bg-primary':e==='ANULADO'?'text-bg-danger':'text-bg-secondary';}
+function num(v){return Number(v||0).toLocaleString('es-AR');}
+function dinero(v){return Number(v||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:4});}
+function fecha(v){if(!v)return '-'; return new Date(v).toLocaleDateString('es-AR');}
+function setTexto(id,v){const e=document.getElementById(id); if(e)e.textContent=v;}
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function mostrarAlerta(m,t){const e=document.getElementById('alertaPedidos');e.className=`alert alert-${t}`;e.textContent=m;}
+function ocultarAlerta(){const e=document.getElementById('alertaPedidos');e.className='alert d-none';e.textContent='';}

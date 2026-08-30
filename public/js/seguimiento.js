@@ -7,9 +7,27 @@ async function iniciarSeguimiento() {
     .getElementById('btnActualizarSeguimiento')
     .addEventListener('click', cargarTodo);
 
-  document
-    .getElementById('filtroEstadoSeguimiento')
-    .addEventListener('change', pintarAltasFiltradas);
+  const filtroEstado =
+    document.getElementById('filtroEstadoSeguimiento');
+
+  if (filtroEstado) {
+    const existeSinNovedades =
+      [...filtroEstado.options].some(
+        option => option.value === 'SIN_NOVEDADES_ERP'
+      );
+
+    if (!existeSinNovedades) {
+      const option = document.createElement('option');
+      option.value = 'SIN_NOVEDADES_ERP';
+      option.textContent = 'SIN_NOVEDADES_ERP';
+      filtroEstado.appendChild(option);
+    }
+
+    filtroEstado.addEventListener(
+      'change',
+      pintarAltasFiltradas
+    );
+  }
 
   await cargarTodo();
 }
@@ -115,11 +133,7 @@ function pintarAltas(filas) {
     tbody.innerHTML = `
       <tr>
         <td colspan="11" class="text-center py-4 text-secondary">
-          <div class="seguimiento-empty">
-            <div class="seguimiento-empty-icon">ERP</div>
-            <strong>No hay altas para mostrar</strong>
-            <span>Probá cambiando el filtro de estado.</span>
-          </div>
+          No hay altas para mostrar.
         </td>
       </tr>
     `;
@@ -219,11 +233,8 @@ function pintarAltas(filas) {
       </td>
 
       <td>
-        <div class="seguimiento-progress-row">
-          <div class="progress seguimiento-progress" role="progressbar" aria-valuenow="${porcentajeVisual}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar ${claseBarraProgreso(porcentajeVisual, seguimiento)}" style="width:${porcentajeVisual}%"></div>
-          </div>
-          <span class="seguimiento-progress-value">${porcentajeVisual}%</span>
+        <div class="progress" role="progressbar" aria-valuenow="${porcentajeVisual}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar" style="width:${porcentajeVisual}%">${porcentajeVisual}%</div>
         </div>
       </td>
 
@@ -232,8 +243,8 @@ function pintarAltas(filas) {
       </td>
 
       <td class="text-end">
-        <a href="/seguimiento/${encodeURIComponent(id)}" class="btn btn-sm btn-outline-primary seguimiento-view-btn">
-          Ver detalle
+        <a href="/seguimiento/${encodeURIComponent(id)}" class="btn btn-sm btn-outline-primary">
+          Ver
         </a>
       </td>
     `;
@@ -241,21 +252,6 @@ function pintarAltas(filas) {
     tbody.appendChild(tr);
   }
 }
-
-
-function claseBarraProgreso(porcentaje, seguimiento = {}) {
-  const errores = numero(
-    seguimiento.errores ??
-    seguimiento.ERRORES ??
-    0
-  );
-
-  if (errores > 0) return 'bg-danger';
-  if (porcentaje >= 100) return 'bg-success';
-  if (porcentaje > 0) return 'bg-warning';
-  return 'bg-secondary';
-}
-
 
 function formatearAnoTemporada(fila) {
   const ano =
@@ -323,6 +319,7 @@ function claseEstado(estado) {
     case 'EXPORTADO': return 'text-bg-primary';
     case 'PARCIAL_ERP': return 'text-bg-warning';
     case 'GENERADO_OK_EN_ERP': return 'text-bg-success';
+    case 'SIN_NOVEDADES_ERP': return 'text-bg-info';
     case 'ERROR_ERP': return 'text-bg-danger';
     case 'ANULADO': return 'text-bg-danger';
     default: return 'text-bg-secondary';

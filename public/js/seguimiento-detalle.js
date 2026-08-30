@@ -5,6 +5,7 @@ const ID_ALTA_SEGUIMIENTO =
   Number(paginaSeguimiento.dataset.idAlta);
 
 let productosSeguimiento = [];
+let estadoAltaSeguimiento = '';
 
 document.addEventListener('DOMContentLoaded', iniciarDetalleSeguimiento);
 
@@ -65,6 +66,7 @@ async function cargarDetalleSeguimiento() {
 
 function pintarCabecera(alta) {
   const estado = alta.ESTADO ?? '-';
+  estadoAltaSeguimiento = String(estado).trim().toUpperCase();
 
   setTexto('detIdAlta', alta.ID_ALTA ?? ID_ALTA_SEGUIMIENTO);
   setTexto('detMarca', alta.DETALLE_MARCA ?? '-');
@@ -140,15 +142,66 @@ function pintarResumen(seguimiento) {
   barra.textContent = `${porcentaje}%`;
   barra.setAttribute('aria-valuenow', porcentaje);
 
-  actualizarEtapasSeguimiento({
-    total,
-    confirmados,
-    pendientes,
-    errores,
-    porcentaje
+  const mensaje = document.getElementById('mensajeSeguimientoERP');
+
+  const esSinNovedades =
+    estadoAltaSeguimiento === 'SIN_NOVEDADES_ERP';
+
+  const pasos =
+    document.querySelector('.seguimiento-steps');
+
+  const progreso =
+    document.querySelector('.seguimiento-main-progress');
+
+  const porcentajeVisual =
+    document.querySelector('.seguimiento-percent');
+
+  if (pasos) {
+    pasos.classList.toggle('d-none', esSinNovedades);
+  }
+
+  if (progreso) {
+    progreso.classList.toggle('d-none', esSinNovedades);
+  }
+
+  if (porcentajeVisual) {
+    porcentajeVisual.classList.toggle('d-none', esSinNovedades);
+  }
+
+  const pasoExportado = document.getElementById('seguimientoPasoExportado');
+  const pasoDetectado = document.getElementById('seguimientoPasoDetectado');
+  const pasoConfirmado = document.getElementById('seguimientoPasoConfirmado');
+  [pasoExportado, pasoDetectado, pasoConfirmado].forEach(paso => {
+    paso?.classList.remove('is-active', 'is-done', 'is-error');
   });
 
-  const mensaje = document.getElementById('mensajeSeguimientoERP');
+  if (total === 0) {
+    pasoExportado?.classList.add('is-active');
+  } else if (errores > 0) {
+    pasoExportado?.classList.add('is-done');
+    pasoDetectado?.classList.add('is-error');
+    pasoConfirmado?.classList.add('is-error');
+  } else if (confirmados === total) {
+    pasoExportado?.classList.add('is-done');
+    pasoDetectado?.classList.add('is-done');
+    pasoConfirmado?.classList.add('is-done');
+  } else if (confirmados > 0) {
+    pasoExportado?.classList.add('is-done');
+    pasoDetectado?.classList.add('is-done');
+    pasoConfirmado?.classList.add('is-active');
+  } else {
+    pasoExportado?.classList.add('is-done');
+    pasoDetectado?.classList.add('is-active');
+  }
+
+  if (esSinNovedades) {
+    mensaje.className = 'alert alert-success seguimiento-status-message';
+    mensaje.innerHTML =
+      '<strong>Cerrado sin novedades.</strong> ' +
+      'Todos los productos del Alta ya existían en Presea. ' +
+      'No fue necesaria ninguna exportación ni conciliación ERP.';
+    return;
+  }
 
   if (total === 0) {
     mensaje.className = 'alert alert-secondary';
@@ -173,54 +226,6 @@ function pintarResumen(seguimiento) {
   }
 }
 
-
-function actualizarEtapasSeguimiento({
-  total,
-  confirmados,
-  errores,
-  porcentaje
-}) {
-  const pasoExportado =
-    document.getElementById('seguimientoPasoExportado');
-  const pasoDetectado =
-    document.getElementById('seguimientoPasoDetectado');
-  const pasoConfirmado =
-    document.getElementById('seguimientoPasoConfirmado');
-
-  if (!pasoExportado || !pasoDetectado || !pasoConfirmado) {
-    return;
-  }
-
-  [pasoExportado, pasoDetectado, pasoConfirmado]
-    .forEach(paso => {
-      paso.classList.remove('is-active', 'is-done', 'is-error');
-    });
-
-  if (total > 0) {
-    pasoExportado.classList.add('is-done');
-  } else {
-    pasoExportado.classList.add('is-active');
-  }
-
-  if (errores > 0) {
-    pasoDetectado.classList.add('is-error');
-    return;
-  }
-
-  if (confirmados > 0 || porcentaje > 0) {
-    pasoDetectado.classList.add('is-done');
-  } else if (total > 0) {
-    pasoDetectado.classList.add('is-active');
-  }
-
-  if (total > 0 && confirmados === total) {
-    pasoConfirmado.classList.add('is-done');
-  } else if (confirmados > 0) {
-    pasoConfirmado.classList.add('is-active');
-  }
-}
-
-
 function pintarProductosFiltrados() {
   const filtro = document.getElementById('filtroProductoERP').value;
 
@@ -241,11 +246,7 @@ function pintarProductos(filas) {
     tbody.innerHTML = `
       <tr>
         <td colspan="5" class="text-center py-4 text-secondary">
-          <div class="seguimiento-empty">
-            <div class="seguimiento-empty-icon">ERP</div>
-            <strong>No hay productos para mostrar</strong>
-            <span>Probá cambiando el filtro de estado ERP.</span>
-          </div>
+          No hay productos para mostrar.
         </td>
       </tr>
     `;
@@ -290,6 +291,7 @@ function claseEstadoAlta(estado) {
     case 'EXPORTADO': return 'text-bg-primary';
     case 'PARCIAL_ERP': return 'text-bg-warning';
     case 'GENERADO_OK_EN_ERP': return 'text-bg-success';
+    case 'SIN_NOVEDADES_ERP': return 'text-bg-info';
     default: return 'text-bg-secondary';
   }
 }
@@ -306,10 +308,11 @@ function claseEstadoProducto(estado) {
 function formatearFecha(valor) {
   if (!valor) return '-';
 
-  const fecha = new Date(valor);
-  if (Number.isNaN(fecha.getTime())) return valor;
+  const texto = String(valor);
+  const fecha = new Date(texto.endsWith('Z') ? texto.slice(0, -1) : texto);
+  if (Number.isNaN(fecha.getTime())) return texto;
 
-  return fecha.toLocaleString('es-AR');
+  return fecha.toLocaleString('es-AR', { hour12: false });
 }
 
 function numero(valor) {

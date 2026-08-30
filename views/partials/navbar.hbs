@@ -4,23 +4,31 @@
     <a
       class="navbar-brand app-navbar-brand"
       href="/"
-      aria-label="Alta Productos Atomik - Dashboard"
+      aria-label="PRODUCTOS APP - Dashboard"
     >
-      <span class="app-navbar-logo-wrap">
-        <img
-          src="/img/logo-atomik.png"
-          alt="Atomik"
-          class="app-navbar-logo"
-        >
+      <span class="app-navbar-logo-wrap app-navbar-logo-neutral">
+        <span class="app-navbar-logo-text">PA</span>
       </span>
 
       <span class="app-navbar-divider d-none d-lg-block" aria-hidden="true"></span>
 
       <span class="app-navbar-title d-none d-md-inline-flex">
-        ALTA PRODUCTOS ATOMIK
+        PRODUCTOS APP
       </span>
     </a>
 
+    <div id="navbarBrandContext" class="app-navbar-brand-context d-none d-xl-flex">
+      <select
+        id="navbarEmpresaSelector"
+        class="form-select form-select-sm app-navbar-company-selector d-none"
+        aria-label="Empresa activa"
+      ></select>
+
+      <span id="navbarEmpresa" class="app-navbar-company"></span>
+      <span id="navbarMarcas" class="app-navbar-brand-list"></span>
+    </div>
+
+    {{#unless (eq pagina 'login')}}
     <button
       class="navbar-toggler app-navbar-toggler"
       type="button"
@@ -53,7 +61,7 @@
 
         <li class="nav-item">
           <a
-            class="nav-link app-navbar-link {{#if (eq pagina 'nueva-alta')}}active{{/if}}"
+            id="navNuevaAlta" class="nav-link app-navbar-link {{#if (eq pagina 'nueva-alta')}}active{{/if}}"
             href="/altas/nueva"
           >
             <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -79,22 +87,6 @@
 
         <li class="nav-item">
           <a
-            id="navNuevoPedido"
-            class="nav-link app-navbar-link"
-            href="/pedidos/nuevo"
-          >
-            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="8.5"></circle>
-              <path d="M12 8v8M8 12h8"></path>
-              <path d="M8.5 5.2h7"></path>
-            </svg>
-            <span>Nuevo Pedido</span>
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a
-            id="navPedidos"
             class="nav-link app-navbar-link {{#if (eq pagina 'pedidos')}}active{{/if}}"
             href="/pedidos"
           >
@@ -121,29 +113,46 @@
           </a>
         </li>
 
+
+        <li id="navUsuarios" class="nav-item d-none">
+          <a
+            class="nav-link app-navbar-link {{#if (eq pagina 'usuarios')}}active{{/if}}"
+            href="/usuarios"
+          >
+            <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="9" cy="8" r="3"></circle>
+              <path d="M4 19v-2.2c0-2.1 1.9-3.8 4.2-3.8h1.6c2.3 0 4.2 1.7 4.2 3.8V19"></path>
+              <path d="M16 8h4M18 6v4M16 14h4M16 18h4"></path>
+            </svg>
+            <span>Usuarios</span>
+          </a>
+        </li>
+
       </ul>
 
-      <div class="app-navbar-system d-none d-lg-flex">
-        <span class="app-navbar-system-dot" aria-hidden="true"></span>
-        <span>SQL Server · Presea</span>
+      <div class="app-navbar-right">
+        <div class="app-navbar-system d-none d-xl-flex">
+          <span class="app-navbar-system-dot" aria-hidden="true"></span>
+          <span>SQL Server · Presea</span>
+        </div>
+
+        <div id="navbarSesion" class="app-navbar-session d-none">
+          <a href="/perfil" class="app-navbar-user text-decoration-none" title="Mi perfil">
+            <span id="navbarUsuario" class="app-navbar-user-name"></span>
+            <span id="navbarRol" class="app-navbar-user-role"></span>
+          </a>
+
+          <button
+            id="btnCerrarSesion"
+            class="btn btn-sm app-navbar-logout"
+            type="button"
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     </div>
+    {{/unless}}
 
   </div>
 </nav>
-
-<script>
-(function () {
-  var path = window.location.pathname || '';
-  var nuevo = document.getElementById('navNuevoPedido');
-  var pedidos = document.getElementById('navPedidos');
-
-  if (path === '/pedidos/nuevo' || path.indexOf('/pedidos/nuevo/') === 0) {
-    if (pedidos) pedidos.classList.remove('active');
-    if (nuevo) nuevo.classList.add('active');
-  } else if (path === '/pedidos' || /^\/pedidos\/\d+/.test(path)) {
-    if (nuevo) nuevo.classList.remove('active');
-    if (pedidos) pedidos.classList.add('active');
-  }
-})();
-</script>

@@ -15,12 +15,58 @@ document.addEventListener('DOMContentLoaded', iniciar);
 async function iniciar() {
   try {
     await cargarAlta();
+    await cargarUsuarioAutenticado();
     configurarTipoProducto();
     await cargarMaestros();
     configurarEventos();
   } catch (error) {
     mostrarAlerta(error.message, 'danger');
   }
+}
+
+
+async function cargarUsuarioAutenticado() {
+  const input = document.getElementById('usuarioProducto');
+  if (!input) return;
+
+  let usuario = '';
+
+  try {
+    const response = await fetch('/api/auth/me');
+    const data = await response.json();
+
+    if (response.ok && data?.autenticado && data?.usuario) {
+      const contexto = data.usuario;
+
+      usuario = String(
+        contexto.nombre ??
+        contexto.NOMBRE ??
+        contexto.nombreCompleto ??
+        contexto.NOMBRE_COMPLETO ??
+        contexto.displayName ??
+        contexto.DISPLAY_NAME ??
+        contexto.usuario ??
+        contexto.USUARIO ??
+        contexto.nombreUsuario ??
+        contexto.NOMBRE_USUARIO ??
+        ''
+      ).trim();
+    }
+  } catch {
+    // Si la sesión no puede consultarse, usamos el creador del Alta
+    // como respaldo visual. El backend mantiene sus propias validaciones.
+  }
+
+  if (!usuario) {
+    usuario = String(
+      altaActual?.USUARIO_CREACION ??
+      altaActual?.usuarioCreacion ??
+      ''
+    ).trim();
+  }
+
+  input.value = usuario;
+  input.readOnly = true;
 }
 
 async function apiJson(url, opciones = {}) {
@@ -103,31 +149,53 @@ function normalizarTipo(valor) {
 }
 
 function configurarTipoProducto() {
-  const tipo = normalizarTipo(altaActual.TIPO_PRODUCTO);
+  const tipo = normalizarTipo(altaActual?.TIPO_PRODUCTO);
+
   const clas = document.getElementById('contenedorClasificacion');
   const mod = document.getElementById('contenedorModulo');
   const talle = document.getElementById('contenedorTalle');
-  const proveedor =
-    document.getElementById(
-      'contenedorProveedor'
-    );
+
+  const codigoClasificacion =
+    document.getElementById('codigoClasificacion');
+  const codigoModulo =
+    document.getElementById('codigoModulo');
+  const codigoTalle =
+    document.getElementById('codigoTalle');
 
   if (tipo === 'MODULO') {
-    clas.classList.remove('d-none');
-    mod.classList.remove('d-none');
-    talle.classList.add('d-none');
-    proveedor?.classList.remove('d-none');
+    clas?.classList.remove('d-none');
+    mod?.classList.remove('d-none');
+    talle?.classList.add('d-none');
 
-    document.getElementById('codigoClasificacion').required = true;
-    document.getElementById('codigoModulo').required = true;
-  } else {
-    clas.classList.add('d-none');
-    mod.classList.add('d-none');
-    talle.classList.remove('d-none');
-    proveedor?.classList.remove('d-none');
+    if (codigoClasificacion) {
+      codigoClasificacion.required = true;
+    }
 
-    document.getElementById('codigoClasificacion').required = false;
-    document.getElementById('codigoModulo').required = false;
+    if (codigoModulo) {
+      codigoModulo.required = true;
+    }
+
+    if (codigoTalle) {
+      codigoTalle.required = false;
+    }
+
+    return;
+  }
+
+  clas?.classList.add('d-none');
+  mod?.classList.add('d-none');
+  talle?.classList.remove('d-none');
+
+  if (codigoClasificacion) {
+    codigoClasificacion.required = false;
+  }
+
+  if (codigoModulo) {
+    codigoModulo.required = false;
+  }
+
+  if (codigoTalle) {
+    codigoTalle.required = true;
   }
 }
 
@@ -138,7 +206,7 @@ async function cargarMaestros() {
   const detalleRubro = encodeURIComponent(altaActual.DETALLE_RUBRO || '');
 
   const [
-    listaModelos, listaLicencias, grupos, subgrupos, lineas, deportes,
+    listaModelos, listaLicencias, proveedores, grupos, subgrupos, lineas, deportes,
     listaColores, edades, sexos, paises, clasificaciones
   ] = await Promise.all([
     obtenerListado([
@@ -148,6 +216,11 @@ async function cargarMaestros() {
     ]),
     obtenerListado([
       `/api/maestros/licencias-modelos?marca=${detalleMarca}&rubro=${detalleRubro}`
+    ]),
+    obtenerListado([
+      `/api/maestros/proveedores?marca=${marca}&rubro=${detalleRubro}`,
+      `/api/maestros/proveedores?marca=${marca}&rubro=${rubro}`,
+      `/api/maestros/proveedores?marca=${marca}`
     ]),
     obtenerListado(['/api/maestros/grupos']),
     obtenerListado(['/api/maestros/subgrupos']),
@@ -202,6 +275,13 @@ async function cargarMaestros() {
   actualizarLicenciaAlta();
 
   inicializarBuscadorMaestro({
+    clave: 'Proveedor',
+    lista: proveedores,
+    campoCodigo: ['CODIGO', 'codigo', 'CODIGO_PROVEEDOR', 'codigoProveedor'],
+    campoDetalle: ['NVA_RAZON_SOCIAL', 'nvaRazonSocial', 'DETALLE_PROVEEDOR', 'detalleProveedor']
+  });
+
+  inicializarBuscadorMaestro({
     clave: 'Grupo',
     lista: grupos,
     campoCodigo: ['CODIGO_GRUPO', 'codigoGrupo'],
@@ -249,48 +329,10 @@ async function cargarMaestros() {
       ? clasificaciones.slice()
       : [];
 
-  inicializarBuscadorMaestro({
-    clave: 'Clasificacion',
-    lista: clasificacionesMaestro,
-    campoCodigo: [
-      'CODIGO_CLASIFICACION',
-      'codigoClasificacion'
-    ],
-    campoDetalle: [
-      'DETALLE_CLASIFICACION',
-      'detalleClasificacion'
-    ]
-  });
-
   cargarClasificaciones(clasificacionesMaestro);
 
   colores = listaColores;
   pintarColores(colores);
-
-  const rubroProveedor =
-    encodeURIComponent(
-      altaActual.DETALLE_RUBRO ??
-      altaActual.detalleRubro ??
-      ''
-    );
-
-  const proveedores =
-    await obtenerListado([
-      `/api/maestros/proveedores?rubro=${rubroProveedor}`
-    ]);
-
-  inicializarBuscadorMaestro({
-    clave: 'Proveedor',
-    lista: proveedores,
-    campoCodigo: [
-      'CODIGO',
-      'codigo'
-    ],
-    campoDetalle: [
-      'NVA_RAZON_SOCIAL',
-      'nvaRazonSocial'
-    ]
-  });
 
   if (normalizarTipo(altaActual.TIPO_PRODUCTO) === 'MODULO') {
     modulos = await obtenerListado([
@@ -320,8 +362,18 @@ async function cargarMaestros() {
         altaActual.codigoRubro
       );
 
-    pintarTallesParSuelto(
-      tallesFiltrados
+    cargarSelect(
+      'codigoTalle',
+      tallesFiltrados,
+
+      // IMPORTANTE:
+      // enviamos siempre el CODIGO_TALLE real al backend.
+      ['CODIGO_TALLE', 'codigoTalle'],
+
+      // Al usuario le mostramos el DETALLE_TALLE.
+      ['DETALLE_TALLE', 'detalleTalle'],
+
+      'Seleccionar talle...'
     );
   }
 }
@@ -993,16 +1045,28 @@ function obtenerClasificacionesPermitidasEdadSexo() {
   return reglas?.[edad]?.[sexo] || [];
 }
 
-function establecerOpcionesClasificacion(lista) {
-  const estado =
-    buscadoresMaestro.Clasificacion;
+function cargarClasificaciones(lista) {
+  const select =
+    document.getElementById(
+      'codigoClasificacion'
+    );
 
-  if (!estado) return [];
+  if (!select) return;
 
-  const codigosPermitidos =
-    new Set(
-      (Array.isArray(lista) ? lista : [])
-        .map(fila =>
+  const tipo =
+    normalizarTipo(
+      altaActual?.TIPO_PRODUCTO
+    );
+
+  const filas =
+    Array.isArray(lista)
+      ? lista
+      : [];
+
+  if (tipo !== 'MODULO') {
+    const filtradas =
+      filas.filter(fila => {
+        const codigo =
           String(
             obtenerCampo(
               fila,
@@ -1011,125 +1075,41 @@ function establecerOpcionesClasificacion(lista) {
                 'codigoClasificacion'
               ]
             ) ?? ''
-          ).trim()
-        )
-        .filter(Boolean)
+          ).trim();
+
+        return codigo === '1';
+      });
+
+    cargarSelect(
+      'codigoClasificacion',
+      filtradas,
+      [
+        'CODIGO_CLASIFICACION',
+        'codigoClasificacion'
+      ],
+      [
+        'DETALLE_CLASIFICACION',
+        'detalleClasificacion'
+      ],
+      'Seleccionar clasificación...'
     );
 
-  estado.permitidas =
-    estado.filas.filter(
-      item =>
-        codigosPermitidos.has(
-          String(item.codigo).trim()
-        )
-    );
+    if (filtradas.length === 1) {
+      const codigo =
+        obtenerCampo(
+          filtradas[0],
+          [
+            'CODIGO_CLASIFICACION',
+            'codigoClasificacion'
+          ]
+        );
 
-  estado.filtradas =
-    estado.permitidas.slice();
-
-  pintarBuscadorMaestro(
-    'Clasificacion',
-    estado.filtradas
-  );
-
-  return estado.filtradas;
-}
-
-
-function limpiarSeleccionClasificacionVisual() {
-  const hidden =
-    document.getElementById(
-      'codigoClasificacion'
-    );
-
-  const buscador =
-    document.getElementById(
-      'buscarClasificacion'
-    );
-
-  const lista =
-    document.getElementById(
-      'listaClasificacion'
-    );
-
-  const seleccionado =
-    document.getElementById(
-      'clasificacionSeleccionado'
-    );
-
-  if (hidden) {
-    hidden.value = '';
-  }
-
-  if (buscador) {
-    buscador.value = '';
-    buscador.classList.remove(
-      'd-none'
-    );
-  }
-
-  seleccionado?.classList.add(
-    'd-none'
-  );
-
-  lista?.classList.remove(
-    'd-none'
-  );
-}
-
-
-function cargarClasificaciones(lista) {
-  const buscador =
-    document.getElementById(
-      'buscarClasificacion'
-    );
-
-  const listaVisual =
-    document.getElementById(
-      'listaClasificacion'
-    );
-
-  if (!buscador) return;
-
-  const tipo =
-    normalizarTipo(
-      altaActual?.TIPO_PRODUCTO
-    );
-
-  if (tipo !== 'MODULO') {
-    const filtradas =
-      (Array.isArray(lista) ? lista : [])
-        .filter(fila => {
-          const codigo =
-            String(
-              obtenerCampo(
-                fila,
-                [
-                  'CODIGO_CLASIFICACION',
-                  'codigoClasificacion'
-                ]
-              ) ?? ''
-            ).trim();
-
-          return codigo === '1';
-        });
-
-    buscador.disabled = false;
-    buscador.placeholder =
-      'Buscar clasificación...';
-
-    limpiarSeleccionClasificacionVisual();
-
-    const opciones =
-      establecerOpcionesClasificacion(
-        filtradas
-      );
-
-    if (opciones.length === 1) {
-      seleccionarBuscadorMaestro(
-        'Clasificacion',
-        opciones[0]
-      );
+      if (
+        codigo !== undefined &&
+        codigo !== null
+      ) {
+        select.value = String(codigo);
+      }
     }
 
     return;
@@ -1150,81 +1130,79 @@ function cargarClasificaciones(lista) {
   const permitidas =
     obtenerClasificacionesPermitidasEdadSexo();
 
-  limpiarSeleccionClasificacionVisual();
-
   if (!edad || !sexo) {
-    const estadoClasificacion =
-      buscadoresMaestro.Clasificacion;
-
-    if (estadoClasificacion) {
-      estadoClasificacion.permitidas = [];
-      estadoClasificacion.filtradas = [];
-    }
-
-    buscador.disabled = true;
-    buscador.placeholder =
-      'Seleccioná Edad y Sexo primero...';
-
-    if (listaVisual) {
-      listaVisual.innerHTML = '';
-      listaVisual.classList.add(
-        'd-none'
-      );
-    }
-
+    select.innerHTML =
+      '<option value="">Seleccioná Edad y Sexo primero...</option>';
+    select.disabled = true;
     return;
   }
 
   const filtradas =
-    (Array.isArray(lista) ? lista : [])
-      .filter(fila => {
-        const detalle =
-          normalizarValorRegla(
-            obtenerCampo(
-              fila,
-              [
-                'DETALLE_CLASIFICACION',
-                'detalleClasificacion'
-              ]
-            )
-          );
-
-        return permitidas.includes(
-          detalle
+    filas.filter(fila => {
+      const detalle =
+        normalizarValorRegla(
+          obtenerCampo(
+            fila,
+            [
+              'DETALLE_CLASIFICACION',
+              'detalleClasificacion'
+            ]
+          )
         );
-      });
 
-  buscador.disabled = false;
-  buscador.placeholder =
+      return permitidas.includes(
+        detalle
+      );
+    });
+
+  select.disabled = false;
+
+  cargarSelect(
+    'codigoClasificacion',
+    filtradas,
+    [
+      'CODIGO_CLASIFICACION',
+      'codigoClasificacion'
+    ],
+    [
+      'DETALLE_CLASIFICACION',
+      'detalleClasificacion'
+    ],
     filtradas.length
-      ? 'Buscar clasificación...'
-      : 'Sin clasificación válida para Edad + Sexo';
+      ? 'Seleccionar clasificación...'
+      : 'Sin clasificación válida para Edad + Sexo'
+  );
 
-  const opciones =
-    establecerOpcionesClasificacion(
-      filtradas
-    );
+  if (filtradas.length === 1) {
+    const codigo =
+      obtenerCampo(
+        filtradas[0],
+        [
+          'CODIGO_CLASIFICACION',
+          'codigoClasificacion'
+        ]
+      );
 
-  if (!opciones.length) {
-    if (listaVisual) {
-      listaVisual.innerHTML = `
-        <div class="alta-master-empty">
-          Sin clasificación válida para Edad + Sexo.
-        </div>`;
+    if (
+      codigo !== undefined &&
+      codigo !== null
+    ) {
+      select.value = String(codigo);
     }
-    return;
-  }
-
-  if (opciones.length === 1) {
-    seleccionarBuscadorMaestro(
-      'Clasificacion',
-      opciones[0]
-    );
   }
 }
 
 
 function actualizarClasificacionesEdadSexo() {
+  const select =
+    document.getElementById(
+      'codigoClasificacion'
+    );
+
+  if (select) {
+    select.value = '';
+  }
+
   cargarClasificaciones(
     clasificacionesMaestro
   );
@@ -1244,20 +1222,32 @@ function obtenerClasificacionSeleccionadaDetalle() {
   if (!codigo) return '';
 
   const item =
-    buscadoresMaestro
-      ?.Clasificacion
-      ?.filas
-      ?.find(
-        fila =>
-          String(fila.codigo).trim() ===
-          codigo
-      );
+    (Array.isArray(clasificacionesMaestro)
+      ? clasificacionesMaestro
+      : []
+    ).find(
+      fila =>
+        String(
+          obtenerCampo(
+            fila,
+            [
+              'CODIGO_CLASIFICACION',
+              'codigoClasificacion'
+            ]
+          ) ?? ''
+        ).trim() === codigo
+    );
 
   return normalizarValorRegla(
-    item?.detalle || ''
+    obtenerCampo(
+      item || {},
+      [
+        'DETALLE_CLASIFICACION',
+        'detalleClasificacion'
+      ]
+    ) || ''
   );
 }
-
 
 function obtenerDatosModulo(fila) {
   const codigo =
@@ -1718,8 +1708,6 @@ function filtrarTallesParSueltoPorRubro(
       'T_XL',
       'T_2X',
       'T_3X',
-      'T_2XL',
-      'T_3XL',
       'T_00'
     ]);
 
@@ -1731,9 +1719,7 @@ function filtrarTallesParSueltoPorRubro(
       'T_L',
       'T_XL',
       'T_2X',
-      'T_3X',
-      'T_2XL',
-      'T_3XL'
+      'T_3X'
     ]);
 
   const permitidosAccesorios =
@@ -1748,13 +1734,7 @@ function filtrarTallesParSueltoPorRubro(
       'L',
       'XL',
       '2X',
-      '3X',
-      '2XL',
-      '3XL',
-      'T_2X',
-      'T_3X',
-      'T_2XL',
-      'T_3XL'
+      '3X'
     ]);
 
   const permitidosPop =
@@ -2269,10 +2249,7 @@ function validarBuscadoresMaestro() {
       id: 'codigoProveedor',
       mensaje:
         'Debe seleccionar un proveedor.'
-    }
-  ];
-
-  campos.push(
+    },
     {
       clave: 'Grupo',
       id: 'codigoGrupo',
@@ -2315,7 +2292,7 @@ function validarBuscadoresMaestro() {
       mensaje:
         'Debe seleccionar un país.'
     }
-  );
+  ];
 
   for (const campo of campos) {
     if (!valor(campo.id)) {
@@ -2338,237 +2315,9 @@ function validarBuscadoresMaestro() {
 }
 
 
-
-function pintarTallesParSuelto(lista) {
-  const contenedor =
-    document.getElementById('listaTalles');
-
-  if (!contenedor) return;
-
-  contenedor.innerHTML = '';
-
-  for (const fila of (Array.isArray(lista) ? lista : [])) {
-    const codigo =
-      obtenerCampo(
-        fila,
-        ['CODIGO_TALLE', 'codigoTalle']
-      );
-
-    const detalle =
-      obtenerCampo(
-        fila,
-        ['DETALLE_TALLE', 'detalleTalle']
-      );
-
-    if (
-      codigo === undefined ||
-      codigo === null ||
-      String(codigo).trim() === ''
-    ) {
-      continue;
-    }
-
-    const codigoTexto =
-      String(codigo).trim();
-
-    const detalleTexto =
-      String(
-        detalle ?? codigoTexto
-      ).trim();
-
-    const div =
-      document.createElement('div');
-
-    div.className =
-      'form-check talle-item';
-
-    const input =
-      document.createElement('input');
-
-    input.className =
-      'form-check-input talle-check';
-
-    input.type =
-      'checkbox';
-
-    input.value =
-      codigoTexto;
-
-    input.id =
-      `talle_${codigoTexto.replace(/[^A-Za-z0-9_-]/g, '_')}`;
-
-    input.addEventListener(
-      'change',
-      actualizarCantidadTalles
-    );
-
-    const label =
-      document.createElement('label');
-
-    label.className =
-      'form-check-label';
-
-    label.htmlFor =
-      input.id;
-
-    label.textContent =
-      detalleTexto;
-
-    div.append(
-      input,
-      label
-    );
-
-    contenedor.appendChild(
-      div
-    );
-  }
-
-  actualizarCantidadTalles();
-}
-
-
-function obtenerTallesSeleccionados() {
-  return [
-    ...document.querySelectorAll(
-      '.talle-check:checked'
-    )
-  ]
-    .map(
-      input =>
-        String(input.value || '').trim()
-    )
-    .filter(Boolean);
-}
-
-
-function pintarResumenTallesSeleccionados() {
-  const contenedor =
-    document.getElementById(
-      'tallesSeleccionadosResumen'
-    );
-
-  if (!contenedor) return;
-
-  const seleccionados =
-    [
-      ...document.querySelectorAll(
-        '#listaTalles .talle-check:checked'
-      )
-    ];
-
-  contenedor.innerHTML = '';
-
-  for (const input of seleccionados) {
-    const label =
-      document.querySelector(
-        `label[for="${CSS.escape(input.id)}"]`
-      );
-
-    const texto =
-      String(
-        label?.textContent ||
-        input.value ||
-        ''
-      ).trim();
-
-    if (!texto) continue;
-
-    const badge =
-      document.createElement('button');
-
-    badge.type =
-      'button';
-
-    badge.className =
-      'badge rounded-pill text-bg-primary px-3 py-2 border-0';
-
-    badge.title =
-      `Quitar ${texto}`;
-
-    badge.setAttribute(
-      'aria-label',
-      `Quitar talle ${texto}`
-    );
-
-    badge.innerHTML =
-      `${escapar(texto)} <span aria-hidden="true">×</span>`;
-
-    badge.addEventListener(
-      'click',
-      () => {
-        input.checked = false;
-        actualizarCantidadTalles();
-      }
-    );
-
-    contenedor.appendChild(
-      badge
-    );
-  }
-}
-
-
-function actualizarCantidadTalles() {
-  const cantidad =
-    obtenerTallesSeleccionados().length;
-
-  const badge =
-    document.getElementById(
-      'cantidadTalles'
-    );
-
-  if (badge) {
-    badge.textContent =
-      `${cantidad} seleccionado${cantidad === 1 ? '' : 's'}`;
-  }
-
-  pintarResumenTallesSeleccionados();
-}
-
-
-function seleccionarTodosTalles() {
-  document
-    .querySelectorAll('.talle-check')
-    .forEach(
-      item =>
-        item.checked = true
-    );
-
-  actualizarCantidadTalles();
-}
-
-
-function limpiarTallesSeleccionados() {
-  document
-    .querySelectorAll('.talle-check')
-    .forEach(
-      item =>
-        item.checked = false
-    );
-
-  actualizarCantidadTalles();
-}
-
-
 function pintarColores(lista) {
-  const contenedor =
-    document.getElementById('listaColores');
-
-  const seleccionados =
-    new Set(
-      [
-        ...document.querySelectorAll(
-          '#listaColores .color-check:checked'
-        )
-      ].map(
-        input =>
-          String(input.value || '').trim()
-      )
-    );
-
+  const contenedor = document.getElementById('listaColores');
   contenedor.innerHTML = '';
-
   for (const fila of lista) {
     const codigo = obtenerCampo(fila, ['CODIGO_COLOR','codigoColor']);
     const detalle = obtenerCampo(fila, ['DETALLE_COLOR','detalleColor']);
@@ -2583,11 +2332,6 @@ function pintarColores(lista) {
     input.type = 'checkbox';
     input.value = codigo;
     input.id = `color_${codigo}`;
-    input.checked =
-      seleccionados.has(
-        String(codigo).trim()
-      );
-
     input.addEventListener(
       'change',
       () => {
@@ -2608,113 +2352,86 @@ function pintarColores(lista) {
   actualizarCantidadColores();
 }
 
-function pintarResumenColoresSeleccionados() {
+function pintarColoresSeleccionados() {
   const contenedor =
-    document.getElementById(
-      'coloresSeleccionadosResumen'
-    );
+    document.getElementById('coloresSeleccionados');
 
   if (!contenedor) return;
 
   const seleccionados =
-    [
-      ...document.querySelectorAll(
-        '#listaColores .color-check:checked'
-      )
-    ];
+    [...document.querySelectorAll('.color-check:checked')];
 
   contenedor.innerHTML = '';
 
-  for (const input of seleccionados) {
+  if (!seleccionados.length) {
+    contenedor.classList.add('d-none');
+    contenedor.classList.remove('d-flex');
+    return;
+  }
+
+  contenedor.classList.remove('d-none');
+  contenedor.classList.add('d-flex');
+
+  for (const check of seleccionados) {
     const label =
-      document.querySelector(
-        `label[for="${CSS.escape(input.id)}"]`
-      );
+      document.querySelector(`label[for="${CSS.escape(check.id)}"]`);
 
-    const texto =
-      String(
-        label?.textContent ||
-        input.value ||
-        ''
-      ).trim();
+    const textoColor =
+      label?.textContent?.trim() || check.value;
 
-    if (!texto) continue;
+    const chip = document.createElement('span');
+    chip.className =
+      'badge rounded-pill text-bg-primary d-inline-flex align-items-center gap-2 px-3 py-2';
 
-    const badge =
-      document.createElement('button');
+    const texto = document.createElement('span');
+    texto.textContent = textoColor;
 
-    badge.type =
-      'button';
-
-    badge.className =
-      'badge rounded-pill text-bg-primary px-3 py-2 border-0';
-
-    badge.title =
-      `Quitar ${texto}`;
-
-    badge.setAttribute(
+    const quitar = document.createElement('button');
+    quitar.type = 'button';
+    quitar.className =
+      'btn btn-sm p-0 border-0 text-white lh-1';
+    quitar.style.fontSize = '1rem';
+    quitar.style.fontWeight = '700';
+    quitar.style.boxShadow = 'none';
+    quitar.setAttribute(
       'aria-label',
-      `Quitar color ${texto}`
+      `Quitar color ${textoColor}`
     );
+    quitar.textContent = '×';
 
-    badge.innerHTML =
-      `${escapar(texto)} <span aria-hidden="true">×</span>`;
+    quitar.addEventListener('click', () => {
+      check.checked = false;
+      actualizarCantidadColores();
+      filtrarColores();
+      actualizarImagenesProducto();
+    });
 
-    badge.addEventListener(
-      'click',
-      () => {
-        input.checked = false;
-        actualizarCantidadColores();
-        actualizarImagenesProducto();
-      }
-    );
-
-    contenedor.appendChild(
-      badge
-    );
+    chip.append(texto, quitar);
+    contenedor.appendChild(chip);
   }
 }
 
-
 function actualizarCantidadColores() {
-  const cantidad =
-    document.querySelectorAll(
-      '#listaColores .color-check:checked'
-    ).length;
-
-  document
-    .getElementById('cantidadColores')
-    .textContent =
-      `${cantidad} seleccionado${cantidad === 1 ? '' : 's'}`;
-
-  pintarResumenColoresSeleccionados();
+  const cantidad = document.querySelectorAll('.color-check:checked').length;
+  document.getElementById('cantidadColores').textContent = `${cantidad} seleccionado${cantidad === 1 ? '' : 's'}`;
+  pintarColoresSeleccionados();
 }
 
 function filtrarColores() {
-  const buscador =
-    document.getElementById('buscarColor');
+  const texto = document.getElementById('buscarColor').value.trim().toUpperCase();
 
-  const texto =
-    normalizarBusqueda(
-      buscador?.value || ''
+  document.querySelectorAll('.app-color-item').forEach(item => {
+    const check = item.querySelector('.color-check');
+    const seleccionado = Boolean(check?.checked);
+    const coincide = !texto || item.dataset.texto.includes(texto);
+
+    // Los colores ya seleccionados permanecen siempre visibles,
+    // aunque no coincidan con el filtro de búsqueda.
+    item.classList.toggle(
+      'd-none',
+      !seleccionado && !coincide
     );
-
-  document
-    .querySelectorAll(
-      '#listaColores .app-color-item'
-    )
-    .forEach(item => {
-      const textoItem =
-        normalizarBusqueda(
-          item.dataset.texto || ''
-        );
-
-      item.classList.toggle(
-        'd-none',
-        Boolean(texto) &&
-        !textoItem.includes(texto)
-      );
-    });
+  });
 }
 
 function configurarEventos() {
@@ -2754,20 +2471,6 @@ function configurarEventos() {
       limpiarModuloSeleccionado
     );
 
-  document
-    .getElementById('btnSeleccionarTodosTalles')
-    ?.addEventListener(
-      'click',
-      seleccionarTodosTalles
-    );
-
-  document
-    .getElementById('btnLimpiarTalles')
-    ?.addEventListener(
-      'click',
-      limpiarTallesSeleccionados
-    );
-
   document.getElementById('formProducto').addEventListener('submit', agregarProducto);
   document.getElementById('buscarColor').addEventListener('input', filtrarColores);
   document.getElementById('btnActualizarAlta').addEventListener('click', cargarAlta);
@@ -2777,6 +2480,20 @@ function configurarEventos() {
   document.getElementById('btnValidarAlta').addEventListener('click', validarAlta);
   document.getElementById('btnPreviewAlta').addEventListener('click', mostrarPreview);
   document.getElementById('btnExportarPreviewExcel')?.addEventListener('click', exportarPreviewExcel);
+
+  document
+    .querySelectorAll('#modalPreviewExportacion [data-bs-dismiss="modal"]')
+    .forEach((boton) => {
+      boton.addEventListener('click', () => {
+        const modalElemento = document.getElementById('modalPreviewExportacion');
+        if (!modalElemento || typeof bootstrap === 'undefined') return;
+
+        bootstrap.Modal
+          .getOrCreateInstance(modalElemento)
+          .hide();
+      });
+    });
+
   document.getElementById('btnExportarAlta').addEventListener('click', exportarAlta);
 
   document
@@ -2900,29 +2617,7 @@ async function agregarProducto(event) {
     payload.codigoModulo = valor('codigoModulo');
 
   } else {
-    const codigosTalle =
-      obtenerTallesSeleccionados();
-
-    if (!codigosTalle.length) {
-      mostrarAlerta(
-        'Debe seleccionar al menos un talle.',
-        'warning'
-      );
-      return;
-    }
-
-    /*
-      PAR_SUELTO:
-      aprovechamos el formato lote que el backend ya soporta.
-      Cada talle se envía como una solicitud individual dentro
-      de la misma transacción.
-
-      Ejemplo:
-      2 colores x 5 talles = 10 variantes principales.
-      Cada variante conserva la regla PRIMERA + SEGUNDA.
-    */
-    payload.codigosTalle =
-      codigosTalle;
+    payload.codigoTalle = valor('codigoTalle');
   }
 
   const btn = document.getElementById('btnAgregarProducto');
@@ -2931,44 +2626,10 @@ async function agregarProducto(event) {
     btn.disabled = true;
     btn.textContent = 'Generando...';
 
-    const tipoActual =
-      normalizarTipo(
-        altaActual.TIPO_PRODUCTO
-      );
-
-    let cuerpoPeticion =
-      payload;
-
-    if (tipoActual === 'PAR_SUELTO') {
-      const codigosTalle =
-        Array.isArray(payload.codigosTalle)
-          ? payload.codigosTalle
-          : [];
-
-      const baseProducto = {
-        ...payload
-      };
-
-      delete baseProducto.codigosTalle;
-
-      cuerpoPeticion = {
-        usuario:
-          payload.usuario,
-
-        productos:
-          codigosTalle.map(
-            codigoTalle => ({
-              ...baseProducto,
-              codigoTalle
-            })
-          )
-      };
-    }
-
     const resultado = extraerDatos(await apiJson(`/api/altas/${ID_ALTA}/detalle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cuerpoPeticion)
+      body: JSON.stringify(payload)
     }));
 
     const cantidad =
@@ -3056,26 +2717,9 @@ async function agregarProducto(event) {
       );
     }
 
-    /*
-      Después de agregar un producto mantenemos la selección actual:
-      - COLORES: tanto en MODULO como en PAR_SUELTO.
-      - TALLES: en PAR_SUELTO.
-      - CURVA/MODULO: ya se conserva por la lógica existente.
-
-      Esto permite agregar nuevas variantes sin volver a seleccionar
-      las mismas opciones en cada operación.
-    */
-    const buscarColor =
-      document.getElementById('buscarColor');
-
-    if (buscarColor) {
-      buscarColor.value = '';
-      filtrarColores();
-    }
-
+    // Conservamos los colores seleccionados después de generar la familia.
+    // Esto permite cargar otra familia con la misma paleta sin volver a marcarlos.
     actualizarCantidadColores();
-    actualizarCantidadTalles();
-
     actualizarImagenesProducto();
     await cargarAlta();
 
@@ -4773,6 +4417,7 @@ function actualizarControlesEstado() {
   const esBorrador = estado === 'BORRADOR';
   const esValidado = estado === 'VALIDADO';
   const esAnulado = estado === 'ANULADO';
+  const esSinNovedadesERP = estado === 'SIN_NOVEDADES_ERP';
   const esExportado = ['EXPORTADO', 'PARCIAL_ERP', 'GENERADO_OK_EN_ERP'].includes(estado);
 
   /*
@@ -4868,7 +4513,7 @@ function actualizarControlesEstado() {
   if (btnSeguimiento) {
     btnSeguimiento.classList.toggle(
       'd-none',
-      !['EXPORTADO', 'PARCIAL_ERP', 'GENERADO_OK_EN_ERP'].includes(estado)
+      !['EXPORTADO', 'PARCIAL_ERP', 'GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP'].includes(estado)
     );
   }
 
@@ -4883,6 +4528,10 @@ function actualizarControlesEstado() {
       mensajeEstado.className = 'alert alert-success mb-3';
       mensajeEstado.textContent =
         'Alta VALIDADA. La carga de productos quedó bloqueada. Revisá el Preview y luego exportá el DBI.';
+    } else if (esSinNovedadesERP) {
+      mensajeEstado.className = 'alert alert-info mb-3';
+      mensajeEstado.textContent =
+        'Alta cerrada SIN NOVEDADES ERP. Todos los productos ya existian en Presea; no se genero ningun DBI ni queda sincronizacion pendiente.';
     } else if (esExportado) {
       mensajeEstado.className = 'alert alert-primary mb-3';
       mensajeEstado.textContent =
@@ -4913,6 +4562,7 @@ function claseEstado(estado) {
     case 'EXPORTADO': return 'text-bg-primary';
     case 'PARCIAL_ERP': return 'text-bg-warning';
     case 'GENERADO_OK_EN_ERP': return 'text-bg-success';
+    case 'SIN_NOVEDADES_ERP': return 'text-bg-info';
     case 'ANULADO': return 'text-bg-danger';
     default: return 'text-bg-secondary';
   }
@@ -5069,12 +4719,27 @@ async function validarAlta() {
     return;
   }
 
+  const mensajeConfirmacion =
+    cantidadAExportar === 0
+      ? (
+          `Productos del lote: ${cantidad}\n` +
+          `Ya existen en Presea: ${cantidadExistentesERP}\n` +
+          'Nuevos / a exportar: 0\n\n' +
+          'Todos los productos del lote ya existen en Presea.\n' +
+          'Esta Alta se cerrara como SIN_NOVEDADES_ERP, no generara archivos DBI y no quedara pendiente de sincronizacion.\n\n' +
+          'Despues de cerrar ya no podras agregar ni quitar productos de este lote.\n\n' +
+          '¿Cerrar el Alta?'
+        )
+      : (
+          `Productos del lote: ${cantidad}\n` +
+          `Ya existen en Presea: ${cantidadExistentesERP}\n` +
+          `Nuevos / a exportar: ${cantidadAExportar}\n\n` +
+          'Despues de validar ya no podras agregar ni quitar productos de este lote.\n\n' +
+          '¿Continuar?'
+        );
+
   const aceptar = window.confirm(
-    `Productos del lote: ${cantidad}\n` +
-    `Ya existen en Presea: ${cantidadExistentesERP}\n` +
-    `Nuevos / a exportar: ${cantidadAExportar}\n\n` +
-    'Después de validar ya no podrás agregar ni quitar productos de este lote.\n\n' +
-    '¿Continuar?'
+    mensajeConfirmacion
   );
 
   if (!aceptar) return;
@@ -5106,13 +4771,29 @@ async function validarAlta() {
       respuesta?.cantidadAExportar ??
       (cantidadValidada - existentes);
 
-    mostrarAlerta(
-      `Alta validada correctamente. ` +
-      `${cantidadValidada} productos en el lote: ` +
-      `${exportables} nuevos para exportar y ` +
-      `${existentes} ya existentes en Presea.`,
-      'success'
-    );
+    const estadoFinal =
+      String(
+        respuesta?.estadoFinal ??
+        respuesta?.alta?.ESTADO ??
+        ''
+      ).trim().toUpperCase();
+
+    if (estadoFinal === 'SIN_NOVEDADES_ERP') {
+      mostrarAlerta(
+        `Alta cerrada sin novedades ERP. ` +
+        `${cantidadValidada} productos ya existen en Presea. ` +
+        'No se genero ningun DBI y no queda sincronizacion pendiente.',
+        'success'
+      );
+    } else {
+      mostrarAlerta(
+        `Alta validada correctamente. ` +
+        `${cantidadValidada} productos en el lote: ` +
+        `${exportables} nuevos para exportar y ` +
+        `${existentes} ya existentes en Presea.`,
+        'success'
+      );
+    }
 
     await cargarAlta();
 
@@ -5338,9 +5019,47 @@ async function mostrarPreview() {
     const preview = await obtenerPreviewAlta();
     pintarPreview(preview);
 
-    const modal = bootstrap.Modal.getOrCreateInstance(
-      document.getElementById('modalPreviewExportacion')
+    const modalElemento = document.getElementById('modalPreviewExportacion');
+
+    // Mantener el modal directamente bajo <body> evita que un stacking
+    // context de la pantalla deje el backdrop por encima e intercepte
+    // los clicks de X / Cerrar / Exportar a Excel.
+    if (modalElemento && modalElemento.parentElement !== document.body) {
+      document.body.appendChild(modalElemento);
+    }
+
+    // El Preview debe quedar siempre por encima del backdrop.
+    // En algunas combinaciones de layout/Bootstrap el backdrop puede
+    // interceptar los clicks aunque el modal sea visible.
+    modalElemento.style.zIndex = '2000';
+    modalElemento.style.pointerEvents = 'auto';
+
+    const modalDialog = modalElemento.querySelector('.modal-dialog');
+    const modalContent = modalElemento.querySelector('.modal-content');
+
+    if (modalDialog) {
+      modalDialog.style.pointerEvents = 'auto';
+    }
+
+    if (modalContent) {
+      modalContent.style.pointerEvents = 'auto';
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElemento);
+
+    modalElemento.addEventListener(
+      'shown.bs.modal',
+      () => {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        const backdrop = backdrops[backdrops.length - 1];
+
+        if (backdrop) {
+          backdrop.style.zIndex = '1990';
+        }
+      },
+      { once: true }
     );
+
     modal.show();
 
   } catch (error) {

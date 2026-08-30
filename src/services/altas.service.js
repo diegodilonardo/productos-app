@@ -38,6 +38,40 @@ function normalizarTipoProducto(valor) {
 }
 
 
+function normalizarLicenciaSeguridad(valor) {
+
+    let bruto = valor;
+
+    if (
+        bruto &&
+        typeof bruto === 'object'
+    ) {
+        bruto =
+            bruto.codigoLicencia ??
+            bruto.CODIGO_LICENCIA ??
+            bruto.licencia ??
+            bruto.LICENCIA ??
+            bruto.detalleLicencia ??
+            bruto.DETALLE_LICENCIA ??
+            '';
+    }
+
+    const texto =
+        normalizarTexto(bruto)
+            .toUpperCase();
+
+    if (
+        !texto ||
+        texto === '__SIN_LICENCIA__' ||
+        texto === 'SIN LICENCIA'
+    ) {
+        return 'SIN LICENCIA';
+    }
+
+    return texto;
+}
+
+
 function validarId(idAlta) {
 
     const id = Number(idAlta);
@@ -97,13 +131,206 @@ function generarCodigoAlta() {
 }
 
 
+
+function obtenerAccesoEmpresaContexto(
+    contextoUsuario,
+    idEmpresa
+) {
+
+    if (!contextoUsuario) {
+        return null;
+    }
+
+    const id = Number(idEmpresa);
+
+    const acceso =
+        (contextoUsuario.empresas || [])
+            .find(
+                item =>
+                    Number(item.idEmpresa) === id
+            );
+
+    if (!acceso) {
+        return null;
+    }
+
+    if (contextoUsuario.superAdmin) {
+        return {
+            ...acceso,
+            rol: 'SUPER_ADMIN',
+            todasMarcas: true,
+            todosRubros: true,
+            todasLicencias: true,
+            marcas: [],
+            rubros: [],
+            licencias: []
+        };
+    }
+
+    return acceso;
+}
+
+
+function alcanceContiene(
+    lista,
+    campos,
+    valor
+) {
+
+    const objetivo =
+        normalizarTexto(valor)
+            .toUpperCase();
+
+    return (lista || []).some(
+        item =>
+            campos.some(
+                campo =>
+                    normalizarTexto(
+                        item[campo]
+                    ).toUpperCase() ===
+                    objetivo
+            )
+    );
+}
+
+
+function validarAlcanceAlta(
+    contextoUsuario,
+    alta,
+    licencia = undefined
+) {
+
+    if (!contextoUsuario) {
+        throw new Error(
+            'No existe contexto de seguridad del usuario.'
+        );
+    }
+
+    const acceso =
+        obtenerAccesoEmpresaContexto(
+            contextoUsuario,
+            alta.ID_EMPRESA
+        );
+
+    if (!acceso) {
+        throw new Error(
+            'No tiene permisos para la empresa del alta.'
+        );
+    }
+
+    if (
+        !acceso.todasMarcas &&
+        !alcanceContiene(
+            acceso.marcas,
+            [
+                'codigoMarca',
+                'detalleMarca'
+            ],
+            alta.CODIGO_MARCA
+        ) &&
+        !alcanceContiene(
+            acceso.marcas,
+            [
+                'codigoMarca',
+                'detalleMarca'
+            ],
+            alta.DETALLE_MARCA
+        )
+    ) {
+        throw new Error(
+            'No tiene permisos para la marca del alta.'
+        );
+    }
+
+    if (
+        !acceso.todosRubros &&
+        !alcanceContiene(
+            acceso.rubros,
+            [
+                'codigoRubro',
+                'detalleRubro'
+            ],
+            alta.CODIGO_RUBRO
+        ) &&
+        !alcanceContiene(
+            acceso.rubros,
+            [
+                'codigoRubro',
+                'detalleRubro'
+            ],
+            alta.DETALLE_RUBRO
+        )
+    ) {
+        throw new Error(
+            'No tiene permisos para el rubro del alta.'
+        );
+    }
+
+    if (
+        licencia !== undefined &&
+        !acceso.todasLicencias
+    ) {
+
+        const valorLicencia =
+            normalizarLicenciaSeguridad(
+                licencia
+            );
+
+        const permitida =
+            (acceso.licencias || [])
+                .some(
+                    item =>
+                        normalizarLicenciaSeguridad(
+                            item
+                        ) ===
+                        valorLicencia
+                );
+
+        if (!permitida) {
+            throw new Error(
+                `No tiene permisos para la licencia ` +
+                `"${valorLicencia}".`
+            );
+        }
+    }
+
+    return acceso;
+}
+
+
 /* ============================================================
    CREAR CABECERA
    ============================================================ */
 
 async function crearAlta(
-    datosEntrada
+    datosEntrada,
+    contextoUsuario = null
 ) {
+
+    const idEmpresa =
+        Number(datosEntrada.idEmpresa);
+
+    if (
+        !Number.isInteger(idEmpresa) ||
+        idEmpresa <= 0
+    ) {
+        throw new Error(
+            'Debe seleccionar una empresa válida.'
+        );
+    }
+
+    const accesoEmpresa =
+        obtenerAccesoEmpresaContexto(
+            contextoUsuario,
+            idEmpresa
+        );
+
+    if (!accesoEmpresa) {
+        throw new Error(
+            'No tiene permisos para la empresa seleccionada.'
+        );
+    }
+
 
     const codigoMarca =
         normalizarTexto(
@@ -204,19 +431,23 @@ async function crearAlta(
     ] = await Promise.all([
 
         altasRepository.buscarMarca(
-            codigoMarca
+            codigoMarca,
+            idEmpresa
         ),
 
         altasRepository.buscarRubro(
-            codigoRubro
+            codigoRubro,
+            idEmpresa
         ),
 
         altasRepository.buscarTemporada(
-            codigoTemporada
+            codigoTemporada,
+            idEmpresa
         ),
 
         altasRepository.buscarAno(
-            codigoAno
+            codigoAno,
+            idEmpresa
         )
     ]);
 
@@ -253,11 +484,24 @@ async function crearAlta(
     }
 
 
+    validarAlcanceAlta(
+        contextoUsuario,
+        {
+            ID_EMPRESA: idEmpresa,
+            CODIGO_MARCA: marca.CODIGO_MARCA,
+            DETALLE_MARCA: marca.DETALLE_MARCA,
+            CODIGO_RUBRO: rubro.CODIGO_RUBRO,
+            DETALLE_RUBRO: rubro.DETALLE_RUBRO
+        }
+    );
+
     /* ========================================================
        CREAR ALTA
        ======================================================== */
 
     return altasRepository.crearAlta({
+
+        idEmpresa,
 
         codigoAlta:
             generarCodigoAlta(),
@@ -294,10 +538,10 @@ async function crearAlta(
    LISTAR ALTAS
    ============================================================ */
 
-async function listarAltas() {
+async function listarAltas(idEmpresa) {
 
     return altasRepository
-        .listarAltas();
+        .listarAltas(idEmpresa);
 }
 
 
@@ -370,56 +614,136 @@ function determinarRubroFact(
     const rubroNormalizado =
         normalizarTexto(rubro).toUpperCase();
 
-    if (marcaNormalizada !== 'ATOMIK') {
-        throw new Error(
-            `No existe todavía una regla de RUBRO_FACT ` +
-            `definida para la marca ${marca}.`
-        );
-    }
-
     const tipoNormalizado =
         tipoProductoDetalle
             ? normalizarTipoProducto(tipoProductoDetalle)
             : null;
 
-    /* PRIMERA y SEGUNDA son ambos productos PAR_SUELTO.
-       Si no se informa el tipo, mantenemos compatibilidad con
-       la lógica anterior. */
+    /*
+     * PRIMERA y SEGUNDA son ambos productos PAR_SUELTO.
+     *
+     * Si no se informa el tipo, mantenemos la misma
+     * compatibilidad que ya tenía VICBOR.
+     */
     const esParSuelto =
         tipoNormalizado
             ? tipoNormalizado === 'PAR_SUELTO'
             : ['1', '2'].includes(codigoClasificacion);
 
-    if (rubroNormalizado === 'CALZADO') {
-        return esParSuelto
-            ? 'CALZ_ATK'
-            : 'MOD_CALZ_ATK';
-    }
 
-    if (rubroNormalizado === 'INDUMENTARIA') {
-        return esParSuelto
-            ? 'INDU_ATK'
-            : 'MOD_INDU_ATK';
-    }
+    /* ========================================================
+       VICBOR / ATOMIK
 
-    if (rubroNormalizado === 'ACCESORIOS') {
-        return esParSuelto
-            ? 'ACCE_ATK'
-            : 'MOD_ACCE_ATK';
-    }
+       SE CONSERVA EXACTAMENTE LA LOGICA EXISTENTE.
+       ======================================================== */
 
-    if (rubroNormalizado === 'POP') {
-        if (!esParSuelto) {
-            throw new Error(
-                'No está definida una regla de RUBRO_FACT para módulos POP.'
-            );
+    if (marcaNormalizada === 'ATOMIK') {
+
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto
+                ? 'CALZ_ATK'
+                : 'MOD_CALZ_ATK';
         }
 
-        return 'POP_ATK';
+        if (rubroNormalizado === 'INDUMENTARIA') {
+            return esParSuelto
+                ? 'INDU_ATK'
+                : 'MOD_INDU_ATK';
+        }
+
+        if (rubroNormalizado === 'ACCESORIOS') {
+            return esParSuelto
+                ? 'ACCE_ATK'
+                : 'MOD_ACCE_ATK';
+        }
+
+        if (rubroNormalizado === 'POP') {
+
+            if (!esParSuelto) {
+                throw new Error(
+                    'No está definida una regla de RUBRO_FACT ' +
+                    'para módulos POP de ATOMIK.'
+                );
+            }
+
+            return 'POP_ATK';
+        }
     }
 
+
+    /* ========================================================
+       MIDING / MONTAGNE
+
+       Maestro recibido:
+         CALZ_MON
+         MOD_CALZ_MON
+         POP_MON
+         MOD_POP_MON
+       ======================================================== */
+
+    if (marcaNormalizada === 'MONTAGNE') {
+
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto
+                ? 'CALZ_MON'
+                : 'MOD_CALZ_MON';
+        }
+
+        if (rubroNormalizado === 'POP') {
+            return esParSuelto
+                ? 'POP_MON'
+                : 'MOD_POP_MON';
+        }
+    }
+
+
+    /* ========================================================
+       MIDING / 47 STREET
+
+       Maestro recibido:
+         CALZ_47S
+         MOD_CALZ_47S
+         ACCE_47S
+         MOD_ACCE_47S
+         POP_47S
+
+       No existe MOD_POP_47S en el maestro recibido, por eso
+       se rechaza de la misma forma segura que hacemos cuando
+       falta una regla real.
+       ======================================================== */
+
+    if (marcaNormalizada === '47 STREET') {
+
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto
+                ? 'CALZ_47S'
+                : 'MOD_CALZ_47S';
+        }
+
+        if (rubroNormalizado === 'ACCESORIOS') {
+            return esParSuelto
+                ? 'ACCE_47S'
+                : 'MOD_ACCE_47S';
+        }
+
+        if (rubroNormalizado === 'POP') {
+
+            if (!esParSuelto) {
+                throw new Error(
+                    'No está definida una regla de RUBRO_FACT ' +
+                    'para módulos POP de 47 STREET.'
+                );
+            }
+
+            return 'POP_47S';
+        }
+    }
+
+
     throw new Error(
-        `No existe regla de RUBRO_FACT para ${marca} / ${rubro}.`
+        `No existe regla de RUBRO_FACT para ` +
+        `${marca} / ${rubro} / ` +
+        `${esParSuelto ? 'PAR_SUELTO' : 'MODULO'}.`
     );
 }
 
@@ -488,6 +812,117 @@ function validarClasificacion(
 
         throw new Error(
             'Clasificación inválida para MODULO.'
+        );
+    }
+}
+
+
+/* ============================================================
+   VALIDAR EDAD + SEXO + CLASIFICACION
+   ============================================================ */
+
+function normalizarValorRegla(valor) {
+
+    return normalizarTexto(valor)
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+
+function validarEdadSexoClasificacion({
+    tipoProducto,
+    edad,
+    sexo,
+    clasificacion
+}) {
+
+    if (
+        normalizarTipoProducto(tipoProducto) !==
+        'MODULO'
+    ) {
+        return;
+    }
+
+
+    const detalleEdad =
+        normalizarValorRegla(
+            edad?.DETALLE_EDAD
+        );
+
+    let sexoNormalizado =
+        normalizarValorRegla(
+            sexo?.SEXO
+        );
+
+    if (sexoNormalizado === 'HOM') {
+        sexoNormalizado = 'MAS';
+    }
+
+    const detalleClasificacion =
+        normalizarValorRegla(
+            clasificacion?.DETALLE_CLASIFICACION
+        );
+
+
+    const reglas = {
+        ADULTO: {
+            MAS: 'MOD.HOM',
+            FEM: 'MOD.MUJ',
+            UNI: 'MOD.UNI'
+        },
+        BABY: {
+            MAS: 'MOD.BB',
+            FEM: 'MOD.BB',
+            UNI: 'MOD.BB'
+        },
+        JUNIOR: {
+            MAS: 'MOD.JUN',
+            FEM: 'MOD.JUN',
+            UNI: 'MOD.JUN'
+        },
+        KIDS: {
+            MAS: 'MOD.KID',
+            FEM: 'MOD.KID',
+            UNI: 'MOD.KID'
+        },
+        TEEN: {
+            MAS: 'MOD.TEEN',
+            FEM: 'MOD.TEEN',
+            UNI: 'MOD.TEEN'
+        },
+        YOUTH: {
+            MAS: 'MOD.YOUTH',
+            FEM: 'MOD.YOUTH',
+            UNI: 'MOD.YOUTH'
+        }
+    };
+
+
+    const clasificacionEsperada =
+        reglas?.[detalleEdad]?.[sexoNormalizado];
+
+
+    if (!clasificacionEsperada) {
+        throw new Error(
+            `No existe una regla de clasificación para ` +
+            `Edad ${edad?.DETALLE_EDAD || detalleEdad} + ` +
+            `Sexo ${sexo?.SEXO || sexoNormalizado}.`
+        );
+    }
+
+
+    if (
+        detalleClasificacion !==
+        clasificacionEsperada
+    ) {
+        throw new Error(
+            `Clasificación incompatible con Edad + Sexo. ` +
+            `Para ${edad.DETALLE_EDAD} / ${sexo.SEXO} ` +
+            `corresponde ${clasificacionEsperada}, ` +
+            `no ${clasificacion.DETALLE_CLASIFICACION}.`
         );
     }
 }
@@ -574,11 +1009,42 @@ function construirCodigoAlfa({
         normalizarTexto(codigoRubroCodAlfa) ||
         alta.CODIGO_RUBRO;
 
+
+    /*
+     * MONTAGNE utiliza códigos de modelo de 5 caracteres
+     * (por ejemplo MT062).
+     *
+     * Para conservar la estructura ERP de COD_ALFA de 15
+     * caracteres, únicamente para MONTAGNE completamos el
+     * segmento MODELO a 6 caracteres agregando un 0 a la
+     * izquierda:
+     *
+     * MT062  ->  0MT062
+     *
+     * Las demás marcas conservan exactamente su código.
+     */
+    const detalleMarca =
+        normalizarTexto(
+            alta.DETALLE_MARCA
+        ).toUpperCase();
+
+    const codigoModeloOriginal =
+        normalizarTexto(
+            modelo.CODIGO_MODELO
+        );
+
+    const codigoModeloCodigoAlfa =
+        detalleMarca === 'MONTAGNE' &&
+        codigoModeloOriginal.length === 5
+            ? `0${codigoModeloOriginal}`
+            : codigoModeloOriginal;
+
+
     return [
         alta.CODIGO_ANO,
         alta.CODIGO_TEMPORADA,
         segmentoRubro,
-        modelo.CODIGO_MODELO,
+        codigoModeloCodigoAlfa,
         clasificacion.CODIGO_CLASIFICACION,
         color.CODIGO_COLOR,
         ultimoSegmento
@@ -867,6 +1333,17 @@ async function prepararDetalleProducto(
         );
     }
 
+    const contextoUsuario =
+        contexto.contextoUsuario || null;
+
+    validarAlcanceAlta(
+        contextoUsuario,
+        alta
+    );
+
+    const idEmpresa =
+        Number(alta.ID_EMPRESA);
+
     const tipoProducto =
         normalizarTipoProducto(alta.TIPO_PRODUCTO);
 
@@ -970,22 +1447,25 @@ async function prepararDetalleProducto(
         altasRepository.buscarModelo(
             codigoModelo,
             alta.DETALLE_MARCA,
-            alta.DETALLE_RUBRO
+            alta.DETALLE_RUBRO,
+            idEmpresa
         ),
         altasRepository.buscarProveedor(
             codigoProveedor,
-            alta.DETALLE_RUBRO
+            alta.DETALLE_RUBRO,
+            idEmpresa,
+            alta.CODIGO_MARCA
         ),
-        altasRepository.buscarGrupo(codigoGrupo),
-        altasRepository.buscarSubgrupo(codigoSubgrupo),
-        altasRepository.buscarLinea(codigoLinea),
-        altasRepository.buscarDeporte(codigoDeporte),
-        altasRepository.buscarEdad(codigoEdad),
-        altasRepository.buscarSexo(sexo),
-        altasRepository.buscarClasificacion(codigoClasificacion),
-        altasRepository.buscarClasificacion('1'),
-        altasRepository.buscarClasificacion('2'),
-        altasRepository.buscarPais(codigoPais)
+        altasRepository.buscarGrupo(codigoGrupo, idEmpresa),
+        altasRepository.buscarSubgrupo(codigoSubgrupo, idEmpresa),
+        altasRepository.buscarLinea(codigoLinea, idEmpresa),
+        altasRepository.buscarDeporte(codigoDeporte, idEmpresa),
+        altasRepository.buscarEdad(codigoEdad, idEmpresa),
+        altasRepository.buscarSexo(sexo, idEmpresa),
+        altasRepository.buscarClasificacion(codigoClasificacion, idEmpresa),
+        altasRepository.buscarClasificacion('1', idEmpresa),
+        altasRepository.buscarClasificacion('2', idEmpresa),
+        altasRepository.buscarPais(codigoPais, idEmpresa)
     ]);
 
     if (!modelo) {
@@ -993,6 +1473,12 @@ async function prepararDetalleProducto(
             'El modelo no existe, está inactivo o no corresponde a la marca/rubro del alta.'
         );
     }
+
+    validarAlcanceAlta(
+        contextoUsuario,
+        alta,
+        modelo.LICENCIA
+    );
     if (!proveedor) {
         throw new Error(
             `Proveedor ${codigoProveedor} inexistente, inactivo ` +
@@ -1018,13 +1504,20 @@ async function prepararDetalleProducto(
     }
     if (!pais) throw new Error('País inexistente o inactivo.');
 
+    validarEdadSexoClasificacion({
+        tipoProducto,
+        edad,
+        sexo: sexoMaestro,
+        clasificacion: clasificacionPrincipal
+    });
+
     const codigoOrigen =
         normalizarTexto(pais.DETALLE_PAIS).toUpperCase() === 'ARGENTINA'
             ? '1'
             : '2';
 
     const origen =
-        await altasRepository.buscarOrigen(codigoOrigen);
+        await altasRepository.buscarOrigen(codigoOrigen, idEmpresa);
 
     if (!origen) {
         throw new Error(`No se encontró el origen ${codigoOrigen}.`);
@@ -1035,7 +1528,7 @@ async function prepararDetalleProducto(
 
     if (tipoProducto === 'MODULO') {
         modulo =
-            await altasRepository.buscarModulo(codigoModulo);
+            await altasRepository.buscarModulo(codigoModulo, idEmpresa);
 
         if (!modulo) {
             throw new Error(
@@ -1044,7 +1537,7 @@ async function prepararDetalleProducto(
         }
     } else {
         tallePrincipal =
-            await altasRepository.buscarTalle(codigoTalle);
+            await altasRepository.buscarTalle(codigoTalle, idEmpresa);
 
         if (!tallePrincipal) {
             throw new Error(
@@ -1073,11 +1566,13 @@ async function prepararDetalleProducto(
         await Promise.all([
             altasRepository.buscarRubroFacturacion(
                 alta.DETALLE_MARCA,
-                rubroFactPrincipal
+                rubroFactPrincipal,
+                idEmpresa
             ),
             altasRepository.buscarRubroFacturacion(
                 alta.DETALLE_MARCA,
-                rubroFactSuelto
+                rubroFactSuelto,
+                idEmpresa
             )
         ]);
 
@@ -1099,7 +1594,7 @@ async function prepararDetalleProducto(
 
     for (const codigoColor of codigosColor) {
         const color =
-            await altasRepository.buscarColor(codigoColor);
+            await altasRepository.buscarColor(codigoColor, idEmpresa);
 
         if (!color) {
             throw new Error(
@@ -1122,12 +1617,12 @@ async function prepararDetalleProducto(
             }
 
             let talleMaestro =
-                await altasRepository.buscarTalle(columna);
+                await altasRepository.buscarTalle(columna, idEmpresa);
 
             /* Fallback por si algún maestro usa el talle visible como código. */
             if (!talleMaestro) {
                 talleMaestro =
-                    await altasRepository.buscarTalle(talleVisible);
+                    await altasRepository.buscarTalle(talleVisible, idEmpresa);
             }
 
             if (!talleMaestro) {
@@ -1308,7 +1803,8 @@ async function prepararDetalleProducto(
         const existenteERP =
             await altasRepository.buscarProductoERP(
                 tipoDetalle,
-                codigoAlfa
+                codigoAlfa,
+                idEmpresa
             );
 
         codigosGenerados.add(codigoAlfa);
@@ -1396,7 +1892,8 @@ async function prepararDetalleProducto(
         const existenteERP =
             await altasRepository.buscarProductoERP(
                 'PAR_SUELTO',
-                codigoAlfa
+                codigoAlfa,
+                idEmpresa
             );
 
         codigosGenerados.add(codigoAlfa);
@@ -1625,7 +2122,8 @@ async function prepararDetalleProducto(
 
 async function agregarDetalle(
     idAlta,
-    datosEntrada
+    datosEntrada,
+    contextoUsuario = null
 ) {
 
     const id = validarId(idAlta);
@@ -1648,7 +2146,8 @@ async function agregarDetalle(
                 datosEntrada,
                 {
                     codigosGenerados: new Set(),
-                    prefijoClave: 'P1'
+                    prefijoClave: 'P1',
+                    contextoUsuario
                 }
             );
 
@@ -1719,7 +2218,8 @@ async function agregarDetalle(
                 },
                 {
                     codigosGenerados,
-                    prefijoClave: `P${i + 1}`
+                    prefijoClave: `P${i + 1}`,
+                    contextoUsuario
                 }
             );
 
@@ -1884,6 +2384,9 @@ async function validarAlta(
         );
     }
 
+    const idEmpresa =
+        Number(alta.ID_EMPRESA);
+
     /*
      * Antes de validar, volvemos a conciliar contra PRODUCTOS.
      * Así ningún producto que ya apareció en Presea queda exportable
@@ -1993,7 +2496,8 @@ async function validarAlta(
         const existeERP =
             await altasRepository.buscarProductoERP(
                 tipoDetalle,
-                codigoAlfa
+                codigoAlfa,
+                idEmpresa
             );
 
         if (estadoValidacion === 'EXISTE_ERP') {
@@ -2088,19 +2592,6 @@ async function validarAlta(
         }
     }
 
-    const altaValidada =
-        await altasRepository.marcarAltaValidada(
-            id,
-            usuario
-        );
-
-    if (!altaValidada) {
-        throw new Error(
-            'No se pudo validar el alta. ' +
-            'Es posible que su estado haya cambiado.'
-        );
-    }
-
     const cantidadExistentesERP =
         detalles.filter(
             item =>
@@ -2109,12 +2600,41 @@ async function validarAlta(
                 ).toUpperCase() === 'EXISTE_ERP'
         ).length;
 
+    const cantidadAExportar =
+        detalles.length - cantidadExistentesERP;
+
+    /*
+     * Si TODOS los productos ya existen en Presea, el circuito
+     * termina aquí. No hay DBI que generar ni sincronización ERP
+     * pendiente. Conservamos fecha/usuario de validación para
+     * auditoría y usamos un estado explícito de cierre.
+     */
+    const altaValidada =
+        cantidadAExportar === 0
+            ? await altasRepository.marcarAltaSinNovedadesERP(
+                id,
+                usuario
+              )
+            : await altasRepository.marcarAltaValidada(
+                id,
+                usuario
+              );
+
+    if (!altaValidada) {
+        throw new Error(
+            'No se pudo validar/cerrar el alta. ' +
+            'Es posible que su estado haya cambiado.'
+        );
+    }
+
     return {
         alta: altaValidada,
+        estadoFinal: altaValidada.ESTADO,
+        cerradaSinNovedadesERP:
+            altaValidada.ESTADO === 'SIN_NOVEDADES_ERP',
         cantidadProductos: detalles.length,
         cantidadExistentesERP,
-        cantidadAExportar:
-            detalles.length - cantidadExistentesERP
+        cantidadAExportar
     };
 }
 
@@ -2260,5 +2780,9 @@ module.exports = {
 
     validarAlta,
 
-    anularAlta
+    anularAlta,
+
+    _internals: {
+        validarEdadSexoClasificacion
+    }
 };

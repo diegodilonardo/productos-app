@@ -3,6 +3,9 @@ const {
     sql
 } = require('../config/database');
 
+const JOIN_MAESTRO_MODULO_POR_EMPRESA =
+    'M.ID_EMPRESA = P.ID_EMPRESA AND M.CODIGO_MODULO = P.CODIGO_MODULO';
+
 
 /* ============================================================
    OBTENER ALTA PARA EXPORTACION
@@ -172,6 +175,12 @@ async function registrarExportacion(
                     'ID_ALTA',
                     sql.Int,
                     idAlta
+                )
+
+                .input(
+                    'ID_EMPRESA',
+                    sql.Int,
+                    detalle.ID_EMPRESA
                 )
 
                 .input(
@@ -523,6 +532,7 @@ async function registrarExportacion(
                     INSERT INTO dbo.ALTAS_PRODUCTOS_EXPORTADOS
                     (
                         ID_ALTA,
+                        ID_EMPRESA,
                         ID_DETALLE,
 
                         DETALLE,
@@ -594,6 +604,7 @@ async function registrarExportacion(
                     VALUES
                     (
                         @ID_ALTA,
+                        @ID_EMPRESA,
                         @ID_DETALLE,
 
                         @DETALLE,
@@ -851,7 +862,7 @@ async function obtenerRelacionesModuloPrimera(
                     AND H.ID_ALTA = R.ID_ALTA
 
                 INNER JOIN dbo.MAESTRO_TALLES_MODULOS M
-                    ON M.CODIGO_MODULO = P.CODIGO_MODULO
+                    ON ${JOIN_MAESTRO_MODULO_POR_EMPRESA}
 
                 WHERE
                     R.ID_ALTA = @ID_ALTA
@@ -959,7 +970,7 @@ async function obtenerRelacionesModuloPrimeraPrueba(
                     AND H.ID_ALTA = R.ID_ALTA
 
                 INNER JOIN dbo.MAESTRO_TALLES_MODULOS M
-                    ON M.CODIGO_MODULO = P.CODIGO_MODULO
+                    ON ${JOIN_MAESTRO_MODULO_POR_EMPRESA}
 
                 WHERE
                     R.ID_ALTA = @ID_ALTA
@@ -1000,6 +1011,62 @@ async function obtenerRelacionesModuloPrimeraPrueba(
 }
 
 
+
+/* ============================================================
+   CONFIGURACION EXPORTACION POR EMPRESA / MARCA
+   ============================================================ */
+
+async function obtenerConfiguracionExportacion(
+    idEmpresa,
+    codigoMarca
+) {
+
+    const pool =
+        await getConnection();
+
+    const resultado =
+        await pool
+            .request()
+
+            .input(
+                'ID_EMPRESA',
+                sql.Int,
+                idEmpresa
+            )
+
+            .input(
+                'CODIGO_MARCA',
+                sql.VarChar(30),
+                String(codigoMarca)
+            )
+
+            .query(`
+                SELECT TOP 1
+                    C.ID_EMPRESA_MARCA,
+                    C.FTP_RUTA_EXPORTACION,
+                    C.FTP_ARCHIVO_PRODUCTOS,
+                    C.FTP_ARCHIVO_MODELOS,
+                    C.FTP_ARCHIVO_PRIMERAS_SEGUNDAS,
+                    C.FTP_ARCHIVO_RELFORMU,
+                    C.FTP_ARCHIVO_RELACION,
+                    C.ACTIVA
+                FROM dbo.EMPRESAS_MARCAS_EXPORT_CONFIG C
+                INNER JOIN dbo.EMPRESAS_MARCAS EM
+                    ON EM.ID_EMPRESA_MARCA =
+                       C.ID_EMPRESA_MARCA
+                WHERE
+                    EM.ID_EMPRESA =
+                        @ID_EMPRESA
+                    AND EM.CODIGO_MARCA =
+                        @CODIGO_MARCA
+                    AND EM.ACTIVA = 1
+                    AND C.ACTIVA = 1;
+            `);
+
+    return resultado.recordset[0] || null;
+}
+
+
 /* ============================================================
    EXPORTS
    ============================================================ */
@@ -1015,5 +1082,11 @@ module.exports = {
 
     obtenerRelacionesModuloPrimeraPrueba,
 
-    registrarExportacion
+    registrarExportacion,
+
+    obtenerConfiguracionExportacion,
+
+    _internals: {
+        JOIN_MAESTRO_MODULO_POR_EMPRESA
+    }
 };

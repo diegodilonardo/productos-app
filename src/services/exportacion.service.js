@@ -1457,20 +1457,6 @@ function armarRegistrosPRIMERAS_SEGUNDAS(
         of detalles
     ) {
 
-        const tipoDetalle =
-            normalizarTipoProducto(
-                detalle.TIPO_PRODUCTO_DETALLE ||
-                alta.TIPO_PRODUCTO
-            );
-
-
-        if (
-            tipoDetalle !== 'PAR_SUELTO'
-        ) {
-            continue;
-        }
-
-
         const estado =
             texto(
                 detalle.ESTADO_VALIDACION
@@ -2353,20 +2339,69 @@ async function exportar(
         );
 
 
+    /*
+     * PRIMERAS_SEGUNDAS solamente se exporta cuando existe al menos
+     * una pareja nueva que relacionar. Si PRIMERA y SEGUNDA ya existen
+     * ambas en Presea, armarRegistrosPRIMERAS_SEGUNDAS() las omite y
+     * un resultado vacío es válido para este lote.
+     */
     if (
-        registrosPRIMERAS_SEGUNDAS.length === 0
+        registrosPRIMERAS_SEGUNDAS.length > 0
     ) {
-        throw new Error(
-            'No se pudieron generar relaciones PRIMERA / SEGUNDA.'
+        validarArchivoAuxiliar(
+            'PRIMERAS_SEGUNDAS',
+            registrosPRIMERAS_SEGUNDAS,
+            camposPRIMERAS_SEGUNDAS
         );
     }
 
 
-    validarArchivoAuxiliar(
-        'PRIMERAS_SEGUNDAS',
-        registrosPRIMERAS_SEGUNDAS,
-        camposPRIMERAS_SEGUNDAS
-    );
+    const configuracionExportacion =
+        await exportacionRepository
+            .obtenerConfiguracionExportacion(
+                alta.ID_EMPRESA,
+                alta.CODIGO_MARCA
+            );
+
+
+    if (!configuracionExportacion) {
+        throw new Error(
+            `La empresa/marca del Alta no tiene configuración FTP de exportación activa. ` +
+            `ID_EMPRESA=${alta.ID_EMPRESA} / MARCA=${alta.CODIGO_MARCA}. ` +
+            `Configure EMPRESAS_MARCAS_EXPORT_CONFIG antes de exportar.`
+        );
+    }
+
+
+    const rutaFTP =
+        texto(
+            configuracionExportacion.FTP_RUTA_EXPORTACION
+        );
+
+
+    if (!rutaFTP) {
+        throw new Error(
+            `La empresa/marca del Alta no tiene FTP_RUTA_EXPORTACION configurada. ` +
+            `ID_EMPRESA=${alta.ID_EMPRESA} / MARCA=${alta.CODIGO_MARCA}.`
+        );
+    }
+
+
+    const exigirNombreFTP = (campo, clave) => {
+        const valor =
+            texto(
+                configuracionExportacion[campo]
+            );
+
+        if (!valor) {
+            throw new Error(
+                `Falta ${campo} para ${clave} en la configuración FTP de ` +
+                `ID_EMPRESA=${alta.ID_EMPRESA} / MARCA=${alta.CODIGO_MARCA}.`
+            );
+        }
+
+        return valor;
+    };
 
 
     const carpeta =
@@ -2406,10 +2441,10 @@ async function exportar(
                 null,
 
             nombreFTP:
-                texto(
-                    process.env.FTP_REMOTE_FILENAME
-                ) ||
-                'ALTAS_PRODUCTOS.DBI',
+                exigirNombreFTP(
+                    'FTP_ARCHIVO_PRODUCTOS',
+                    'PRODUCTOS'
+                ),
 
             principal:
                 true
@@ -2429,16 +2464,27 @@ async function exportar(
                 camposMODELOS,
 
             nombreFTP:
-                texto(
-                    process.env.FTP_REMOTE_FILENAME_MODELOS
-                ) ||
-                'MODELOS_VICBOR_TBL_PRODBASE.DBI',
+                exigirNombreFTP(
+                    'FTP_ARCHIVO_MODELOS',
+                    'MODELOS'
+                ),
 
             principal:
                 false
         },
 
-        {
+    ];
+
+
+    /*
+     * PRIMERAS_SEGUNDAS es opcional por lote.
+     * Si todas las parejas ya existen en Presea no hay nada nuevo que
+     * enviar y no debe bloquearse la exportación del módulo.
+     */
+    if (
+        registrosPRIMERAS_SEGUNDAS.length > 0
+    ) {
+        definiciones.push({
             clave:
                 'PRIMERAS_SEGUNDAS',
 
@@ -2452,15 +2498,15 @@ async function exportar(
                 camposPRIMERAS_SEGUNDAS,
 
             nombreFTP:
-                texto(
-                    process.env.FTP_REMOTE_FILENAME_PRIMERAS_SEGUNDAS
-                ) ||
-                'PRIMERAS_SEGUNDAS_ATOMIK.DBI',
+                exigirNombreFTP(
+                    'FTP_ARCHIVO_PRIMERAS_SEGUNDAS',
+                    'PRIMERAS_SEGUNDAS'
+                ),
 
             principal:
                 false
-        }
-    ];
+        });
+    }
 
 
     /*
@@ -2486,10 +2532,10 @@ async function exportar(
                     camposRELFORMU,
 
                 nombreFTP:
-                    texto(
-                        process.env.FTP_REMOTE_FILENAME_RELFORMU
-                    ) ||
-                    'PRODUCTOS_RELFORMU.DBI',
+                    exigirNombreFTP(
+                        'FTP_ARCHIVO_RELFORMU',
+                        'RELFORMU'
+                    ),
 
                 principal:
                     false
@@ -2509,10 +2555,10 @@ async function exportar(
                     camposRELACION,
 
                 nombreFTP:
-                    texto(
-                        process.env.FTP_REMOTE_FILENAME_RELACION
-                    ) ||
-                    'PRODUCTOS_RELACION.DBI',
+                    exigirNombreFTP(
+                        'FTP_ARCHIVO_RELACION',
+                        'RELACION'
+                    ),
 
                 principal:
                     false
@@ -2655,7 +2701,8 @@ async function exportar(
                     .subirArchivo(
                         definicion.rutaDBI,
                         definicion.archivoDBI,
-                        definicion.nombreFTP
+                        definicion.nombreFTP,
+                        rutaFTP
                     );
 
 

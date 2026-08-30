@@ -7,11 +7,8 @@ const {
 } = require('./config/database');
 
 const {
-    importarTodosLosMaestros
-} = require('./services/importarMaestros.service');
-
-const {
-    iniciarJobMaestros
+    iniciarJobMaestros,
+    ejecutarMaestrosAhora
 } = require('./jobs/importarMaestros.job');
 
 const {
@@ -19,7 +16,49 @@ const {
 } = require('./jobs/productosErpSync.scheduler');
 
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+    process.env.PORT ||
+    3000;
+
+
+/* ============================================================
+   SINCRONIZACION INICIAL EN SEGUNDO PLANO
+
+   IMPORTANTE:
+   - Nunca bloquea app.listen().
+   - Un error de FTP no baja la aplicacion.
+   - Usa el mismo lock del job programado para evitar solapamientos.
+   ============================================================ */
+
+function iniciarSincronizacionInicial() {
+
+    console.log(
+        'Sincronización inicial de maestros iniciada en segundo plano.'
+    );
+
+    Promise
+        .resolve()
+        .then(
+            () =>
+                ejecutarMaestrosAhora()
+        )
+        .catch(
+            error => {
+
+                /*
+                 * Defensa adicional.
+                 * ejecutarMaestrosAhora ya captura sus errores,
+                 * pero este catch garantiza que una excepción
+                 * inesperada nunca se convierta en un rechazo
+                 * no controlado del proceso web.
+                 */
+                console.error(
+                    '[MAESTROS] Error inesperado en sincronización inicial:',
+                    error.message
+                );
+            }
+        );
+}
 
 
 async function iniciarServidor() {
@@ -38,42 +77,42 @@ async function iniciarServidor() {
 
 
         /* ==============================================
-           IMPORTACIÓN INICIAL
-           ============================================== */
-
-        console.log(
-            'Ejecutando sincronización inicial...'
-        );
-
-        const resultadoInicial =
-            await importarTodosLosMaestros();
-
-        console.table(resultadoInicial);
-
-
-        /* ==============================================
-           CRON
-           ============================================== */
-
-        iniciarJobMaestros();
-
-        iniciarSchedulerProductosErp();
-
-
-        /* ==============================================
            API
+
+           La web queda disponible ANTES de cualquier FTP.
            ============================================== */
 
-        app.listen(PORT, () => {
+        app.listen(
+            PORT,
+            () => {
 
-            console.log(
-                `Servidor activo en puerto ${PORT}`
-            );
+                console.log(
+                    `Servidor activo en puerto ${PORT}`
+                );
 
-        });
+                /*
+                 * Los schedulers se levantan una vez que
+                 * la API ya esta escuchando.
+                 */
+                iniciarJobMaestros();
+
+                iniciarSchedulerProductosErp();
+
+                /*
+                 * La carga inicial deja de formar parte
+                 * del camino critico de arranque.
+                 */
+                iniciarSincronizacionInicial();
+            }
+        );
 
     } catch (error) {
 
+        /*
+         * Solo un fallo critico de infraestructura local
+         * (por ejemplo SQL Server) impide iniciar la app.
+         * Los fallos FTP ya no llegan hasta aqui.
+         */
         console.error(
             'No se pudo iniciar la aplicación:',
             error

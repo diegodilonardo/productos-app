@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', iniciarNuevoPedido);
 
 let altas = [];
+let contextoUsuario = null;
+let idEmpresaPedido = null;
+let accesoEmpresaPedido = null;
 
 async function iniciarNuevoPedido() {
   document.getElementById('idAlta').addEventListener('change', cambiarAlta);
@@ -8,9 +11,16 @@ async function iniciarNuevoPedido() {
   document.getElementById('numeroOrden').addEventListener('input', actualizarResumen);
   document.getElementById('moneda').addEventListener('change', actualizarResumen);
   document.getElementById('formNuevoPedido').addEventListener('submit', crearPedido);
+  document.getElementById('selectorEmpresaPedido')?.addEventListener('change', cambiarEmpresaPedido);
 
   actualizarResumen();
-  await cargarAltas();
+
+  try {
+    const listo = await cargarContextoPedido();
+    if (listo) await cargarAltas();
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  }
 }
 
 async function api(url, opciones) {
@@ -31,11 +41,147 @@ async function api(url, opciones) {
   return data;
 }
 
+async function cargarContextoPedido() {
+  const data = await api('/api/auth/me');
+  contextoUsuario = data?.usuario || null;
+
+  if (!contextoUsuario) {
+    throw new Error('Debe iniciar sesión.');
+  }
+
+  const empresas = Array.isArray(contextoUsuario.empresas) ? contextoUsuario.empresas : [];
+  if (!empresas.length) {
+    throw new Error('El usuario no tiene empresas habilitadas.');
+  }
+
+  const select = document.getElementById('selectorEmpresaPedido');
+  const guardada = Number(sessionStorage.getItem('pedidos.idEmpresa'));
+  const guardadaValida = empresas.some(x => Number(x.idEmpresa) === guardada);
+
+  if (empresas.length === 1) {
+    idEmpresaPedido = Number(empresas[0].idEmpresa);
+  } else if (guardadaValida) {
+    idEmpresaPedido = guardada;
+  } else {
+    idEmpresaPedido = null;
+  }
+
+  if (select) {
+    select.innerHTML =
+      '<option value="">Seleccionar empresa...</option>' +
+      empresas.map(x =>
+        `<option value="${esc(x.idEmpresa)}">${esc(x.empresa || x.codigoEmpresa || x.idEmpresa)}</option>`
+      ).join('');
+
+    select.classList.toggle('d-none', empresas.length <= 1);
+    select.value = idEmpresaPedido ? String(idEmpresaPedido) : '';
+  }
+
+  if (!idEmpresaPedido) {
+    bloquearFormulario(true);
+    actualizarPermisosVisuales();
+    mostrarAlerta('Seleccione una empresa para crear el Pedido.', 'info');
+    return false;
+  }
+
+  accesoEmpresaPedido =
+    empresas.find(x => Number(x.idEmpresa) === Number(idEmpresaPedido)) || null;
+
+  sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
+  actualizarPermisosVisuales();
+
+  if (!puedeEscribirPedido()) {
+    bloquearFormulario(true);
+    mostrarAlerta('Su rol es de consulta y no permite crear Pedidos.', 'warning');
+    return false;
+  }
+
+  bloquearFormulario(false);
+  return true;
+}
+
+async function cambiarEmpresaPedido() {
+  const select = document.getElementById('selectorEmpresaPedido');
+  idEmpresaPedido = Number(select?.value || 0) || null;
+  altas = [];
+
+  if (!idEmpresaPedido) {
+    sessionStorage.removeItem('pedidos.idEmpresa');
+    accesoEmpresaPedido = null;
+    bloquearFormulario(true);
+    actualizarPermisosVisuales();
+    mostrarAlerta('Seleccione una empresa para crear el Pedido.', 'info');
+    return;
+  }
+
+  accesoEmpresaPedido =
+    (contextoUsuario?.empresas || []).find(
+      x => Number(x.idEmpresa) === Number(idEmpresaPedido)
+    ) || null;
+
+  sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
+  actualizarPermisosVisuales();
+
+  if (!puedeEscribirPedido()) {
+    bloquearFormulario(true);
+    mostrarAlerta('Su rol es de consulta y no permite crear Pedidos.', 'warning');
+    return;
+  }
+
+  bloquearFormulario(false);
+  ocultarAlerta();
+  await cargarAltas();
+}
+
+function puedeEscribirPedido() {
+  if (contextoUsuario?.superAdmin) return true;
+
+  return ['SUPER_ADMIN','ADMIN','OPERADOR'].includes(
+    String(accesoEmpresaPedido?.rol || '').trim().toUpperCase()
+  );
+}
+
+function actualizarPermisosVisuales() {
+  const badge = document.getElementById('rolPedido');
+  if (!badge) return;
+
+  const rol = contextoUsuario?.superAdmin
+    ? 'SUPER_ADMIN'
+    : String(accesoEmpresaPedido?.rol || '').toUpperCase();
+
+  badge.textContent = rol ? `Rol: ${rol}` : '';
+  badge.classList.toggle('d-none', !rol);
+}
+
+function bloquearFormulario(bloquear) {
+  const form = document.getElementById('formNuevoPedido');
+  if (!form) return;
+
+  form.querySelectorAll('input, select, textarea, button').forEach(control => {
+    control.disabled = Boolean(bloquear);
+  });
+}
+
+function opcionesEmpresa(opciones = {}) {
+  if (!idEmpresaPedido) {
+    throw new Error('Debe seleccionar una empresa.');
+  }
+
+  return {
+    ...opciones,
+    headers: {
+      ...(opciones.headers || {}),
+      'x-id-empresa': String(idEmpresaPedido)
+    }
+  };
+}
+
 async function cargarAltas() {
   try {
     const data =
       await api(
-        '/api/pedidos/altas-disponibles'
+        '/api/pedidos/altas-disponibles',
+        opcionesEmpresa()
       );
 
     altas =
@@ -49,18 +195,27 @@ async function cargarAltas() {
     selectAlta.innerHTML =
       '<option value="">Seleccionar Alta...</option>' +
       altas
-        .map(
-          alta =>
-            `<option value="${esc(alta.ID_ALTA)}">` +
-            `${esc(alta.CODIGO_ALTA)} · ` +
+        .map(alta => {
+          const campana = [
+            alta.DETALLE_TEMPORADA || alta.CODIGO_TEMPORADA,
+            alta.CODIGO_ANO
+          ].filter(Boolean).join('/');
+
+          const cantidadProductos =
+            Number(alta.CANTIDAD_PRODUCTOS_PEDIDO || 0);
+
+          const etiquetaProductos =
+            `${cantidadProductos} ${cantidadProductos === 1 ? 'producto' : 'productos'}`;
+
+          return `<option value="${esc(alta.ID_ALTA)}">` +
             `${esc(alta.DETALLE_MARCA)} · ` +
             `${esc(alta.DETALLE_RUBRO)} · ` +
-            `${esc(alta.DETALLE_TEMPORADA || alta.CODIGO_TEMPORADA || '-')} / ` +
-            `${esc(alta.CODIGO_ANO || '-')} · ` +
-            `${esc(alta.LICENCIA_ALTA || 'SIN LICENCIA')} · ` +
-            `${esc(formatearTipo(alta.TIPO_PRODUCTO))}` +
-            `</option>`
-        )
+            `${esc(campana)} · ` +
+            `${esc(formatearTipo(alta.TIPO_PRODUCTO))} · ` +
+            `${esc(etiquetaProductos)} ` +
+            `(Alta ${esc(alta.ID_ALTA)})` +
+            `</option>`;
+        })
         .join('');
 
     const preseleccionada =
@@ -115,9 +270,8 @@ async function cambiarAlta() {
         ? (
             `${alta.DETALLE_MARCA} · ` +
             `${alta.DETALLE_RUBRO} · ` +
-            `${formatearTipo(alta.TIPO_PRODUCTO)} · ` +
-            `${alta.DETALLE_TEMPORADA || alta.CODIGO_TEMPORADA || '-'} / ${alta.CODIGO_ANO || '-'} · ` +
-            `${alta.LICENCIA_ALTA || 'SIN LICENCIA'}`
+            `${alta.TIPO_PRODUCTO} · ` +
+            `${alta.DETALLE_TEMPORADA}/${alta.CODIGO_ANO}`
           )
         : 'Solo se muestran Altas confirmadas en ERP.';
 
@@ -137,7 +291,8 @@ async function cambiarAlta() {
 
     const data =
       await api(
-        `/api/pedidos/altas/${encodeURIComponent(idAlta)}/proveedores`
+        `/api/pedidos/altas/${encodeURIComponent(idAlta)}/proveedores`,
+        opcionesEmpresa()
       );
 
     const proveedores =
@@ -208,7 +363,9 @@ function actualizarResumen() {
 
   setTexto(
     'resumenAlta',
-    alta.CODIGO_ALTA || '-'
+    alta.CODIGO_ALTA
+      ? `${alta.CODIGO_ALTA} (Alta ${alta.ID_ALTA})`
+      : `Alta ${alta.ID_ALTA}`
   );
 
   setTexto(
@@ -229,6 +386,12 @@ function actualizarResumen() {
   );
 
   setTexto(
+    'resumenProductos',
+    `${Number(alta.CANTIDAD_PRODUCTOS_PEDIDO || 0)} ` +
+    `${Number(alta.CANTIDAD_PRODUCTOS_PEDIDO || 0) === 1 ? 'producto' : 'productos'}`
+  );
+
+  setTexto(
     'resumenCampana',
     [
       alta.DETALLE_TEMPORADA ||
@@ -237,11 +400,6 @@ function actualizarResumen() {
     ]
       .filter(Boolean)
       .join(' / ') || '-'
-  );
-
-  setTexto(
-    'resumenLicencia',
-    alta.LICENCIA_ALTA || 'SIN LICENCIA'
   );
 
   const selectProveedor =
@@ -323,10 +481,7 @@ async function crearPedido(event) {
       document
         .getElementById('observaciones')
         .value
-        .trim(),
-
-    usuario:
-      'SISTEMA'
+        .trim()
   };
 
   try {

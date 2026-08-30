@@ -259,8 +259,18 @@
               <div class="row g-3 align-items-end">
                 <div class="col-12 col-md-7">
                   <label for="usuario" class="form-label">Usuario</label>
-                  <input id="usuario" type="text" class="form-control text-uppercase" value="DIEGO" maxlength="50" required>
-                  <div class="nueva-alta-field-help">Quedará registrado como creador del lote.</div>
+                  <input
+                    id="usuario"
+                    type="text"
+                    class="form-control text-uppercase"
+                    value="{{responsableAlta}}"
+                    maxlength="100"
+                    readonly
+                    aria-readonly="true"
+                  >
+                  <div class="nueva-alta-field-help">
+                    Se toma automáticamente del usuario autenticado{{#if responsableLogin}} ({{responsableLogin}}){{/if}}.
+                  </div>
                 </div>
               </div>
             </div>

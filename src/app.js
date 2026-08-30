@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const session = require("express-session");
 
 const maestrosRoutes = require("./routes/maestros.routes");
 const altasRoutes = require("./routes/altas.routes");
@@ -8,10 +9,42 @@ const imagenesRoutes = require("./routes/imagenes.routes");
 const webRoutes = require("./routes/web.routes");
 const pedidosRoutes = require("./routes/pedidos.routes");
 const pedidosWebRoutes = require('./routes/pedidos.web.routes');
+const authRoutes = require("./routes/auth.routes");
+const usuariosRoutes = require("./routes/usuarios.routes");
+const perfilRoutes = require("./routes/perfil.routes");
 
 const { configurarHandlebars } = require("./config/handlebars");
 
 const app = express();
+
+/* ============================================================
+   SESIONES / AUTENTICACION
+   ============================================================ */
+
+const SESSION_SECRET =
+  process.env.SESSION_SECRET;
+
+if (!SESSION_SECRET) {
+  throw new Error(
+    'Falta SESSION_SECRET en .env.'
+  );
+}
+
+app.use(
+  session({
+    name: 'productos.sid',
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      maxAge: 1000 * 60 * 60 * 12
+    }
+  })
+);
+
 
 /* ============================================================
    HANDLEBARS
@@ -37,6 +70,14 @@ app.use(
     limit: "12mb",
   }),
 );
+
+/* ============================================================
+   AUTENTICACION
+   ============================================================ */
+
+app.use("/api/auth", authRoutes);
+app.use("/api/usuarios", usuariosRoutes);
+app.use("/api/perfil", perfilRoutes);
 
 /* ============================================================
    STATUS

@@ -21,9 +21,13 @@
       </div>
     </div>
 
-    <a class="btn btn-light border" href="/pedidos">
-      Volver a Pedidos
-    </a>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <select id="selectorEmpresaPedido" class="form-select d-none" style="width:auto;min-width:180px" aria-label="Empresa"></select>
+      <span id="rolPedido" class="badge text-bg-light border d-none"></span>
+      <a class="btn btn-light border" href="/pedidos">
+        Volver a Pedidos
+      </a>
+    </div>
   </section>
 
   <div class="nueva-alta-flowbar pedido-flowbar" aria-label="Flujo del pedido">
@@ -95,7 +99,7 @@
               <div class="nueva-alta-block-title">Origen del pedido</div>
 
               <div class="row g-3">
-                <div class="col-12 col-md-7">
+                <div class="col-12 col-md-6">
                   <label class="form-label" for="idAlta">Alta asociada</label>
                   <select id="idAlta" class="form-select" required>
                     <option value="">Cargando Altas...</option>
@@ -105,7 +109,7 @@
                   </div>
                 </div>
 
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-6">
                   <label class="form-label" for="codigoProveedor">Proveedor</label>
                   <select id="codigoProveedor" class="form-select" required disabled>
                     <option value="">Seleccione primero un Alta...</option>
@@ -223,8 +227,8 @@
             </div>
 
             <div class="pedido-summary-row">
-              <span class="pedido-summary-label">Licencia</span>
-              <strong id="resumenLicencia">-</strong>
+              <span class="pedido-summary-label">Productos</span>
+              <strong id="resumenProductos">-</strong>
             </div>
 
             <div class="pedido-summary-row">

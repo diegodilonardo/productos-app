@@ -1,0 +1,54 @@
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
+          <div>
+            <div class="text-uppercase small fw-semibold text-secondary">MI CUENTA</div>
+            <h1 class="h3 mb-1">Mi perfil</h1>
+            <p class="text-secondary mb-0">Administrá tus datos personales. Tus permisos se gestionan por separado.</p>
+          </div>
+          <span id="perfilEstadoEmail" class="badge text-bg-secondary">Cargando...</span>
+        </div>
+
+        <div id="perfilMensaje" class="alert d-none" role="alert"></div>
+
+        <div class="row g-4">
+          <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-4 h-100">
+              <h2 class="h5 mb-3">Datos personales</h2>
+              <div class="mb-3">
+                <label for="perfilUsuario" class="form-label">Usuario</label>
+                <input id="perfilUsuario" class="form-control" type="text" disabled>
+              </div>
+              <form id="formPerfilNombre">
+                <label for="perfilNombre" class="form-label">Nombre visible</label>
+                <input id="perfilNombre" class="form-control" type="text" maxlength="150" required>
+                <button class="btn btn-primary mt-3" type="submit">Guardar nombre</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-4 h-100">
+              <h2 class="h5 mb-3">Email de recuperación</h2>
+              <div class="mb-3">
+                <div class="small text-secondary">Email actual</div>
+                <strong id="perfilEmailActual">-</strong>
+              </div>
+              <div id="bloqueEmailPendiente" class="alert alert-warning d-none py-2">
+                Pendiente de confirmar: <strong id="perfilEmailPendiente"></strong>
+              </div>
+              <form id="formPerfilEmail">
+                <label for="perfilEmailNuevo" class="form-label">Nuevo email corporativo</label>
+                <input id="perfilEmailNuevo" class="form-control" type="email" maxlength="200" placeholder="usuario@atomik.com.ar" required>
+                <div class="form-text">No reemplazaremos el email actual hasta que confirmes el enlace enviado al nuevo correo.</div>
+                <button class="btn btn-outline-primary mt-3" type="submit">Enviar verificación</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,6 +1,14 @@
 const pedidosRepository = require('../repositories/pedidos.repository');
 const XLSX = require('xlsx');
 const iconv = require('iconv-lite');
+const fs = require('fs');
+const path = require('path');
+const ftpService = require('./ftp.service');
+
+const ESTADOS_ALTAS_HABILITADOS_PEDIDOS = Object.freeze([
+  'GENERADO_OK_EN_ERP',
+  'SIN_NOVEDADES_ERP',
+]);
 
 /* ============================================================
    UTILIDADES
@@ -33,6 +41,110 @@ function validarIdPedido(idPedido) {
 
   return id;
 }
+
+function estadoAltaHabilitadoParaPedido(estado) {
+  return ESTADOS_ALTAS_HABILITADOS_PEDIDOS.includes(texto(estado).toUpperCase());
+}
+
+function calcularCantidadesPedido(tipoProducto, cantidadPares, paresPorModulo) {
+  const tipo = normalizarTipoProducto(tipoProducto);
+
+  if (tipo === 'PAR_SUELTO') {
+    return { paresModulo: null, cantidadModulos: null };
+  }
+
+  if (tipo !== 'MODULO') {
+    throw new Error(`Tipo de producto no habilitado: ${tipo}.`);
+  }
+
+  const paresModulo = enteroPositivo(paresPorModulo, 'Los pares del módulo');
+  if (cantidadPares % paresModulo !== 0) {
+    throw new Error(
+      `La cantidad de pares (${cantidadPares}) no es divisible exactamente ` +
+      `por los ${paresModulo} pares del módulo.`
+    );
+  }
+
+  return {
+    paresModulo,
+    cantidadModulos: cantidadPares / paresModulo,
+  };
+}
+
+function validarIdEmpresa(idEmpresa) {
+  const id = Number(idEmpresa);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error('ID_EMPRESA inválido.');
+  }
+
+  return id;
+}
+
+
+function normalizarScope(valor) {
+  const dato = texto(valor).toUpperCase();
+
+  if (['__SIN_LICENCIA__', 'SIN LICENCIA'].includes(dato)) {
+    return 'SIN LICENCIA';
+  }
+
+  return dato;
+}
+
+function codigoScope(item, campos) {
+  /*
+   * Los scopes de seguridad no tienen todos la misma forma:
+   * - marcas/rubros llegan como objetos;
+   * - licencias llegan actualmente como strings.
+   * Aceptamos ambos formatos para no descartar accesos válidos.
+   */
+  if (typeof item === 'string' || typeof item === 'number') {
+    return normalizarScope(item);
+  }
+
+  for (const campo of campos) {
+    if (item && item[campo] !== undefined && item[campo] !== null && texto(item[campo]) !== '') {
+      return normalizarScope(item[campo]);
+    }
+  }
+  return '';
+}
+
+function accesoPermiteAlta(acceso, alta) {
+  if (!acceso) return false;
+
+  const marca = normalizarScope(alta.CODIGO_MARCA);
+  const rubro = normalizarScope(alta.CODIGO_RUBRO);
+  const licencia = normalizarScope(alta.LICENCIA_ALTA) || 'SIN LICENCIA';
+
+  if (!acceso.todasMarcas) {
+    const marcas = Array.isArray(acceso.marcas)
+      ? acceso.marcas.map(item => codigoScope(item, ['codigoMarca', 'CODIGO_MARCA']))
+      : [];
+    if (!marcas.includes(marca)) return false;
+  }
+
+  if (!acceso.todosRubros) {
+    const rubros = Array.isArray(acceso.rubros)
+      ? acceso.rubros.map(item => codigoScope(item, ['codigoRubro', 'CODIGO_RUBRO']))
+      : [];
+    if (!rubros.includes(rubro)) return false;
+  }
+
+  if (!acceso.todasLicencias) {
+    const licencias = Array.isArray(acceso.licencias)
+      ? acceso.licencias.map(item => codigoScope(item, [
+          'codigoLicencia', 'CODIGO_LICENCIA', 'licencia', 'LICENCIA',
+          'detalleLicencia', 'DETALLE_LICENCIA'
+        ]))
+      : [];
+    if (!licencias.includes(licencia)) return false;
+  }
+
+  return true;
+}
+
 
 function normalizarTipoProducto(valor) {
   return texto(valor).toUpperCase();
@@ -71,23 +183,39 @@ function sanitizarComponenteCodigo(valor, nombre) {
    ALTAS DISPONIBLES
    ============================================================ */
 
-async function obtenerAltasDisponibles() {
-  return pedidosRepository.obtenerAltasDisponibles();
+async function obtenerAltasDisponibles(idEmpresa, accesoEmpresa) {
+  const altas = await pedidosRepository.obtenerAltasDisponibles(
+    validarIdEmpresa(idEmpresa)
+  );
+  return altas.filter(alta => accesoPermiteAlta(accesoEmpresa, alta));
 }
 
 /* ============================================================
    VALIDAR ALTA DISPONIBLE
    ============================================================ */
 
-async function validarAltaDisponible(idAlta) {
+async function validarAltaDisponible(idAlta, idEmpresa, accesoEmpresa) {
   const id = validarIdAlta(idAlta);
-
-  const alta = await pedidosRepository
-    .obtenerAltaDisponiblePorId(id);
+  const alta = await pedidosRepository.obtenerAltaDisponiblePorId(
+    id,
+    validarIdEmpresa(idEmpresa)
+  );
 
   if (!alta) {
     throw new Error(
-      'El Alta no existe o todavía no está en estado GENERADO_OK_EN_ERP.'
+      'El Alta no existe o no está habilitada para Pedidos. Debe encontrarse en GENERADO_OK_EN_ERP o SIN_NOVEDADES_ERP.'
+    );
+  }
+
+  if (!estadoAltaHabilitadoParaPedido(alta.ESTADO)) {
+    throw new Error(
+      `El Alta está en estado ${alta.ESTADO} y no está habilitada para Pedidos.`
+    );
+  }
+
+  if (!accesoPermiteAlta(accesoEmpresa, alta)) {
+    throw new Error(
+      'No tiene permisos para acceder al Alta por marca, rubro o licencia.'
     );
   }
 
@@ -99,27 +227,24 @@ async function validarAltaDisponible(idAlta) {
     );
   }
 
-  return {
-    ...alta,
-    TIPO_PRODUCTO: tipo,
-  };
+  return { ...alta, TIPO_PRODUCTO: tipo };
 }
 
 /* ============================================================
    PROVEEDORES DEL ALTA
    ============================================================ */
 
-async function obtenerProveedoresPorAlta(idAlta) {
-  const alta = await validarAltaDisponible(idAlta);
+async function obtenerProveedoresPorAlta(idAlta, idEmpresa, accesoEmpresa) {
+  const alta = await validarAltaDisponible(idAlta, idEmpresa, accesoEmpresa);
 
   const proveedores = await pedidosRepository
-    .obtenerProveedoresPorAlta(alta.ID_ALTA);
+    .obtenerProveedoresPorAlta(alta.ID_ALTA, alta.ID_EMPRESA);
 
   return proveedores;
 }
 
-async function validarProveedorDelAlta(idAlta, codigoProveedor) {
-  const alta = await validarAltaDisponible(idAlta);
+async function validarProveedorDelAlta(idAlta, codigoProveedor, idEmpresa, accesoEmpresa) {
+  const alta = await validarAltaDisponible(idAlta, idEmpresa, accesoEmpresa);
 
   const codigo = texto(codigoProveedor);
 
@@ -128,7 +253,7 @@ async function validarProveedorDelAlta(idAlta, codigoProveedor) {
   }
 
   const proveedores = await pedidosRepository
-    .obtenerProveedoresPorAlta(alta.ID_ALTA);
+    .obtenerProveedoresPorAlta(alta.ID_ALTA, alta.ID_EMPRESA);
 
   const proveedor = proveedores.find(
     item => texto(item.CODIGO_PROVEEDOR) === codigo
@@ -150,16 +275,19 @@ async function validarProveedorDelAlta(idAlta, codigoProveedor) {
    PRODUCTOS DISPONIBLES
    ============================================================ */
 
-async function obtenerProductosDisponibles(idAlta, codigoProveedor) {
+async function obtenerProductosDisponibles(idAlta, codigoProveedor, idEmpresa, accesoEmpresa) {
   const { alta, proveedor } = await validarProveedorDelAlta(
     idAlta,
-    codigoProveedor
+    codigoProveedor,
+    idEmpresa,
+    accesoEmpresa
   );
 
   const productos = await pedidosRepository
     .obtenerProductosDisponibles(
       alta.ID_ALTA,
-      proveedor.CODIGO_PROVEEDOR
+      proveedor.CODIGO_PROVEEDOR,
+      alta.ID_EMPRESA
     );
 
   return productos.map(producto => {
@@ -194,7 +322,9 @@ async function obtenerProductosDisponibles(idAlta, codigoProveedor) {
 async function validarProductoDisponible(
   idAlta,
   codigoProveedor,
-  idProducto
+  idProducto,
+  idEmpresa,
+  accesoEmpresa
 ) {
   const id = Number(idProducto);
 
@@ -204,7 +334,9 @@ async function validarProductoDisponible(
 
   const productos = await obtenerProductosDisponibles(
     idAlta,
-    codigoProveedor
+    codigoProveedor,
+    idEmpresa,
+    accesoEmpresa
   );
 
   const producto = productos.find(
@@ -226,8 +358,9 @@ async function validarProductoDisponible(
    - Centraliza las reglas previas a la creación.
    ============================================================ */
 
-async function prepararCabeceraPedido(datos = {}) {
+async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usuarioAutenticado) {
   const idAlta = validarIdAlta(datos.idAlta);
+  const empresa = validarIdEmpresa(idEmpresa);
 
   const numeroOrden = texto(datos.numeroOrden);
 
@@ -247,7 +380,7 @@ async function prepararCabeceraPedido(datos = {}) {
     throw new Error('Las observaciones superan los 500 caracteres.');
   }
 
-  const usuarioCreacion = texto(datos.usuarioCreacion) || 'SISTEMA';
+  const usuarioCreacion = texto(usuarioAutenticado) || 'SISTEMA';
 
   if (usuarioCreacion.length > 100) {
     throw new Error('El usuario de creación supera los 100 caracteres.');
@@ -255,10 +388,13 @@ async function prepararCabeceraPedido(datos = {}) {
 
   const { alta, proveedor } = await validarProveedorDelAlta(
     idAlta,
-    datos.codigoProveedor
+    datos.codigoProveedor,
+    empresa,
+    accesoEmpresa
   );
 
   return {
+    ID_EMPRESA: alta.ID_EMPRESA,
     ID_ALTA: alta.ID_ALTA,
     CODIGO_ALTA: alta.CODIGO_ALTA,
     TIPO_PRODUCTO: alta.TIPO_PRODUCTO,
@@ -328,8 +464,8 @@ function generarCodigoPedido({
    - La creación y generación del código se hacen dentro de
      una única transacción SQL en el repository.
    ============================================================ */
-async function crearPedido(datos = {}) {
-  const cabecera = await prepararCabeceraPedido(datos);
+async function crearPedido(datos = {}, idEmpresa, accesoEmpresa, usuarioAutenticado) {
+  const cabecera = await prepararCabeceraPedido(datos, idEmpresa, accesoEmpresa, usuarioAutenticado);
 
   /*
    * Validación anticipada para devolver un mensaje claro al usuario.
@@ -338,7 +474,8 @@ async function crearPedido(datos = {}) {
   const duplicado = await pedidosRepository.buscarPedidoDuplicadoActivo(
     cabecera.ID_ALTA,
     cabecera.CODIGO_PROVEEDOR,
-    cabecera.NUMERO_ORDEN
+    cabecera.NUMERO_ORDEN,
+    cabecera.ID_EMPRESA
   );
 
   if (duplicado) {
@@ -385,22 +522,25 @@ function redondear4(valor) {
 /* ============================================================
    LISTAR PEDIDOS
    ============================================================ */
-async function listarPedidos() {
-  return pedidosRepository.listarPedidos();
+async function listarPedidos(idEmpresa, accesoEmpresa) {
+  const pedidos = await pedidosRepository.listarPedidos(
+    validarIdEmpresa(idEmpresa)
+  );
+  return pedidos.filter(pedido => accesoPermiteAlta(accesoEmpresa, pedido));
 }
 
 
 /* ============================================================
    OBTENER / VALIDAR PEDIDO BORRADOR
    ============================================================ */
-async function obtenerPedidoPorId(idPedido) {
+async function obtenerPedidoPorId(idPedido, idEmpresa) {
   const id = validarIdPedido(idPedido);
-  return pedidosRepository.obtenerPedidoPorId(id);
+  return pedidosRepository.obtenerPedidoPorId(id, validarIdEmpresa(idEmpresa));
 }
 
-async function validarPedidoBorrador(idPedido) {
+async function validarPedidoBorrador(idPedido, idEmpresa) {
   const id = validarIdPedido(idPedido);
-  const pedido = await pedidosRepository.obtenerPedidoPorId(id);
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, validarIdEmpresa(idEmpresa));
 
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
@@ -427,8 +567,8 @@ async function validarPedidoBorrador(idPedido) {
    - PAR_SUELTO: cantidad módulos queda NULL.
    - ADICIONAL es un valor por par, separado del FOB.\n   - TOTAL_ADICIONAL = CANTIDAD_PARES × ADICIONAL.
    ============================================================ */
-async function prepararProductoPedido(idPedido, datos = {}) {
-  const pedido = await validarPedidoBorrador(idPedido);
+async function prepararProductoPedido(idPedido, datos = {}, idEmpresa, accesoEmpresa) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
 
   const idProducto = Number(datos.idProducto);
 
@@ -439,7 +579,9 @@ async function prepararProductoPedido(idPedido, datos = {}) {
   const producto = await validarProductoDisponible(
     pedido.ID_ALTA,
     pedido.CODIGO_PROVEEDOR,
-    idProducto
+    idProducto,
+    pedido.ID_EMPRESA,
+    accesoEmpresa
   );
 
   const duplicado = await pedidosRepository.buscarProductoEnPedido(
@@ -478,29 +620,11 @@ async function prepararProductoPedido(idPedido, datos = {}) {
     producto.TIPO_PRODUCTO_DETALLE
   );
 
-  let paresModulo = null;
-  let cantidadModulos = null;
-
-  if (tipoProducto === 'MODULO') {
-    paresModulo = enteroPositivo(
-      producto.PARES,
-      'Los pares del módulo'
-    );
-
-    if (cantidadPares % paresModulo !== 0) {
-      throw new Error(
-        `La cantidad de pares (${cantidadPares}) no es divisible exactamente ` +
-        `por los ${paresModulo} pares del módulo.`
-      );
-    }
-
-    cantidadModulos = cantidadPares / paresModulo;
-  } else if (tipoProducto === 'PAR_SUELTO') {
-    paresModulo = null;
-    cantidadModulos = null;
-  } else {
-    throw new Error(`Tipo de producto no habilitado: ${tipoProducto}.`);
-  }
+  const { paresModulo, cantidadModulos } = calcularCantidadesPedido(
+    tipoProducto,
+    cantidadPares,
+    producto.PARES
+  );
 
   const totalFob = redondear4(
     cantidadPares * precioFobPar
@@ -515,6 +639,7 @@ async function prepararProductoPedido(idPedido, datos = {}) {
   );
 
   return {
+    ID_EMPRESA: pedido.ID_EMPRESA,
     ID_PEDIDO: pedido.ID_PEDIDO,
     ID_PRODUCTO: producto.ID_PRODUCTO,
 
@@ -556,8 +681,8 @@ async function prepararProductoPedido(idPedido, datos = {}) {
 /* ============================================================
    AGREGAR PRODUCTO AL PEDIDO
    ============================================================ */
-async function agregarProductoPedido(idPedido, datos = {}) {
-  const detalle = await prepararProductoPedido(idPedido, datos);
+async function agregarProductoPedido(idPedido, datos = {}, idEmpresa, accesoEmpresa) {
+  const detalle = await prepararProductoPedido(idPedido, datos, idEmpresa, accesoEmpresa);
   return pedidosRepository.agregarProductoPedido(detalle);
 }
 
@@ -580,15 +705,16 @@ function validarIdPedidoDetalle(idPedidoDetalle) {
    LISTAR DETALLE DEL PEDIDO
    - Puede consultarse en cualquier estado.
    ============================================================ */
-async function listarDetallePedido(idPedido) {
-  const pedido = await obtenerPedidoPorId(idPedido);
+async function listarDetallePedido(idPedido, idEmpresa) {
+  const pedido = await obtenerPedidoPorId(idPedido, idEmpresa);
 
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
   }
 
   const detalle = await pedidosRepository.listarDetallePedido(
-    pedido.ID_PEDIDO
+    pedido.ID_PEDIDO,
+    pedido.ID_EMPRESA
   );
 
   return detalle.map(item => ({
@@ -608,9 +734,10 @@ async function listarDetallePedido(idPedido) {
 async function prepararActualizacionDetalle(
   idPedido,
   idPedidoDetalle,
-  datos = {}
+  datos = {},
+  idEmpresa
 ) {
-  const pedido = await validarPedidoBorrador(idPedido);
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
   const detalleId = validarIdPedidoDetalle(idPedidoDetalle);
 
   const detalleActual = await pedidosRepository
@@ -712,12 +839,14 @@ async function prepararActualizacionDetalle(
 async function actualizarProductoPedido(
   idPedido,
   idPedidoDetalle,
-  datos = {}
+  datos = {},
+  idEmpresa
 ) {
   const preparado = await prepararActualizacionDetalle(
     idPedido,
     idPedidoDetalle,
-    datos
+    datos,
+    idEmpresa
   );
 
   return pedidosRepository.actualizarDetallePedido(
@@ -730,9 +859,10 @@ async function actualizarProductoPedido(
    ============================================================ */
 async function eliminarProductoPedido(
   idPedido,
-  idPedidoDetalle
+  idPedidoDetalle,
+  idEmpresa
 ) {
-  const pedido = await validarPedidoBorrador(idPedido);
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
   const detalleId = validarIdPedidoDetalle(idPedidoDetalle);
 
   const detalle = await pedidosRepository
@@ -765,17 +895,18 @@ async function eliminarProductoPedido(
    - Los totales se vuelven a calcular y comparar.
    - El cambio a VALIDADO se realiza transaccionalmente en SQL.
    ============================================================ */
-async function validarPedido(idPedido, datos = {}) {
-  const pedido = await validarPedidoBorrador(idPedido);
+async function validarPedido(idPedido, datos = {}, idEmpresa, usuarioAutenticado) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
 
-  const usuarioValidacion = texto(datos.usuarioValidacion || datos.usuario) || 'SISTEMA';
+  const usuarioValidacion = texto(usuarioAutenticado) || 'SISTEMA';
 
   if (usuarioValidacion.length > 100) {
     throw new Error('El usuario de validación supera los 100 caracteres.');
   }
 
   const detalles = await pedidosRepository.listarDetallePedido(
-    pedido.ID_PEDIDO
+    pedido.ID_PEDIDO,
+    pedido.ID_EMPRESA
   );
 
   if (!detalles || detalles.length === 0) {
@@ -890,7 +1021,7 @@ async function validarPedido(idPedido, datos = {}) {
    - SINCRONIZADO no puede anularse.
    - ANULADO no vuelve a modificarse.
    ============================================================ */
-async function anularPedido(idPedido, datos = {}) {
+async function anularPedido(idPedido, datos = {}, idEmpresa, usuarioAutenticado) {
   const id = validarIdPedido(idPedido);
 
   const motivo = texto(
@@ -908,16 +1039,14 @@ async function anularPedido(idPedido, datos = {}) {
   }
 
   const usuarioAnulacion = texto(
-    datos.usuarioAnulacion ||
-    datos.usuario ||
-    datos.USUARIO_ANULACION
+    usuarioAutenticado
   ) || 'SISTEMA';
 
   if (usuarioAnulacion.length > 100) {
     throw new Error('El usuario de anulación supera los 100 caracteres.');
   }
 
-  const pedido = await pedidosRepository.obtenerPedidoPorId(id);
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, validarIdEmpresa(idEmpresa));
 
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
@@ -971,12 +1100,14 @@ async function anularPedido(idPedido, datos = {}) {
    ============================================================ */
 async function registrarExportacionGenerada(
   idPedido,
+  idEmpresa,
   tipoExportacion,
   nombreArchivo,
   cantidadRegistros,
   usuarioExportacion = 'SISTEMA'
 ) {
   return pedidosRepository.registrarExportacionPedido({
+    ID_EMPRESA: validarIdEmpresa(idEmpresa),
     ID_PEDIDO: validarIdPedido(idPedido),
     TIPO_EXPORTACION: texto(tipoExportacion),
     NOMBRE_ARCHIVO: texto(nombreArchivo),
@@ -987,11 +1118,81 @@ async function registrarExportacionGenerada(
   });
 }
 
-async function listarExportacionesPedido(idPedido) {
+async function listarExportacionesPedido(idPedido, idEmpresa) {
   const id = validarIdPedido(idPedido);
-  const pedido = await pedidosRepository.obtenerPedidoPorId(id);
+  const empresa = validarIdEmpresa(idEmpresa);
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
   if (!pedido) throw new Error('Pedido no encontrado.');
-  return pedidosRepository.listarExportacionesPedido(id);
+  return pedidosRepository.listarExportacionesPedido(id, empresa);
+}
+
+function evaluarDestinosExportacionPedido(idEmpresa, codigoMarca, configuracion) {
+  const rutas = {
+    PEDIDO_EXCEL: texto(configuracion?.RUTA_PEDIDO_EXCEL),
+    MASTER_DATA_APP: texto(configuracion?.RUTA_MASTER_DATA_APP),
+    PREC_FOB: texto(configuracion?.RUTA_PREC_FOB),
+  };
+  const faltantes = Object.entries(rutas)
+    .filter(([, ruta]) => !ruta)
+    .map(([tipo]) => tipo);
+  const activa = Boolean(configuracion?.ACTIVA);
+  const configurada = activa && faltantes.length === 0;
+
+  return {
+    idEmpresa,
+    codigoMarca: texto(codigoMarca),
+    activa,
+    configurada,
+    rutas,
+    faltantes,
+    mensaje: configurada
+      ? 'Los destinos de exportación del Pedido están configurados.'
+      : 'Los destinos del Pedido no están habilitados. No se realizará ningún envío ni copia.',
+  };
+}
+
+async function obtenerDestinosExportacionPedido(idPedido, idEmpresa) {
+  const id = validarIdPedido(idPedido);
+  const empresa = validarIdEmpresa(idEmpresa);
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
+
+  if (!pedido) throw new Error('Pedido no encontrado.');
+
+  const codigoMarca = texto(pedido.CODIGO_MARCA);
+  const configuracion = codigoMarca
+    ? await pedidosRepository.obtenerConfiguracionExportacionPedido(empresa, codigoMarca)
+    : null;
+  return evaluarDestinosExportacionPedido(empresa, codigoMarca, configuracion);
+}
+
+async function enviarArchivoPedidoFTP(idPedido, idEmpresa, tipoExportacion, resultado) {
+  const destinos = await obtenerDestinosExportacionPedido(idPedido, idEmpresa);
+  const tipo = texto(tipoExportacion).toUpperCase();
+  const rutaFTP = texto(destinos.rutas[tipo]);
+
+  if (!destinos.configurada || !rutaFTP) {
+    throw new Error(
+      `No se puede enviar ${tipo}: la configuración de destinos para ` +
+      `ID_EMPRESA=${destinos.idEmpresa} / MARCA=${destinos.codigoMarca} no está completa y activa.`
+    );
+  }
+
+  const carpetaLocal = path.join(
+    process.env.EXPORT_PATH || path.join(process.cwd(), 'salidas'),
+    'pedidos',
+    String(destinos.idEmpresa),
+    String(validarIdPedido(idPedido))
+  );
+  await fs.promises.mkdir(carpetaLocal, { recursive: true });
+  const rutaLocal = path.join(carpetaLocal, resultado.nombreArchivo);
+  await fs.promises.writeFile(rutaLocal, resultado.buffer);
+
+  return ftpService.subirArchivo(
+    rutaLocal,
+    resultado.nombreArchivo,
+    resultado.nombreArchivo,
+    rutaFTP
+  );
 }
 
 function limpiarNombreArchivoPedido(valor) {
@@ -1001,10 +1202,12 @@ function limpiarNombreArchivoPedido(valor) {
     .trim();
 }
 
-async function exportarPedidoExcel(idPedido) {
+async function exportarPedidoExcel(idPedido, idEmpresa, usuarioAutenticado) {
   const id = validarIdPedido(idPedido);
 
-  const pedido = await pedidosRepository.obtenerPedidoPorId(id);
+  const empresa = validarIdEmpresa(idEmpresa);
+
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
 
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
@@ -1018,7 +1221,7 @@ async function exportarPedidoExcel(idPedido) {
     );
   }
 
-  const detalles = await pedidosRepository.listarDetallePedido(id);
+  const detalles = await pedidosRepository.listarDetallePedido(id, empresa);
 
   if (!detalles || detalles.length === 0) {
     throw new Error('El pedido no contiene productos para exportar.');
@@ -1106,17 +1309,27 @@ async function exportarPedidoExcel(idPedido) {
 
   const nombreArchivo = `PEDIDO_${orden}_${proveedor}.xlsx`;
 
+  const envioFTP = await enviarArchivoPedidoFTP(
+    id,
+    empresa,
+    'PEDIDO_EXCEL',
+    { buffer, nombreArchivo }
+  );
+
   await registrarExportacionGenerada(
     id,
+    empresa,
     'PEDIDO_EXCEL',
     nombreArchivo,
-    filas.length
+    filas.length,
+    usuarioAutenticado
   );
 
   return {
     buffer,
     nombreArchivo,
     cantidadRegistros: filas.length,
+    envioFTP,
   };
 }
 
@@ -1181,9 +1394,11 @@ function obtenerCurvaMaster(detalle) {
   };
 }
 
-async function exportarMasterDataAppExcel(idPedido) {
+async function exportarMasterDataAppExcel(idPedido, idEmpresa, usuarioAutenticado) {
   const id = validarIdPedido(idPedido);
-  const pedido = await pedidosRepository.obtenerPedidoPorId(id);
+  const empresa = validarIdEmpresa(idEmpresa);
+
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
 
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
@@ -1196,7 +1411,7 @@ async function exportarMasterDataAppExcel(idPedido) {
     );
   }
 
-  const detalles = await pedidosRepository.obtenerDatosMasterPedido(id);
+  const detalles = await pedidosRepository.obtenerDatosMasterPedido(id, empresa);
   if (!detalles || detalles.length === 0) {
     throw new Error('El pedido no contiene productos para exportar al MASTER_DATA_APP.');
   }
@@ -1257,20 +1472,37 @@ async function exportarMasterDataAppExcel(idPedido) {
 
   const buffer = XLSX.write(libro, { type: 'buffer', bookType: 'xlsx' });
   const orden = limpiarNombreArchivoPedido(pedido.NUMERO_ORDEN) || `PEDIDO_${id}`;
+  const marca = limpiarNombreArchivoPedido(pedido.DETALLE_MARCA || pedido.CODIGO_MARCA)
+    .replace(/\s+/g, '_')
+    .toUpperCase();
 
-  const nombreArchivo = `MASTER_DATA_APP_ATOMIK_${orden}.xlsx`;
+  if (!marca) {
+    throw new Error('El Pedido no tiene una marca válida para generar el nombre del MASTER_DATA_APP.');
+  }
+
+  const nombreArchivo = `MASTER_DATA_APP_${marca}_${orden}.xlsx`;
+
+  const envioFTP = await enviarArchivoPedidoFTP(
+    id,
+    empresa,
+    'MASTER_DATA_APP',
+    { buffer, nombreArchivo }
+  );
 
   await registrarExportacionGenerada(
     id,
+    empresa,
     'MASTER_DATA_APP',
     nombreArchivo,
-    filas.length
+    filas.length,
+    usuarioAutenticado
   );
 
   return {
     buffer,
     nombreArchivo,
     cantidadRegistros: filas.length,
+    envioFTP,
   };
 }
 
@@ -1367,9 +1599,11 @@ function crearDBFBuffer(registros, campos) {
   return buffer;
 }
 
-async function exportarPrecFobDBI(idPedido) {
+async function exportarPrecFobDBI(idPedido, idEmpresa, usuarioAutenticado) {
   const id = validarIdPedido(idPedido);
-  const pedido = await pedidosRepository.obtenerPedidoPorId(id);
+  const empresa = validarIdEmpresa(idEmpresa);
+
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
 
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
@@ -1382,7 +1616,7 @@ async function exportarPrecFobDBI(idPedido) {
     );
   }
 
-  const detalles = await pedidosRepository.obtenerDatosMasterPedido(id);
+  const detalles = await pedidosRepository.obtenerDatosMasterPedido(id, empresa);
   if (!detalles || detalles.length === 0) {
     throw new Error('El pedido no contiene productos para exportar a PREC_FOB.DBI.');
   }
@@ -1425,17 +1659,27 @@ async function exportarPrecFobDBI(idPedido) {
 
   const nombreArchivo = `PREC_FOB_${orden}.DBI`;
 
+  const envioFTP = await enviarArchivoPedidoFTP(
+    id,
+    empresa,
+    'PREC_FOB',
+    { buffer, nombreArchivo }
+  );
+
   await registrarExportacionGenerada(
     id,
+    empresa,
     'PREC_FOB',
     nombreArchivo,
-    registros.length
+    registros.length,
+    usuarioAutenticado
   );
 
   return {
     buffer,
     nombreArchivo,
     cantidadRegistros: registros.length,
+    envioFTP,
   };
 }
 
@@ -1464,4 +1708,11 @@ module.exports = {
   exportarMasterDataAppExcel,
   exportarPrecFobDBI,
   listarExportacionesPedido,
+  obtenerDestinosExportacionPedido,
+  _internals: {
+    calcularCantidadesPedido,
+    evaluarDestinosExportacionPedido,
+    estadoAltaHabilitadoParaPedido,
+    ESTADOS_ALTAS_HABILITADOS_PEDIDOS,
+  },
 };

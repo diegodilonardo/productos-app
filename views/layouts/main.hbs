@@ -30,7 +30,10 @@
     >
 
     {{#if style}}
-        <link rel="stylesheet" href="{{style}}">
+        <link
+            rel="stylesheet"
+            href="{{style}}"
+        >
     {{/if}}
 
 </head>
@@ -47,7 +50,7 @@
 
     <footer class="app-footer">
         <div class="container-fluid">
-            Alta Productos - Atomik · {{anioActual}}
+            PRODUCTOS APP · {{anioActual}}
         </div>
     </footer>
 
@@ -56,6 +59,8 @@
         integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
         crossorigin="anonymous"
     ></script>
+
+    <script src="/js/navbar-session.js?v=2c"></script>
 
     {{#if script}}
         <script src="{{script}}"></script>

@@ -1,85 +1,29 @@
 const { getConnection, sql } = require('../config/database');
 
 
-async function obtenerResumen() {
+/* ============================================================
+   LISTADO BASE DE ALTAS PARA DASHBOARD / SEGUIMIENTO
+
+   IMPORTANTE:
+   - La empresa se filtra SIEMPRE en SQL.
+   - ALTAS_PRODUCTOS_EXPORTADOS es LEFT JOIN: una Alta VALIDADA
+     debe aparecer aunque todavía no haya podido exportarse.
+   - LICENCIA_ALTA se obtiene del detalle. El Alta trabaja con una
+     sola licencia; si el valor está vacío se normaliza luego como
+     SIN LICENCIA en el service.
+   ============================================================ */
+async function listarAltasSeguimiento({
+    estado = null,
+    idEmpresa
+} = {}) {
 
     const pool = await getConnection();
 
-    const resultado = await pool.request().query(`
-        SELECT
-            COUNT(*) AS TOTAL_ALTAS,
+    const request = pool
+        .request()
+        .input('ID_EMPRESA', sql.Int, Number(idEmpresa));
 
-            SUM(CASE
-                WHEN ESTADO = 'BORRADOR'
-                THEN 1 ELSE 0
-            END) AS BORRADOR,
-
-            SUM(CASE
-                WHEN ESTADO = 'VALIDADO'
-                THEN 1 ELSE 0
-            END) AS VALIDADO,
-
-            SUM(CASE
-                WHEN ESTADO = 'EXPORTADO'
-                THEN 1 ELSE 0
-            END) AS EXPORTADO,
-
-            SUM(CASE
-                WHEN ESTADO = 'PARCIAL_ERP'
-                THEN 1 ELSE 0
-            END) AS PARCIAL_ERP,
-
-            SUM(CASE
-                WHEN ESTADO = 'GENERADO_OK_EN_ERP'
-                THEN 1 ELSE 0
-            END) AS GENERADO_OK_EN_ERP,
-
-            SUM(CASE
-                WHEN ESTADO = 'ANULADO'
-                THEN 1 ELSE 0
-            END) AS ANULADO
-
-        FROM dbo.ALTAS_PRODUCTOS;
-    `);
-
-    const altas = resultado.recordset[0] || {};
-
-    const erp = await pool.request().query(`
-        SELECT
-            COUNT(*) AS TOTAL_EXPORTADOS,
-
-            SUM(CASE
-                WHEN ESTADO_ERP = 'PENDIENTE_ERP'
-                THEN 1 ELSE 0
-            END) AS PENDIENTES_ERP,
-
-            SUM(CASE
-                WHEN ESTADO_ERP = 'GENERADO_OK_EN_ERP'
-                THEN 1 ELSE 0
-            END) AS CONFIRMADOS_ERP,
-
-            SUM(CASE
-                WHEN ESTADO_ERP = 'ERROR_ERP'
-                THEN 1 ELSE 0
-            END) AS ERROR_ERP
-
-        FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS;
-    `);
-
-    return {
-        altas,
-        erp: erp.recordset[0] || {},
-    };
-}
-
-
-async function listarAltasSeguimiento(estado = null) {
-
-    const pool = await getConnection();
-
-    const request = pool.request();
-
-    let filtro = '';
+    let filtroEstado = '';
 
     if (estado) {
         request.input(
@@ -88,14 +32,15 @@ async function listarAltasSeguimiento(estado = null) {
             estado
         );
 
-        filtro = `
-            WHERE A.ESTADO = @ESTADO
+        filtroEstado = `
+            AND A.ESTADO = @ESTADO
         `;
     }
 
     const resultado = await request.query(`
         SELECT
             A.ID_ALTA,
+            A.ID_EMPRESA,
             A.CODIGO_ALTA,
             A.CODIGO_MARCA,
             A.DETALLE_MARCA,
@@ -105,31 +50,6 @@ async function listarAltasSeguimiento(estado = null) {
             A.CODIGO_TEMPORADA,
             A.DETALLE_TEMPORADA,
             A.CODIGO_ANO,
-
-            (
-                SELECT TOP 1
-                    MA.DETALLE_ANO
-                FROM dbo.MAESTRO_ANOS MA
-                WHERE
-                    MA.CODIGO_ANO = A.CODIGO_ANO
-                    AND MA.ACTIVO = 1
-            ) AS DETALLE_ANO,
-
-            (
-                SELECT TOP 1
-                    CASE
-                        WHEN NULLIF(
-                            LTRIM(RTRIM(DL.LICENCIA)),
-                            ''
-                        ) IS NULL
-                        THEN 'SIN LICENCIA'
-                        ELSE LTRIM(RTRIM(DL.LICENCIA))
-                    END
-                FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
-                WHERE DL.ID_ALTA = A.ID_ALTA
-                ORDER BY DL.ID_DETALLE
-            ) AS LICENCIA_ALTA,
-
             A.ESTADO,
             A.FECHA_CREACION,
             A.USUARIO_CREACION,
@@ -141,6 +61,8 @@ async function listarAltasSeguimiento(estado = null) {
             A.FECHA_ANULACION,
             A.USUARIO_ANULACION,
             A.MOTIVO_ANULACION,
+
+            L.LICENCIA_ALTA,
 
             COUNT(E.ID_ALTA) AS CANTIDAD_EXPORTADOS,
 
@@ -161,13 +83,26 @@ async function listarAltasSeguimiento(estado = null) {
 
         FROM dbo.ALTAS_PRODUCTOS A
 
+        OUTER APPLY (
+            SELECT TOP 1
+                NULLIF(LTRIM(RTRIM(D.LICENCIA)), '') AS LICENCIA_ALTA
+            FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+            WHERE D.ID_ALTA = A.ID_ALTA
+              AND D.ID_EMPRESA = A.ID_EMPRESA
+            ORDER BY
+                CASE WHEN ISNULL(D.GENERADO_AUTOMATICO, 0) = 0 THEN 0 ELSE 1 END,
+                D.ID_DETALLE
+        ) L
+
         LEFT JOIN dbo.ALTAS_PRODUCTOS_EXPORTADOS E
             ON E.ID_ALTA = A.ID_ALTA
 
-        ${filtro}
+        WHERE A.ID_EMPRESA = @ID_EMPRESA
+        ${filtroEstado}
 
         GROUP BY
             A.ID_ALTA,
+            A.ID_EMPRESA,
             A.CODIGO_ALTA,
             A.CODIGO_MARCA,
             A.DETALLE_MARCA,
@@ -187,30 +122,31 @@ async function listarAltasSeguimiento(estado = null) {
             A.ARCHIVO_EXPORTADO,
             A.FECHA_ANULACION,
             A.USUARIO_ANULACION,
-            A.MOTIVO_ANULACION
+            A.MOTIVO_ANULACION,
+            L.LICENCIA_ALTA
 
-        ORDER BY
-            A.ID_ALTA DESC;
+        ORDER BY A.ID_ALTA DESC;
     `);
 
     return resultado.recordset;
 }
 
 
-async function obtenerSeguimientoAlta(idAlta) {
+/* ============================================================
+   DETALLE DE UNA ALTA EN SEGUIMIENTO
+   ============================================================ */
+async function obtenerSeguimientoAlta(idAlta, idEmpresa) {
 
     const pool = await getConnection();
 
     const cabecera = await pool
         .request()
-        .input(
-            'ID_ALTA',
-            sql.Int,
-            idAlta
-        )
+        .input('ID_ALTA', sql.Int, idAlta)
+        .input('ID_EMPRESA', sql.Int, idEmpresa)
         .query(`
             SELECT
                 A.ID_ALTA,
+                A.ID_EMPRESA,
                 A.CODIGO_ALTA,
                 A.CODIGO_MARCA,
                 A.DETALLE_MARCA,
@@ -220,31 +156,6 @@ async function obtenerSeguimientoAlta(idAlta) {
                 A.CODIGO_TEMPORADA,
                 A.DETALLE_TEMPORADA,
                 A.CODIGO_ANO,
-
-                (
-                    SELECT TOP 1
-                        MA.DETALLE_ANO
-                    FROM dbo.MAESTRO_ANOS MA
-                    WHERE
-                        MA.CODIGO_ANO = A.CODIGO_ANO
-                        AND MA.ACTIVO = 1
-                ) AS DETALLE_ANO,
-
-                (
-                    SELECT TOP 1
-                        CASE
-                            WHEN NULLIF(
-                                LTRIM(RTRIM(DL.LICENCIA)),
-                                ''
-                            ) IS NULL
-                            THEN 'SIN LICENCIA'
-                            ELSE LTRIM(RTRIM(DL.LICENCIA))
-                        END
-                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DL
-                    WHERE DL.ID_ALTA = A.ID_ALTA
-                    ORDER BY DL.ID_DETALLE
-                ) AS LICENCIA_ALTA,
-
                 A.ESTADO,
                 A.FECHA_CREACION,
                 A.USUARIO_CREACION,
@@ -255,11 +166,24 @@ async function obtenerSeguimientoAlta(idAlta) {
                 A.ARCHIVO_EXPORTADO,
                 A.FECHA_ANULACION,
                 A.USUARIO_ANULACION,
-                A.MOTIVO_ANULACION
+                A.MOTIVO_ANULACION,
+                L.LICENCIA_ALTA
 
             FROM dbo.ALTAS_PRODUCTOS A
 
-            WHERE A.ID_ALTA = @ID_ALTA;
+            OUTER APPLY (
+                SELECT TOP 1
+                    NULLIF(LTRIM(RTRIM(D.LICENCIA)), '') AS LICENCIA_ALTA
+                FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+                WHERE D.ID_ALTA = A.ID_ALTA
+                  AND D.ID_EMPRESA = A.ID_EMPRESA
+                ORDER BY
+                    CASE WHEN ISNULL(D.GENERADO_AUTOMATICO, 0) = 0 THEN 0 ELSE 1 END,
+                    D.ID_DETALLE
+            ) L
+
+            WHERE A.ID_ALTA = @ID_ALTA
+              AND A.ID_EMPRESA = @ID_EMPRESA;
         `);
 
     if (!cabecera.recordset.length) {
@@ -268,11 +192,7 @@ async function obtenerSeguimientoAlta(idAlta) {
 
     const resumen = await pool
         .request()
-        .input(
-            'ID_ALTA',
-            sql.Int,
-            idAlta
-        )
+        .input('ID_ALTA', sql.Int, idAlta)
         .query(`
             SELECT
                 COUNT(*) AS TOTAL,
@@ -293,17 +213,12 @@ async function obtenerSeguimientoAlta(idAlta) {
                 END) AS ERRORES
 
             FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS
-
             WHERE ID_ALTA = @ID_ALTA;
         `);
 
     const productos = await pool
         .request()
-        .input(
-            'ID_ALTA',
-            sql.Int,
-            idAlta
-        )
+        .input('ID_ALTA', sql.Int, idAlta)
         .query(`
             SELECT
                 ID_ALTA,
@@ -317,9 +232,7 @@ async function obtenerSeguimientoAlta(idAlta) {
                 USUARIO_EXPORTACION
 
             FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS
-
             WHERE ID_ALTA = @ID_ALTA
-
             ORDER BY COD_ALFA;
         `);
 
@@ -337,7 +250,6 @@ async function obtenerSeguimientoAlta(idAlta) {
 
 
 module.exports = {
-    obtenerResumen,
     listarAltasSeguimiento,
     obtenerSeguimientoAlta,
 };

@@ -2,93 +2,160 @@ const seguimientoRepository =
     require('../repositories/seguimiento.repository');
 
 
-function normalizarEstado(valor) {
-
-    if (
-        valor === undefined ||
-        valor === null ||
-        String(valor).trim() === ''
-    ) {
-        return null;
-    }
-
-    return String(valor)
+function normalizarTexto(valor) {
+    return String(valor ?? '')
         .trim()
         .toUpperCase();
 }
 
 
-function validarId(valor) {
+function normalizarEstado(valor) {
+    const estado = normalizarTexto(valor);
+    return estado || null;
+}
 
-    const id = Number(valor);
+
+function normalizarLicencia(valor) {
+    const licencia = normalizarTexto(valor);
 
     if (
-        !Number.isInteger(id) ||
-        id <= 0
+        !licencia ||
+        licencia === '__SIN_LICENCIA__' ||
+        licencia === 'SIN LICENCIA'
     ) {
-        throw new Error(
-            'ID_ALTA inválido.'
-        );
+        return 'SIN LICENCIA';
+    }
+
+    return licencia;
+}
+
+
+function validarId(valor) {
+    const id = Number(valor);
+
+    if (!Number.isInteger(id) || id <= 0) {
+        throw new Error('ID_ALTA inválido.');
     }
 
     return id;
 }
 
 
-async function obtenerResumen() {
+function extraerValoresScope(items, claves = []) {
+    if (!Array.isArray(items)) {
+        return [];
+    }
 
-    const resultado =
-        await seguimientoRepository
-            .obtenerResumen();
+    const valores = [];
 
-    return {
-        altas: {
-            total:
-                Number(resultado.altas.TOTAL_ALTAS || 0),
-            borrador:
-                Number(resultado.altas.BORRADOR || 0),
-            validado:
-                Number(resultado.altas.VALIDADO || 0),
-            exportado:
-                Number(resultado.altas.EXPORTADO || 0),
-            parcialErp:
-                Number(resultado.altas.PARCIAL_ERP || 0),
-            generadoOkEnErp:
-                Number(
-                    resultado.altas.GENERADO_OK_EN_ERP || 0
-                ),
-            anulado:
-                Number(resultado.altas.ANULADO || 0),
-        },
+    for (const item of items) {
+        if (item === null || item === undefined) {
+            continue;
+        }
 
-        erp: {
-            totalExportados:
-                Number(
-                    resultado.erp.TOTAL_EXPORTADOS || 0
-                ),
-            pendientes:
-                Number(
-                    resultado.erp.PENDIENTES_ERP || 0
-                ),
-            confirmados:
-                Number(
-                    resultado.erp.CONFIRMADOS_ERP || 0
-                ),
-            errores:
-                Number(
-                    resultado.erp.ERROR_ERP || 0
-                ),
-        },
-    };
+        if (typeof item !== 'object') {
+            const valor = normalizarTexto(item);
+            if (valor) valores.push(valor);
+            continue;
+        }
+
+        for (const clave of claves) {
+            if (item[clave] !== undefined && item[clave] !== null) {
+                const valor = normalizarTexto(item[clave]);
+                if (valor) valores.push(valor);
+            }
+        }
+    }
+
+    return [...new Set(valores)];
 }
 
 
-async function listarAltas(estadoEntrada) {
+function scopeIncluye(valorCodigo, valorDetalle, permitidos) {
+    if (!permitidos.length) {
+        return false;
+    }
 
-    const estado =
-        normalizarEstado(
-            estadoEntrada
+    const candidatos = [
+        normalizarTexto(valorCodigo),
+        normalizarTexto(valorDetalle),
+    ].filter(Boolean);
+
+    return candidatos.some(valor => permitidos.includes(valor));
+}
+
+
+function altaPermitidaPorAcceso(alta, acceso) {
+    if (!acceso) {
+        return false;
+    }
+
+    if (acceso.todasMarcas !== true) {
+        const marcas = extraerValoresScope(
+            acceso.marcas,
+            [
+                'codigoMarca', 'CODIGO_MARCA',
+                'detalleMarca', 'DETALLE_MARCA',
+                'codigo', 'detalle', 'value'
+            ]
         );
+
+        if (!scopeIncluye(
+            alta.CODIGO_MARCA,
+            alta.DETALLE_MARCA,
+            marcas
+        )) {
+            return false;
+        }
+    }
+
+    if (acceso.todosRubros !== true) {
+        const rubros = extraerValoresScope(
+            acceso.rubros,
+            [
+                'codigoRubro', 'CODIGO_RUBRO',
+                'detalleRubro', 'DETALLE_RUBRO',
+                'codigo', 'detalle', 'value'
+            ]
+        );
+
+        if (!scopeIncluye(
+            alta.CODIGO_RUBRO,
+            alta.DETALLE_RUBRO,
+            rubros
+        )) {
+            return false;
+        }
+    }
+
+    if (acceso.todasLicencias !== true) {
+        const licencias = extraerValoresScope(
+            acceso.licencias,
+            [
+                'codigoLicencia', 'CODIGO_LICENCIA',
+                'licencia', 'LICENCIA',
+                'detalleLicencia', 'DETALLE_LICENCIA',
+                'codigo', 'detalle', 'value'
+            ]
+        ).map(normalizarLicencia);
+
+        const licenciaAlta =
+            normalizarLicencia(alta.LICENCIA_ALTA);
+
+        if (!licencias.includes(licenciaAlta)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+async function listarAltas(
+    estadoEntrada,
+    { idEmpresa, acceso }
+) {
+    const estado = normalizarEstado(estadoEntrada);
 
     const estadosPermitidos = [
         'BORRADOR',
@@ -96,6 +163,7 @@ async function listarAltas(estadoEntrada) {
         'EXPORTADO',
         'PARCIAL_ERP',
         'GENERADO_OK_EN_ERP',
+        'SIN_NOVEDADES_ERP',
         'ANULADO',
     ];
 
@@ -110,121 +178,167 @@ async function listarAltas(estadoEntrada) {
 
     const registros =
         await seguimientoRepository
-            .listarAltasSeguimiento(
-                estado
-            );
+            .listarAltasSeguimiento({
+                estado,
+                idEmpresa
+            });
 
-    return registros.map((fila) => {
+    return registros
+        .filter(fila =>
+            altaPermitidaPorAcceso(
+                fila,
+                acceso
+            )
+        )
+        .map((fila) => {
+            const total =
+                Number(fila.CANTIDAD_EXPORTADOS || 0);
 
-        const total =
-            Number(
-                fila.CANTIDAD_EXPORTADOS || 0
-            );
+            const confirmados =
+                Number(fila.CANTIDAD_CONFIRMADOS_ERP || 0);
 
-        const confirmados =
-            Number(
-                fila.CANTIDAD_CONFIRMADOS_ERP || 0
-            );
+            const pendientes =
+                Number(fila.CANTIDAD_PENDIENTES_ERP || 0);
 
-        const pendientes =
-            Number(
-                fila.CANTIDAD_PENDIENTES_ERP || 0
-            );
+            const errores =
+                Number(fila.CANTIDAD_ERROR_ERP || 0);
 
-        const errores =
-            Number(
-                fila.CANTIDAD_ERROR_ERP || 0
-            );
+            const porcentajeConfirmado =
+                total > 0
+                    ? Number(((confirmados / total) * 100).toFixed(2))
+                    : 0;
 
-        const porcentajeConfirmado =
-            total > 0
-                ? Number(
-                    (
-                        confirmados /
-                        total *
-                        100
-                    ).toFixed(2)
-                )
-                : 0;
-
-        return {
-            ...fila,
-
-            seguimientoErp: {
-                total,
-                confirmados,
-                pendientes,
-                errores,
-                porcentajeConfirmado,
-            },
-        };
-    });
+            return {
+                ...fila,
+                LICENCIA_ALTA:
+                    normalizarLicencia(fila.LICENCIA_ALTA),
+                seguimientoErp: {
+                    total,
+                    confirmados,
+                    pendientes,
+                    errores,
+                    porcentajeConfirmado,
+                },
+            };
+        });
 }
 
 
-async function obtenerAlta(idEntrada) {
-
-    const id =
-        validarId(
-            idEntrada
+async function obtenerResumen({
+    idEmpresa,
+    acceso
+}) {
+    /*
+     * El resumen se deriva del MISMO conjunto visible que el listado.
+     * Así Dashboard y Seguimiento nunca pueden discrepar por filtros
+     * de empresa / marca / rubro / licencia.
+     */
+    const altas =
+        await listarAltas(
+            null,
+            { idEmpresa, acceso }
         );
+
+    const contarEstado = estado =>
+        altas.filter(
+            alta =>
+                normalizarEstado(alta.ESTADO) === estado
+        ).length;
+
+    const erp = altas.reduce(
+        (acum, alta) => {
+            const s = alta.seguimientoErp || {};
+
+            acum.totalExportados += Number(s.total || 0);
+            acum.pendientes += Number(s.pendientes || 0);
+            acum.confirmados += Number(s.confirmados || 0);
+            acum.errores += Number(s.errores || 0);
+
+            return acum;
+        },
+        {
+            totalExportados: 0,
+            pendientes: 0,
+            confirmados: 0,
+            errores: 0,
+        }
+    );
+
+    return {
+        altas: {
+            total: altas.length,
+            borrador: contarEstado('BORRADOR'),
+            validado: contarEstado('VALIDADO'),
+            exportado: contarEstado('EXPORTADO'),
+            parcialErp: contarEstado('PARCIAL_ERP'),
+            generadoOkEnErp:
+                contarEstado('GENERADO_OK_EN_ERP'),
+            sinNovedadesErp:
+                contarEstado('SIN_NOVEDADES_ERP'),
+            anulado: contarEstado('ANULADO'),
+        },
+        erp,
+    };
+}
+
+
+async function obtenerAlta(
+    idEntrada,
+    { idEmpresa, acceso }
+) {
+    const id = validarId(idEntrada);
 
     const resultado =
         await seguimientoRepository
             .obtenerSeguimientoAlta(
-                id
+                id,
+                idEmpresa
             );
 
     if (!resultado) {
-        throw new Error(
-            'Alta no encontrada.'
-        );
+        throw new Error('Alta no encontrada.');
+    }
+
+    if (!altaPermitidaPorAcceso(
+        resultado.alta,
+        acceso
+    )) {
+        const error =
+            new Error(
+                'No tiene permisos para acceder a esta alta por marca, rubro o licencia.'
+            );
+        error.status = 403;
+        throw error;
     }
 
     const total =
-        Number(
-            resultado.resumenErp.TOTAL || 0
-        );
-
+        Number(resultado.resumenErp.TOTAL || 0);
     const confirmados =
-        Number(
-            resultado.resumenErp.CONFIRMADOS || 0
-        );
-
+        Number(resultado.resumenErp.CONFIRMADOS || 0);
     const pendientes =
-        Number(
-            resultado.resumenErp.PENDIENTES || 0
-        );
-
+        Number(resultado.resumenErp.PENDIENTES || 0);
     const errores =
-        Number(
-            resultado.resumenErp.ERRORES || 0
-        );
+        Number(resultado.resumenErp.ERRORES || 0);
 
     return {
-        alta:
-            resultado.alta,
-
+        alta: {
+            ...resultado.alta,
+            LICENCIA_ALTA:
+                normalizarLicencia(
+                    resultado.alta.LICENCIA_ALTA
+                ),
+        },
         seguimientoErp: {
             total,
             confirmados,
             pendientes,
             errores,
-
             porcentajeConfirmado:
                 total > 0
-                    ? Number(
-                        (
-                            confirmados /
-                            total *
-                            100
-                        ).toFixed(2)
-                    )
+                    ? Number(((confirmados / total) * 100).toFixed(2))
                     : 0,
         },
-
-        productos:
-            resultado.productos,
+        productos: resultado.productos,
     };
 }
 

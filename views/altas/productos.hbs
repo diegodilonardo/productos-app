@@ -135,8 +135,8 @@
                   </div>
                 </div>
 
-                <div id="contenedorProveedor" class="col-12 d-none">
-                  <label for="buscarProveedor" class="form-label fw-semibold">Proveedor</label>
+                <div class="col-12">
+                  <label for="buscarProveedor" class="form-label">Proveedor</label>
 
                   <div class="alta-master-search">
                     <input
@@ -144,14 +144,10 @@
                       type="search"
                       class="form-control"
                       autocomplete="off"
-                      placeholder="Buscar proveedor por razón social..."
+                      placeholder="Buscar proveedor..."
                     >
 
-                    <input
-                      id="codigoProveedor"
-                      type="hidden"
-                      value=""
-                    >
+                    <input id="codigoProveedor" type="hidden" value="">
 
                     <div id="listaProveedor" class="alta-master-list"></div>
 
@@ -169,10 +165,6 @@
                         Cambiar
                       </button>
                     </div>
-                  </div>
-
-                  <div class="form-text">
-                    Se muestran únicamente proveedores activos correspondientes al rubro del Alta. Aplica tanto a MÓDULO como a PAR SUELTO.
                   </div>
                 </div>
 
@@ -494,59 +486,11 @@
                   </div>
                 </div>
 
-                <div id="contenedorTalle" class="col-12 d-none">
-                  <div class="alta-color-box">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                      <div>
-                        <label class="form-label fw-semibold mb-0">Talles</label>
-                        <div class="small text-secondary">
-                          Para PAR SUELTO podés seleccionar varios talles en una sola operación.
-                        </div>
-                      </div>
-
-                      <div class="d-flex flex-wrap align-items-center gap-2">
-                        <button
-                          id="btnSeleccionarTodosTalles"
-                          type="button"
-                          class="btn btn-sm btn-outline-secondary"
-                        >
-                          Seleccionar todos
-                        </button>
-
-                        <button
-                          id="btnLimpiarTalles"
-                          type="button"
-                          class="btn btn-sm btn-outline-secondary"
-                        >
-                          Limpiar
-                        </button>
-
-                        <span
-                          id="cantidadTalles"
-                          class="badge rounded-pill text-bg-secondary px-3 py-2"
-                        >
-                          0 seleccionados
-                        </span>
-                      </div>
-                    </div>
-
-                    <div
-                      id="tallesSeleccionadosResumen"
-                      class="d-flex flex-wrap gap-2 mb-2"
-                    ></div>
-
-                    <div
-                      id="listaTalles"
-                      class="app-color-list alta-color-list"
-                    >
-                      <div class="text-secondary p-2">
-                        Cargando talles...
-                      </div>
-                    </div>
-
-                    <div class="form-text mt-2">
-                      Se muestran únicamente los talles habilitados para el rubro del Alta.
-                    </div>
+                <div id="contenedorTalle" class="col-12 col-md-6 d-none">
+                  <label for="codigoTalle" class="form-label">Talle</label>
+                  <select id="codigoTalle" class="form-select"></select>
+                  <div class="form-text">
+                    Se muestran únicamente los talles habilitados para el rubro del Alta.
                   </div>
                 </div>
 
@@ -562,17 +506,18 @@
                       </span>
                     </div>
 
+                    <div
+                      id="coloresSeleccionados"
+                      class="d-none flex-wrap gap-2 mb-3"
+                      aria-label="Colores seleccionados"
+                    ></div>
+
                     <input
                       id="buscarColor"
                       type="search"
                       class="form-control mb-2"
                       placeholder="Buscar por código o descripción del color..."
                     >
-
-                    <div
-                      id="coloresSeleccionadosResumen"
-                      class="d-flex flex-wrap gap-2 mb-2"
-                    ></div>
 
                     <div id="listaColores" class="app-color-list alta-color-list">
                       <div class="text-secondary p-2">Cargando colores...</div>
@@ -596,7 +541,8 @@
                     id="usuarioProducto"
                     type="text"
                     class="form-control text-uppercase"
-                    value="DIEGO"
+                    value=""
+                    readonly
                     required
                   >
                 </div>

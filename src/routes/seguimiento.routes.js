@@ -3,107 +3,114 @@ const express = require('express');
 const seguimientoService =
     require('../services/seguimiento.service');
 
+const {
+    requerirAutenticacion,
+    requerirEmpresa,
+    requerirAccesoAlta,
+} = require('../middlewares/auth.middleware');
+
 const router = express.Router();
 
 
 /*
- * GET /api/seguimiento/resumen
- *
- * Resumen general de altas y conciliación ERP.
+ * Todo Seguimiento requiere sesión.
  */
+router.use(requerirAutenticacion);
+
+
+/* ============================================================
+   GET /api/seguimiento/resumen
+   ============================================================ */
 router.get(
     '/resumen',
+    requerirEmpresa,
     async (req, res) => {
-
         try {
-
             const resultado =
-                await seguimientoService
-                    .obtenerResumen();
+                await seguimientoService.obtenerResumen({
+                    idEmpresa: req.idEmpresa,
+                    acceso: req.accesoEmpresa,
+                });
 
-            res.json({
+            return res.json({
                 ok: true,
                 resultado,
             });
-
         } catch (error) {
-
-            res.status(500).json({
-                ok: false,
-                mensaje: error.message,
-            });
+            return res
+                .status(error.status || 500)
+                .json({
+                    ok: false,
+                    mensaje: error.message,
+                });
         }
     }
 );
 
 
-/*
- * GET /api/seguimiento/altas
- * GET /api/seguimiento/altas?estado=EXPORTADO
- */
+/* ============================================================
+   GET /api/seguimiento/altas
+   ============================================================ */
 router.get(
     '/altas',
+    requerirEmpresa,
     async (req, res) => {
-
         try {
-
             const resultado =
-                await seguimientoService
-                    .listarAltas(
-                        req.query.estado
-                    );
+                await seguimientoService.listarAltas(
+                    req.query.estado,
+                    {
+                        idEmpresa: req.idEmpresa,
+                        acceso: req.accesoEmpresa,
+                    }
+                );
 
-            res.json({
+            return res.json({
                 ok: true,
                 cantidad: resultado.length,
                 resultado,
             });
-
         } catch (error) {
-
-            res.status(400).json({
-                ok: false,
-                mensaje: error.message,
-            });
+            return res
+                .status(error.status || 400)
+                .json({
+                    ok: false,
+                    mensaje: error.message,
+                });
         }
     }
 );
 
 
-/*
- * GET /api/seguimiento/altas/:id
- *
- * Devuelve:
- * - cabecera del alta
- * - progreso ERP
- * - todos los COD_ALFA exportados
- * - CODIGO_ERP / EAN_ERP / estado de cada producto
- */
+/* ============================================================
+   GET /api/seguimiento/altas/:id
+   ============================================================ */
 router.get(
     '/altas/:id',
+    requerirAccesoAlta,
     async (req, res) => {
-
         try {
-
             const resultado =
-                await seguimientoService
-                    .obtenerAlta(
-                        req.params.id
-                    );
+                await seguimientoService.obtenerAlta(
+                    req.params.id,
+                    {
+                        idEmpresa: req.idEmpresa,
+                        acceso: req.accesoEmpresa,
+                    }
+                );
 
-            res.json({
+            return res.json({
                 ok: true,
                 resultado,
             });
-
         } catch (error) {
-
             const status =
-                error.message === 'Alta no encontrada.'
+                error.status ||
+                (error.message === 'Alta no encontrada.'
                     ? 404
-                    : 400;
+                    : 400);
 
-            res.status(status).json({
+            return res.status(status).json({
                 ok: false,
                 mensaje: error.message,
             });

@@ -1216,6 +1216,41 @@ main .progress {
     min-width: 210px;
 }
 
+.seguimiento-result-count {
+    display: inline-flex;
+    margin-left: 7px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #eef4fb;
+    color: #58708d;
+    font-size: .68rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.seguimiento-loading-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 54px;
+    color: #75849a;
+}
+
+.seguimiento-loading-state::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid #d6e2f1;
+    border-top-color: #0d6efd;
+    border-radius: 50%;
+    animation: seguimiento-spin .7s linear infinite;
+}
+
+@keyframes seguimiento-spin {
+    to { transform: rotate(360deg); }
+}
+
 .seguimiento-table thead th {
     padding: 11px 12px;
     border-bottom-color: #dbe2e9;
@@ -1679,6 +1714,34 @@ main .progress {
     overflow: hidden;
 }
 
+.nueva-alta-v2 .form-control,
+.nueva-alta-v2 .form-select {
+    border-color: #d9e1e9;
+    border-radius: 10px;
+    background-color: #fcfdfe;
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.nueva-alta-v2 .form-control:hover,
+.nueva-alta-v2 .form-select:hover {
+    border-color: #c3ceda;
+    background-color: #fff;
+}
+
+.nueva-alta-v2 .form-control:focus,
+.nueva-alta-v2 .form-select:focus {
+    border-color: #83ace4;
+    background-color: #fff;
+    box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .08);
+}
+
+.nueva-alta-v2 .form-control:disabled,
+.nueva-alta-v2 .form-select:disabled {
+    border-color: #e4e9ef;
+    background-color: #f4f6f8;
+    color: #85919e;
+}
+
 .nueva-alta-card-head,
 .nueva-alta-created-head {
     display: flex;
@@ -1805,6 +1868,17 @@ main .progress {
     background:
         radial-gradient(circle at top right, rgba(13,110,253,.055), transparent 35%),
         #fff;
+}
+
+@media (min-width: 1200px) {
+    .nueva-alta-summary-card {
+        position: sticky;
+        top: 88px;
+        height: auto !important;
+        max-height: calc(100vh - 108px);
+        overflow: auto;
+        scrollbar-width: thin;
+    }
 }
 
 .nueva-alta-side-step {

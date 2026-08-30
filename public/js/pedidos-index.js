@@ -191,6 +191,7 @@ function opcionesEmpresa(opciones = {}) {
 
 async function cargarPedidos() {
   ocultarAlerta();
+  pintarCargaPedidos();
   const btn = document.getElementById('btnActualizarPedidos');
   try {
     if (btn) { btn.disabled = true; btn.textContent = 'Actualizando...'; }
@@ -200,6 +201,41 @@ async function cargarPedidos() {
     pintarPedidosFiltrados();
   } catch (e) { mostrarAlerta(e.message, 'danger'); }
   finally { if (btn) { btn.disabled = false; btn.textContent = 'Actualizar'; } }
+}
+
+function pintarCargaPedidos() {
+  for (const id of [
+    'metTotal',
+    'metBorrador',
+    'metValidado',
+    'metAnulado'
+  ]) {
+    setTexto(id, '—');
+  }
+
+  const cantidad =
+    document.getElementById(
+      'cantidadPedidosVisible'
+    );
+
+  if (cantidad) {
+    cantidad.textContent = '';
+  }
+
+  const tbody =
+    document.getElementById(
+      'tablaPedidos'
+    );
+
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="11" class="text-center py-4">
+          <span class="pedidos-loading-state">Actualizando pedidos</span>
+        </td>
+      </tr>
+    `;
+  }
 }
 
 function pintarMetricas() {
@@ -217,6 +253,10 @@ function pintarPedidosFiltrados() {
     const texto = [p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN].join(' ').toUpperCase();
     return (!q || texto.includes(q)) && (!e || estado(p)===e) && (!ex || estadoExportacion(p)===ex);
   });
+  setTexto(
+    'cantidadPedidosVisible',
+    `${lista.length} de ${pedidos.length}`
+  );
   pintarTabla(lista);
 }
 

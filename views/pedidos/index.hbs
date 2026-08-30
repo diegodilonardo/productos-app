@@ -1,9 +1,14 @@
 <div class="pedidos-v1">
   <section class="pedidos-hero">
-    <div>
-      <div class="pedidos-kicker">GESTIÓN COMERCIAL</div>
-      <h1 class="h3 mb-1">Pedidos</h1>
-      <p class="text-secondary mb-0">Pedidos generados a partir de Altas confirmadas en ERP.</p>
+    <div class="pedidos-hero-main">
+      <span class="pedidos-hero-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M5 7h14v12H5z"></path><path d="M8 7V5h8v2M8 11h8M8 15h5"></path></svg>
+      </span>
+      <div>
+        <div class="pedidos-kicker">GESTIÓN COMERCIAL</div>
+        <h1 class="h3 mb-1">Pedidos</h1>
+        <p class="text-secondary mb-0">Pedidos generados a partir de Altas confirmadas en ERP.</p>
+      </div>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
       <select id="selectorEmpresaPedido" class="form-select d-none" style="width:auto;min-width:180px" aria-label="Empresa"></select>
@@ -16,10 +21,10 @@
   <div id="alertaPedidos" class="alert d-none" role="alert"></div>
 
   <div class="row g-3 pedidos-metrics">
-    <div class="col-6 col-xl-3"><div class="card pedidos-card"><div class="card-body"><div class="pedidos-metric-label">Total</div><div id="metTotal" class="pedidos-metric-value">-</div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card pedidos-card"><div class="card-body"><div class="pedidos-metric-label">Borradores</div><div id="metBorrador" class="pedidos-metric-value">-</div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card pedidos-card"><div class="card-body"><div class="pedidos-metric-label">Validados</div><div id="metValidado" class="pedidos-metric-value">-</div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card pedidos-card"><div class="card-body"><div class="pedidos-metric-label">Anulados</div><div id="metAnulado" class="pedidos-metric-value">-</div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card pedidos-card pedidos-metric-card"><div class="card-body"><span class="pedidos-metric-icon pedidos-tone-blue">Σ</span><div><div class="pedidos-metric-label">Total</div><div id="metTotal" class="pedidos-metric-value">-</div><div class="pedidos-metric-help">Pedidos registrados</div></div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card pedidos-card pedidos-metric-card"><div class="card-body"><span class="pedidos-metric-icon pedidos-tone-gray">✎</span><div><div class="pedidos-metric-label">Borradores</div><div id="metBorrador" class="pedidos-metric-value">-</div><div class="pedidos-metric-help">En preparación</div></div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card pedidos-card pedidos-metric-card"><div class="card-body"><span class="pedidos-metric-icon pedidos-tone-green">✓</span><div><div class="pedidos-metric-label">Validados</div><div id="metValidado" class="pedidos-metric-value">-</div><div class="pedidos-metric-help">Listos para exportar</div></div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card pedidos-card pedidos-metric-card"><div class="card-body"><span class="pedidos-metric-icon pedidos-tone-red">×</span><div><div class="pedidos-metric-label">Anulados</div><div id="metAnulado" class="pedidos-metric-value">-</div><div class="pedidos-metric-help">Fuera del circuito</div></div></div></div></div>
   </div>
 
   <div class="card pedidos-card overflow-hidden">
@@ -27,6 +32,7 @@
       <div>
         <div class="pedidos-kicker">LISTADO</div>
         <strong>Pedidos registrados</strong>
+        <span id="cantidadPedidosVisible" class="pedidos-result-count"></span>
       </div>
       <div class="pedidos-toolbar">
         <input id="buscarPedido" class="form-control" type="search" placeholder="Buscar pedido, Alta, proveedor u orden...">

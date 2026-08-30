@@ -1,64 +1,72 @@
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-  <div>
-    <h1 class="h3 mb-1">Seguimiento ERP</h1>
-    <p class="text-secondary mb-0">
-      Estado de las altas exportadas y su confirmación en Presea.
-    </p>
+<div class="seguimiento-v2">
+<section class="seguimiento-hero">
+  <div class="seguimiento-hero-main">
+    <span class="seguimiento-hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M4 19V5"></path><path d="M4 19h16"></path><path d="M7 15l4-4 3 2 5-6"></path><path d="M16.5 7H19v2.5"></path></svg>
+    </span>
+    <div>
+      <div class="seguimiento-kicker">CIRCUITO ERP</div>
+      <h1 class="h3 mb-1">Seguimiento ERP</h1>
+      <p class="text-secondary mb-0">Estado de las altas exportadas y su confirmación en Presea.</p>
+    </div>
   </div>
 
-  <button id="btnActualizarSeguimiento" type="button" class="btn btn-outline-secondary">
+  <button id="btnActualizarSeguimiento" type="button" class="btn btn-outline-secondary seguimiento-refresh-btn">
     Actualizar
   </button>
-</div>
+</section>
 
 <div id="alertaSeguimiento" class="alert d-none" role="alert"></div>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 seguimiento-metrics">
   <div class="col-6 col-xl-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Productos exportados</div>
-        <div id="resTotalExportados" class="display-6 fw-semibold">-</div>
+    <div class="card shadow-sm h-100 seguimiento-metric-card">
+      <div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-blue"><svg viewBox="0 0 24 24"><path d="M12 16V5"></path><path d="M8.5 8.5L12 5l3.5 3.5"></path><path d="M5 15.5v3h14v-3"></path></svg></span><div>
+        <div class="app-info-label">Productos exportados</div><div id="resTotalExportados" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Enviados a Presea</div>
+      </div>
       </div>
     </div>
   </div>
 
   <div class="col-6 col-xl-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Confirmados ERP</div>
-        <div id="resConfirmados" class="display-6 fw-semibold">-</div>
+    <div class="card shadow-sm h-100 seguimiento-metric-card">
+      <div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-green"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M8.5 12.2l2.2 2.2 4.8-5"></path></svg></span><div>
+        <div class="app-info-label">Confirmados ERP</div><div id="resConfirmados" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Generados correctamente</div>
+      </div>
       </div>
     </div>
   </div>
 
   <div class="col-6 col-xl-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Pendientes ERP</div>
-        <div id="resPendientes" class="display-6 fw-semibold">-</div>
+    <div class="card shadow-sm h-100 seguimiento-metric-card">
+      <div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-amber"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7v5l3 2"></path></svg></span><div>
+        <div class="app-info-label">Pendientes ERP</div><div id="resPendientes" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Esperando confirmación</div>
+      </div>
       </div>
     </div>
   </div>
 
   <div class="col-6 col-xl-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="app-info-label">Errores ERP</div>
-        <div id="resErrores" class="display-6 fw-semibold">-</div>
+    <div class="card shadow-sm h-100 seguimiento-metric-card">
+      <div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-red"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg></span><div>
+        <div class="app-info-label">Errores ERP</div><div id="resErrores" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Requieren revisión</div>
+      </div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="card shadow-sm">
-  <div class="card-header bg-white">
-    <div class="row g-2 align-items-center">
-      <div class="col-12 col-md">
-        <h2 class="h5 mb-0">Altas</h2>
+<div class="seguimiento-legend"><span class="seguimiento-legend-title">Estados:</span><span class="seguimiento-legend-item"><i class="seguimiento-dot seguimiento-dot-pending"></i>Sin novedades</span><span class="seguimiento-legend-item"><i class="seguimiento-dot seguimiento-dot-partial"></i>Parcial</span><span class="seguimiento-legend-item"><i class="seguimiento-dot seguimiento-dot-ok"></i>Confirmado</span><span class="seguimiento-legend-item"><i class="seguimiento-dot seguimiento-dot-error"></i>Error</span></div>
+
+<div class="card shadow-sm seguimiento-list-card">
+  <div class="seguimiento-list-head">
+      <div class="d-flex align-items-center gap-2">
+        <span class="seguimiento-section-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h8"></path></svg></span>
+        <div><div class="seguimiento-table-kicker">CONCILIACIÓN</div><h2 class="h5 mb-0">Altas exportadas <span id="cantidadSeguimientoVisible" class="seguimiento-result-count"></span></h2></div>
       </div>
 
-      <div class="col-12 col-md-4">
+      <div class="seguimiento-toolbar">
+        <label class="seguimiento-filter-label" for="filtroEstadoSeguimiento">Estado</label>
         <select id="filtroEstadoSeguimiento" class="form-select">
           <option value="">Todos los estados</option>
           <option value="EXPORTADO">EXPORTADO</option>
@@ -67,12 +75,11 @@
           <option value="SIN_NOVEDADES_ERP">SIN_NOVEDADES_ERP</option>
         </select>
       </div>
-    </div>
   </div>
 
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
+    <table class="table table-hover align-middle mb-0 seguimiento-table">
+      <thead>
         <tr>
           <th>Alta</th>
           <th>Marca</th>
@@ -98,4 +105,6 @@
   </div>
 </div>
 
-<script src="/js/seguimiento.js?v=2"></script>
+</div>
+
+<script src="/js/seguimiento.js?v=3"></script>

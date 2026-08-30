@@ -72,6 +72,7 @@ function actualizarEmpresaSeguimiento(event) {
 
 async function cargarTodo() {
   ocultarAlerta();
+  pintarCargaSeguimiento();
 
   const btn = document.getElementById('btnActualizarSeguimiento');
 
@@ -95,6 +96,37 @@ async function cargarTodo() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Actualizar';
+  }
+}
+
+function pintarCargaSeguimiento() {
+  for (const id of [
+    'resTotalExportados',
+    'resConfirmados',
+    'resPendientes',
+    'resErrores'
+  ]) {
+    setTexto(id, '—');
+  }
+
+  setTexto(
+    'cantidadSeguimientoVisible',
+    ''
+  );
+
+  const tbody =
+    document.getElementById(
+      'tablaSeguimientoAltas'
+    );
+
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="11" class="text-center py-4">
+          <span class="seguimiento-loading-state">Actualizando seguimiento</span>
+        </td>
+      </tr>
+    `;
   }
 }
 
@@ -170,6 +202,11 @@ function pintarAltasFiltradas() {
         String(item.ESTADO ?? item.estado ?? '').toUpperCase() === estadoFiltro
       )
     : altasSeguimiento;
+
+  setTexto(
+    'cantidadSeguimientoVisible',
+    `${filas.length} de ${altasSeguimiento.length}`
+  );
 
   pintarAltas(filas);
 }

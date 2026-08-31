@@ -4,6 +4,37 @@ GO
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
+/*
+  SEGURO DE EJECUCION
+  -------------------
+  0 = solo muestra el alcance; no elimina datos.
+  1 = ejecuta la limpieza transaccional.
+
+  Cambiar a 1 unicamente después de revisar el diagnóstico previo.
+*/
+DECLARE @EJECUTAR_LIMPIEZA bit = 0;
+
+IF @EJECUTAR_LIMPIEZA = 0
+BEGIN
+    PRINT 'MODO SEGURO: NO SE ELIMINARA NINGUN REGISTRO.';
+    PRINT 'Para confirmar la limpieza, cambie @EJECUTAR_LIMPIEZA a 1.';
+
+    SELECT TABLA, REGISTROS
+    FROM (
+        SELECT 10 AS ORDEN, 'PEDIDOS_EXPORTACIONES' AS TABLA, COUNT_BIG(*) AS REGISTROS FROM dbo.PEDIDOS_EXPORTACIONES
+        UNION ALL SELECT 20, 'PEDIDOS_DETALLE', COUNT_BIG(*) FROM dbo.PEDIDOS_DETALLE
+        UNION ALL SELECT 30, 'PEDIDOS', COUNT_BIG(*) FROM dbo.PEDIDOS
+        UNION ALL SELECT 40, 'ALTAS_PRODUCTOS_FAMILIAS_DETALLE', COUNT_BIG(*) FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE
+        UNION ALL SELECT 50, 'ALTAS_PRODUCTOS_EXPORTADOS', COUNT_BIG(*) FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS
+        UNION ALL SELECT 60, 'ALTAS_PRODUCTOS_DETALLE', COUNT_BIG(*) FROM dbo.ALTAS_PRODUCTOS_DETALLE
+        UNION ALL SELECT 70, 'ALTAS_PRODUCTOS', COUNT_BIG(*) FROM dbo.ALTAS_PRODUCTOS
+        UNION ALL SELECT 80, 'PRODUCTOS (SE CONSERVA)', COUNT_BIG(*) FROM dbo.PRODUCTOS
+    ) AS ALCANCE
+    ORDER BY ORDEN;
+
+    RETURN;
+END;
+
 PRINT '============================================================';
 PRINT ' LIMPIEZA DE DATOS TRANSACCIONALES - PRODUCTOS_APP';
 PRINT ' PEDIDOS + ALTAS';
@@ -13,6 +44,9 @@ PRINT '';
 BEGIN TRY
 
     BEGIN TRANSACTION;
+
+    DECLARE @PRODUCTOS_ERP_ANTES bigint =
+        (SELECT COUNT_BIG(*) FROM dbo.PRODUCTOS WITH (HOLDLOCK));
 
 
     /* ============================================================
@@ -284,7 +318,32 @@ BEGIN TRY
 
 
     /* ============================================================
-       5. CONFIRMAR TRANSACCION
+       5. VALIDAR ANTES DE CONFIRMAR
+       ============================================================ */
+
+    IF EXISTS (SELECT 1 FROM dbo.PEDIDOS_EXPORTACIONES)
+       OR EXISTS (SELECT 1 FROM dbo.PEDIDOS_DETALLE)
+       OR EXISTS (SELECT 1 FROM dbo.PEDIDOS)
+       OR EXISTS (SELECT 1 FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE)
+       OR EXISTS (SELECT 1 FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS)
+       OR EXISTS (SELECT 1 FROM dbo.ALTAS_PRODUCTOS_DETALLE)
+       OR EXISTS (SELECT 1 FROM dbo.ALTAS_PRODUCTOS)
+    BEGIN
+        THROW 51000, 'La validacion detecto datos transaccionales remanentes.', 1;
+    END;
+
+    IF (SELECT COUNT_BIG(*) FROM dbo.PRODUCTOS) <> @PRODUCTOS_ERP_ANTES
+    BEGIN
+        THROW 51001, 'La cantidad de PRODUCTOS ERP cambio durante la limpieza.', 1;
+    END;
+
+    PRINT 'Validacion transaccional: todas las tablas quedaron vacias.';
+    PRINT CONCAT('Validacion PRODUCTOS ERP: ', @PRODUCTOS_ERP_ANTES, ' registros conservados.');
+
+
+    /* ============================================================
+       6. CONFIRMAR TRANSACCION
+       Solo se alcanza si todas las validaciones fueron correctas.
        ============================================================ */
 
     COMMIT TRANSACTION;
@@ -337,7 +396,7 @@ GO
 
 
 /* ==============================================================
-   6. CONTROL FINAL
+   7. CONTROL FINAL
    ============================================================== */
 
 PRINT '';
@@ -396,7 +455,7 @@ GO
 
 
 /* ==============================================================
-   7. PRODUCTOS ERP DEBE QUEDAR INTACTO
+   8. PRODUCTOS ERP DEBE QUEDAR INTACTO
    ============================================================== */
 
 SELECT
@@ -407,7 +466,7 @@ GO
 
 
 /* ==============================================================
-   8. VERIFICAR VALOR ACTUAL DE LOS IDENTITY PRINCIPALES
+   9. VERIFICAR VALOR ACTUAL DE LOS IDENTITY PRINCIPALES
    ============================================================== */
 
 DBCC CHECKIDENT (

@@ -1689,6 +1689,10 @@ function filtrarTallesParSueltoPorRubro(
   lista,
   rubroEntrada
 ) {
+  if (globalThis.ReglasTallesParSuelto) {
+    return globalThis.ReglasTallesParSuelto.filtrar(lista, rubroEntrada);
+  }
+
   const rubro =
     normalizarBusqueda(
       rubroEntrada

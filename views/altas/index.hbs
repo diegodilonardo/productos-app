@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/altas-index.css">
+<link rel="stylesheet" href="/css/altas-index.css?v=2">
 
 <div class="altas-v2">
 
@@ -173,10 +173,23 @@
           <option value="GENERADO_OK_EN_ERP">GENERADO_OK_EN_ERP</option>
           <option value="ANULADO">ANULADO</option>
         </select>
+
+        <div class="altas-view-switch" role="group" aria-label="Vista del listado">
+          <button id="btnVistaTarjetasAltas" type="button" class="altas-view-btn" aria-pressed="true" title="Ver como tarjetas">
+            <span aria-hidden="true">▦</span> Tarjetas
+          </button>
+          <button id="btnVistaTablaAltas" type="button" class="altas-view-btn" aria-pressed="false" title="Ver como tabla">
+            <span aria-hidden="true">☷</span> Tabla
+          </button>
+        </div>
       </div>
     </div>
 
-    <div class="table-responsive">
+    <div id="tarjetasAltas" class="altas-card-grid" aria-live="polite">
+      <div class="altas-cards-loading">Cargando altas...</div>
+    </div>
+
+    <div id="vistaTablaAltas" class="table-responsive d-none">
       <table class="table table-hover align-middle mb-0 altas-table">
         <thead>
           <tr>
@@ -205,4 +218,4 @@
 
 </div>
 
-<script src="/js/altas-index.js?v=3"></script>
+<script src="/js/altas-index.js?v=4"></script>

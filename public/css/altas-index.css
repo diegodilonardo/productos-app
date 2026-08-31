@@ -65,9 +65,159 @@
 
 .altas-toolbar {
   display: grid;
-  grid-template-columns: minmax(280px, 1.4fr) minmax(185px, .8fr);
+  grid-template-columns: minmax(260px, 1.4fr) minmax(175px, .8fr) auto;
   gap: 9px;
-  width: min(660px, 100%);
+  width: min(820px, 100%);
+}
+
+.altas-view-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid #dfe5eb;
+  border-radius: 9px;
+  background: #f5f7f9;
+}
+
+.altas-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #697684;
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.altas-view-btn.is-active {
+  background: #fff;
+  color: #176bc9;
+  box-shadow: 0 1px 4px rgba(24,39,55,.12);
+}
+
+.altas-view-btn:focus-visible {
+  outline: 2px solid rgba(13,110,253,.42);
+  outline-offset: 2px;
+}
+
+.altas-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 14px;
+  padding: 16px;
+  background: #f7f9fb;
+}
+
+.altas-cards-loading,
+.altas-card-empty {
+  grid-column: 1 / -1;
+  padding: 42px 16px;
+  color: #7b8794;
+  text-align: center;
+}
+
+.altas-card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.alta-summary-card {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e0e6ec;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(24,39,55,.045);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.alta-summary-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #9aa5b0;
+}
+
+.alta-summary-card:hover {
+  transform: translateY(-2px);
+  border-color: #ced9e4;
+  box-shadow: 0 7px 18px rgba(24,39,55,.09);
+}
+
+.alta-summary-validado::before { background: #4ba3b7; }
+.alta-summary-exportado::before { background: #377bc4; }
+.alta-summary-parcial-erp::before { background: #d69c32; }
+.alta-summary-generado-ok-en-erp::before { background: #32965a; }
+.alta-summary-anulado::before { background: #ca4b4b; }
+.alta-summary-anulado { opacity: .78; }
+
+.alta-summary-top,
+.alta-summary-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.alta-summary-title { min-width: 0; }
+.alta-summary-title .altas-code { overflow: hidden; text-overflow: ellipsis; }
+
+.alta-summary-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 14px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf0f3;
+}
+
+.alta-summary-brand strong { color: #26313c; font-size: .96rem; }
+.alta-summary-brand span { color: #7c8996; font-size: .75rem; }
+
+.alta-summary-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+
+.alta-summary-meta > div { min-width: 0; }
+.alta-summary-meta > div > span:first-child {
+  display: block;
+  margin-bottom: 4px;
+  color: #8a96a2;
+  font-size: .66rem;
+  font-weight: 750;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.alta-summary-meta strong { color: #465463; font-size: .78rem; }
+.alta-summary-count { font-size: 1rem !important; }
+
+.alta-summary-cancel {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #9c3d3d;
+  font-size: .72rem;
+}
+
+.alta-summary-footer {
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid #edf0f3;
+  color: #8793a0;
+  font-size: .71rem;
 }
 
 .altas-table thead th {
@@ -197,6 +347,24 @@
 
   .altas-page-head .btn {
     flex: 1 1 0;
+  }
+
+  .altas-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .altas-view-switch {
+    width: 100%;
+  }
+
+  .altas-view-btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .alta-summary-footer {
+    align-items: flex-end;
   }
 }
 

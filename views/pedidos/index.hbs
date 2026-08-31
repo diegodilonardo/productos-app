@@ -49,9 +49,14 @@
           <option value="PARCIAL">Parcial</option>
           <option value="COMPLETO">Completo</option>
         </select>
+        <div class="pedidos-view-switch" role="group" aria-label="Vista del listado">
+          <button id="btnVistaTarjetasPedidos" class="pedidos-view-btn" type="button" aria-pressed="true">▦ Tarjetas</button>
+          <button id="btnVistaTablaPedidos" class="pedidos-view-btn" type="button" aria-pressed="false">☷ Tabla</button>
+        </div>
       </div>
     </div>
-    <div class="table-responsive">
+    <div id="tarjetasPedidos" class="pedidos-card-grid" aria-live="polite"><div class="pedidos-cards-loading">Cargando...</div></div>
+    <div id="vistaTablaPedidos" class="table-responsive d-none">
       <table class="table table-hover align-middle mb-0 pedidos-table">
         <thead><tr><th>Pedido</th><th>Alta</th><th>Proveedor</th><th>Orden</th><th>Productos</th><th>Pares</th><th>Total</th><th>Estado</th><th>Exportación</th><th>Fecha</th><th></th></tr></thead>
         <tbody id="tablaPedidos"><tr><td colspan="11" class="text-center py-5 text-secondary">Cargando...</td></tr></tbody>

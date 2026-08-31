@@ -3,6 +3,7 @@ let pedidos = [];
 let contextoUsuario = null;
 let idEmpresaPedido = null;
 let accesoEmpresaPedido = null;
+let vistaPedidos = sessionStorage.getItem('pedidos.vista') === 'tabla' ? 'tabla' : 'tarjetas';
 
 async function iniciarPedidos() {
   window.addEventListener(
@@ -15,6 +16,9 @@ async function iniciarPedidos() {
   document.getElementById('filtroEstadoPedido')?.addEventListener('change', pintarPedidosFiltrados);
   document.getElementById('filtroExportacionPedido')?.addEventListener('change', pintarPedidosFiltrados);
   document.getElementById('selectorEmpresaPedido')?.addEventListener('change', cambiarEmpresaPedido);
+  document.getElementById('btnVistaTarjetasPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tarjetas'));
+  document.getElementById('btnVistaTablaPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tabla'));
+  aplicarVistaPedidos(vistaPedidos);
 
   try {
     const listo = await cargarContextoPedido();
@@ -236,6 +240,9 @@ function pintarCargaPedidos() {
       </tr>
     `;
   }
+
+  const tarjetas = document.getElementById('tarjetasPedidos');
+  if (tarjetas) tarjetas.innerHTML = '<div class="pedidos-cards-loading">Actualizando pedidos</div>';
 }
 
 function pintarMetricas() {
@@ -250,14 +257,48 @@ function pintarPedidosFiltrados() {
   const e = document.getElementById('filtroEstadoPedido')?.value || '';
   const ex = document.getElementById('filtroExportacionPedido')?.value || '';
   const lista = pedidos.filter(p => {
-    const texto = [p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN].join(' ').toUpperCase();
+    const texto = [p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN,p.DETALLE_RUBRO,p.CODIGO_ANO,p.DETALLE_TEMPORADA].join(' ').toUpperCase();
     return (!q || texto.includes(q)) && (!e || estado(p)===e) && (!ex || estadoExportacion(p)===ex);
   });
   setTexto(
     'cantidadPedidosVisible',
     `${lista.length} de ${pedidos.length}`
   );
+  pintarTarjetas(lista);
   pintarTabla(lista);
+}
+
+function aplicarVistaPedidos(vista) {
+  vistaPedidos = vista === 'tabla' ? 'tabla' : 'tarjetas';
+  sessionStorage.setItem('pedidos.vista', vistaPedidos);
+  const tarjetas = vistaPedidos === 'tarjetas';
+  document.getElementById('tarjetasPedidos')?.classList.toggle('d-none', !tarjetas);
+  document.getElementById('vistaTablaPedidos')?.classList.toggle('d-none', tarjetas);
+  const btnTarjetas = document.getElementById('btnVistaTarjetasPedidos');
+  const btnTabla = document.getElementById('btnVistaTablaPedidos');
+  btnTarjetas?.classList.toggle('is-active', tarjetas);
+  btnTabla?.classList.toggle('is-active', !tarjetas);
+  btnTarjetas?.setAttribute('aria-pressed', String(tarjetas));
+  btnTabla?.setAttribute('aria-pressed', String(!tarjetas));
+}
+
+function pintarTarjetas(lista) {
+  const contenedor = document.getElementById('tarjetasPedidos');
+  if (!contenedor) return;
+  if (!lista.length) {
+    contenedor.innerHTML = '<div class="pedidos-card-empty">No hay pedidos para mostrar.</div>';
+    return;
+  }
+  contenedor.innerHTML = lista.map(p => {
+    const est = estado(p);
+    return `<article class="pedido-summary-card pedido-summary-${est.toLowerCase()}">
+      <div class="pedido-summary-top"><div class="pedido-summary-title"><div class="pedido-code">${esc(p.CODIGO_PEDIDO || '-')}</div><div class="pedido-muted">Alta ${esc(p.CODIGO_ALTA || '-')}</div></div><span class="badge ${claseEstado(est)}">${esc(est)}</span></div>
+      <div class="pedido-summary-provider"><strong>${esc(p.DETALLE_PROVEEDOR || '-')}</strong><span>${esc(p.CODIGO_PROVEEDOR || '')} · Orden ${esc(p.NUMERO_ORDEN || '-')}</span></div>
+      <div class="pedido-summary-meta"><div><span>Rubro</span><strong>${esc(p.DETALLE_RUBRO || p.CODIGO_RUBRO || '-')}</strong></div><div><span>Año / Temporada</span><strong>${esc(p.CODIGO_ANO || '-')} · ${esc(p.DETALLE_TEMPORADA || p.CODIGO_TEMPORADA || '-')}</strong></div><div><span>Productos</span><strong>${num(p.CANTIDAD_PRODUCTOS)}</strong></div><div class="pedido-summary-emphasis"><span>Pares</span><strong>${num(p.TOTAL_PARES)}</strong></div><div class="pedido-summary-emphasis"><span>Total</span><strong>${esc(p.MONEDA || 'USD')} ${dinero(p.TOTAL_PEDIDO)}</strong></div><div><span>Exportación</span>${badgeExportacion(p)}</div></div>
+      ${est === 'ANULADO' && p.MOTIVO_ANULACION ? `<div class="pedido-summary-cancel">${esc(p.MOTIVO_ANULACION)}</div>` : ''}
+      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)}</span><a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div>
+    </article>`;
+  }).join('');
 }
 
 function pintarTabla(lista) {

@@ -74,10 +74,15 @@
           <option value="GENERADO_OK_EN_ERP">GENERADO_OK_EN_ERP</option>
           <option value="SIN_NOVEDADES_ERP">SIN_NOVEDADES_ERP</option>
         </select>
+        <div class="seguimiento-view-switch" role="group" aria-label="Vista del seguimiento">
+          <button id="btnVistaTarjetasSeguimiento" class="seguimiento-view-option" type="button" aria-pressed="true">▦ Tarjetas</button>
+          <button id="btnVistaTablaSeguimiento" class="seguimiento-view-option" type="button" aria-pressed="false">☷ Tabla</button>
+        </div>
       </div>
   </div>
 
-  <div class="table-responsive">
+  <div id="tarjetasSeguimiento" class="seguimiento-card-grid" aria-live="polite"><div class="seguimiento-cards-loading">Cargando...</div></div>
+  <div id="vistaTablaSeguimiento" class="table-responsive d-none">
     <table class="table table-hover align-middle mb-0 seguimiento-table">
       <thead>
         <tr>
@@ -107,4 +112,4 @@
 
 </div>
 
-<script src="/js/seguimiento.js?v=3"></script>
+<script src="/js/seguimiento.js?v=4"></script>

@@ -106,7 +106,11 @@
         <div class="text-uppercase text-secondary fw-bold small">Actividad</div>
         <h2 class="h5 mb-0">Pedidos recientes</h2>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex flex-wrap gap-2">
+        <div class="dashboard-view-switch" role="group" aria-label="Vista de Pedidos recientes">
+          <button id="btnVistaTarjetasPedidosDashboard" class="dashboard-view-btn" type="button" aria-pressed="true">▦ Tarjetas</button>
+          <button id="btnVistaListaPedidosDashboard" class="dashboard-view-btn" type="button" aria-pressed="false">☷ Lista</button>
+        </div>
         <a href="/pedidos" class="btn btn-sm btn-outline-primary">Ver todos</a>
         <a href="/pedidos/nuevo" class="btn btn-sm btn-primary">Nuevo Pedido</a>
       </div>
@@ -114,6 +118,7 @@
     <div id="pedidosRecientes" class="p-3 dashboard-pedidos-recientes-grid">
       <div class="text-center py-5 text-secondary dashboard-pedidos-loading">Cargando pedidos...</div>
     </div>
+    <div id="pedidosRecientesLista" class="dashboard-pedidos-list d-none" aria-live="polite"></div>
   </div>
 </section>
 
@@ -126,10 +131,15 @@
       </div>
       <div class="d-flex flex-wrap align-items-center gap-2">
         <span id="ultimaActualizacion" class="text-secondary small"></span>
+        <div class="dashboard-view-switch" role="group" aria-label="Vista de Altas recientes">
+          <button id="btnVistaTarjetasDashboard" class="dashboard-view-btn" type="button" aria-pressed="true">▦ Tarjetas</button>
+          <button id="btnVistaListaDashboard" class="dashboard-view-btn" type="button" aria-pressed="false">☷ Lista</button>
+        </div>
         <a href="/altas" class="btn btn-sm btn-outline-primary">Ver todas las Altas</a>
       </div>
     </div>
-    <div class="table-responsive">
+    <div id="tarjetasAltasDashboard" class="dashboard-altas-grid" aria-live="polite"><div class="dashboard-altas-message">Cargando información...</div></div>
+    <div id="listaAltasDashboard" class="table-responsive d-none">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light"><tr><th>Alta</th><th>Marca</th><th>Rubro</th><th>Campaña</th><th>Licencia</th><th>Tipo</th><th>Estado</th><th class="text-center">ERP</th><th class="text-center">%</th><th>Archivo</th></tr></thead>
         <tbody id="tablaAltas"><tr><td colspan="10" class="text-center py-5 text-secondary">Cargando información...</td></tr></tbody>
@@ -141,21 +151,20 @@
 </div>
 
 <style>
-.dashboard-pedido-card{border:1px solid #e4eaf1;border-radius:14px;padding:14px 15px;background:#fff;transition:.15s ease}
+.dashboard-pedido-card{position:relative;overflow:hidden;min-width:0;padding:16px;border:1px solid #e0e6ec;border-radius:13px;background:#fff;box-shadow:0 2px 7px rgba(24,39,55,.045);transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.dashboard-pedido-card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#8c98a4}.dashboard-pedido-validado::before{background:#2e9a58}.dashboard-pedido-sincronizado::before{background:#377bc4}.dashboard-pedido-anulado::before{background:#cf4a4a}.dashboard-pedido-anulado{opacity:.8}
 .dashboard-pedido-card+.dashboard-pedido-card{margin-top:0}
-.dashboard-pedidos-recientes-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.dashboard-pedidos-recientes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,440px));gap:12px;justify-content:start}
 .dashboard-pedidos-loading{grid-column:1/-1}
-.dashboard-pedido-card:hover{border-color:#cbd8ea;box-shadow:0 5px 16px rgba(15,23,42,.055)}
-.dashboard-pedido-code{font-weight:800;font-size:.9rem;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dashboard-pedido-sub{color:#75849a;font-size:.82rem;margin-top:3px}
-.dashboard-pedido-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.dashboard-pedido-stat{background:#f8fafc;border-radius:10px;padding:8px 9px}
-.dashboard-pedido-stat span{display:block;color:#8290a3;font-size:.68rem;text-transform:uppercase;font-weight:700}
-.dashboard-pedido-stat strong{display:block;margin-top:2px;font-size:.84rem}
-.dashboard-pedido-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px}
-@media(max-width:1199.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:1fr}}
-@media(max-width:575.98px){.dashboard-pedido-stats{grid-template-columns:1fr 1fr}.dashboard-pedido-stat:last-child{grid-column:1/-1}}
+.dashboard-pedido-card:hover{transform:translateY(-2px);border-color:#ced9e4;box-shadow:0 7px 18px rgba(24,39,55,.09)}
+.dashboard-pedido-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.dashboard-pedido-title{min-width:0}.dashboard-pedido-title strong{display:block}.dashboard-pedido-title small{display:block;margin-top:2px;color:#8793a0;font-size:.7rem}.dashboard-pedido-code{font-weight:700;font-size:.78rem;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dashboard-pedido-provider{display:flex;flex-direction:column;gap:2px;margin:14px 0;padding-bottom:12px;border-bottom:1px solid #edf0f3}.dashboard-pedido-provider strong{color:#26313c;font-size:.96rem}.dashboard-pedido-provider span{color:#7c8996;font-size:.75rem}.dashboard-pedido-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}.dashboard-pedido-stat{min-width:0}.dashboard-pedido-stat>span:first-child{display:block;margin-bottom:4px;color:#8a96a2;font-size:.66rem;text-transform:uppercase;font-weight:750}.dashboard-pedido-stat strong{display:block;overflow:hidden;color:#465463;font-size:.8rem;text-overflow:ellipsis;white-space:nowrap}.dashboard-pedido-stat .badge{display:inline-block;margin-bottom:0}.dashboard-pedido-exports{display:block;margin-top:5px;color:#8793a0;font-size:.7rem}.dashboard-pedido-cancel{margin-top:12px;padding:8px 10px;border-radius:8px;background:#fff1f1;color:#9c3d3d;font-size:.72rem}.dashboard-pedido-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:15px;padding-top:12px;border-top:1px solid #edf0f3;color:#8793a0;font-size:.71rem}
+.dashboard-pedidos-list{background:#fff}.dashboard-pedido-list-row{display:grid;grid-template-columns:minmax(210px,1.5fr) minmax(160px,1fr) repeat(3,minmax(85px,.55fr)) auto;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid #edf0f3}.dashboard-pedido-list-row:first-child{border-top:0}.dashboard-pedido-list-row:hover{background:#fbfcfd}.dashboard-pedido-list-main{min-width:0}.dashboard-pedido-list-main strong,.dashboard-pedido-list-main span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dashboard-pedido-list-main strong{font-size:.79rem}.dashboard-pedido-list-main span{color:#7c8996;font-size:.7rem}.dashboard-pedido-list-cell span{display:block;color:#8a96a2;font-size:.62rem;font-weight:750;text-transform:uppercase}.dashboard-pedido-list-cell strong{font-size:.76rem}.dashboard-pedido-list-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.dashboard-pedidos-list-message{padding:40px 16px;color:#7b8794;text-align:center}
+.dashboard-view-switch{display:inline-flex;padding:3px;border:1px solid #dfe5eb;border-radius:9px;background:#f5f7f9}.dashboard-view-btn{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 9px;border:0;border-radius:7px;background:transparent;color:#697684;font-size:.7rem;font-weight:700}.dashboard-view-btn.is-active{background:#fff;color:#176bc9;box-shadow:0 1px 4px rgba(24,39,55,.12)}.dashboard-view-btn:focus-visible{outline:2px solid rgba(13,110,253,.42);outline-offset:2px}.dashboard-altas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;padding:16px;background:#f7f9fb}.dashboard-altas-message{grid-column:1/-1;padding:36px 12px;color:#7b8794;text-align:center}.dashboard-alta-card{position:relative;overflow:hidden;min-width:0;padding:14px;border:1px solid #e0e6ec;border-radius:12px;background:#fff;transition:.15s ease}.dashboard-alta-card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#8c98a4}.dashboard-alta-generado-ok-en-erp::before{background:#2e9a58}.dashboard-alta-parcial-erp::before{background:#d49a2e}.dashboard-alta-exportado::before{background:#377bc4}.dashboard-alta-error-erp::before{background:#cf4a4a}.dashboard-alta-card:hover{transform:translateY(-2px);border-color:#cbd8ea;box-shadow:0 6px 16px rgba(15,23,42,.07)}.dashboard-alta-top,.dashboard-alta-footer{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.dashboard-alta-title{min-width:0}.dashboard-alta-title strong{display:block;overflow:hidden;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}.dashboard-alta-title small{color:#8793a0}.dashboard-alta-brand{display:flex;flex-direction:column;margin:12px 0;padding-bottom:10px;border-bottom:1px solid #edf0f3}.dashboard-alta-brand strong{font-size:.88rem}.dashboard-alta-brand span{color:#7c8996;font-size:.72rem}.dashboard-alta-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}.dashboard-alta-meta>div>span:first-child{display:block;margin-bottom:3px;color:#8a96a2;font-size:.63rem;font-weight:750;text-transform:uppercase}.dashboard-alta-meta strong{color:#465463;font-size:.76rem}.dashboard-alta-progress{height:7px;margin-top:6px}.dashboard-alta-file{margin-top:10px;overflow:hidden;padding:7px 9px;border-radius:7px;background:#f5f7f9;color:#697684;font-size:.67rem;text-overflow:ellipsis;white-space:nowrap}.dashboard-alta-footer{align-items:center;margin-top:11px;color:#748190;font-size:.7rem}
+@media(max-width:1199.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:repeat(auto-fill,minmax(320px,440px))}}
+@media(max-width:767.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:991.98px){.dashboard-pedido-list-row{grid-template-columns:minmax(0,1fr) auto}.dashboard-pedido-list-cell{display:none}}
+@media(max-width:575.98px){.dashboard-pedido-stats{grid-template-columns:1fr 1fr}.dashboard-pedido-stat:last-child{grid-column:1/-1}.dashboard-view-switch{order:3;width:100%}.dashboard-view-btn{flex:1}.dashboard-altas-grid{grid-template-columns:minmax(0,1fr);padding:12px}}
+.dashboard-pedido-stat-emphasis strong{color:#263b52!important;font-size:1rem!important;font-weight:800!important;letter-spacing:-.015em}
 </style>
 
-<script src="/js/dashboard.js?v=3"></script>
+<script src="/js/dashboard.js?v=9"></script>

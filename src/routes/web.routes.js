@@ -242,7 +242,7 @@ router.get('/perfil', (req, res) => {
   res.render('perfil', {
     title: 'Mi perfil',
     pagina: 'perfil',
-    script: '/js/perfil-v2h.js'
+    script: '/js/perfil-v2h.js?v=2'
   });
 });
 
@@ -257,7 +257,7 @@ router.get(
     res.render('usuarios/index', {
       title: 'Usuarios y Permisos',
       pagina: 'usuarios',
-      script: '/js/usuarios-admin-v2f.js'
+      script: '/js/usuarios-admin-v2f.js?v=3'
     });
   }
 );

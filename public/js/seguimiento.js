@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', iniciarSeguimiento);
 
 let altasSeguimiento = [];
 let idEmpresaSeguimiento = null;
+let vistaSeguimiento = sessionStorage.getItem('seguimiento.vista') === 'tabla' ? 'tabla' : 'tarjetas';
 
 async function iniciarSeguimiento() {
   window.addEventListener(
@@ -15,6 +16,10 @@ async function iniciarSeguimiento() {
   document
     .getElementById('btnActualizarSeguimiento')
     .addEventListener('click', cargarTodo);
+
+  document.getElementById('btnVistaTarjetasSeguimiento')?.addEventListener('click', () => aplicarVistaSeguimiento('tarjetas'));
+  document.getElementById('btnVistaTablaSeguimiento')?.addEventListener('click', () => aplicarVistaSeguimiento('tabla'));
+  aplicarVistaSeguimiento(vistaSeguimiento);
 
   const filtroEstado =
     document.getElementById('filtroEstadoSeguimiento');
@@ -128,6 +133,9 @@ function pintarCargaSeguimiento() {
       </tr>
     `;
   }
+
+  const tarjetas = document.getElementById('tarjetasSeguimiento');
+  if (tarjetas) tarjetas.innerHTML = '<div class="seguimiento-cards-loading">Actualizando seguimiento</div>';
 }
 
 async function apiSeguimiento(url) {
@@ -208,7 +216,53 @@ function pintarAltasFiltradas() {
     `${filas.length} de ${altasSeguimiento.length}`
   );
 
+  pintarTarjetasSeguimiento(filas);
   pintarAltas(filas);
+}
+
+function aplicarVistaSeguimiento(vista) {
+  vistaSeguimiento = vista === 'tabla' ? 'tabla' : 'tarjetas';
+  sessionStorage.setItem('seguimiento.vista', vistaSeguimiento);
+  const tarjetas = vistaSeguimiento === 'tarjetas';
+  document.getElementById('tarjetasSeguimiento')?.classList.toggle('d-none', !tarjetas);
+  document.getElementById('vistaTablaSeguimiento')?.classList.toggle('d-none', tarjetas);
+  const btnTarjetas = document.getElementById('btnVistaTarjetasSeguimiento');
+  const btnTabla = document.getElementById('btnVistaTablaSeguimiento');
+  btnTarjetas?.classList.toggle('is-active', tarjetas);
+  btnTabla?.classList.toggle('is-active', !tarjetas);
+  btnTarjetas?.setAttribute('aria-pressed', String(tarjetas));
+  btnTabla?.setAttribute('aria-pressed', String(!tarjetas));
+}
+
+function resumenErpFila(fila) {
+  const seguimiento = fila.seguimientoErp ?? fila.SEGUIMIENTO_ERP ?? {};
+  const total = numero(seguimiento.total ?? seguimiento.TOTAL ?? fila.TOTAL_EXPORTADOS ?? fila.totalExportados ?? fila.CANTIDAD_EXPORTADOS ?? fila.cantidadExportados ?? fila.TOTAL ?? fila.total ?? 0);
+  const confirmados = numero(seguimiento.confirmados ?? seguimiento.CONFIRMADOS ?? fila.CONFIRMADOS ?? fila.confirmados ?? fila.CANTIDAD_CONFIRMADOS_ERP ?? fila.CANTIDAD_CONFIRMADOS ?? fila.cantidadConfirmados ?? 0);
+  let porcentaje = seguimiento.porcentajeConfirmado ?? seguimiento.PORCENTAJE_CONFIRMADO ?? fila.PORCENTAJE_CONFIRMADO ?? fila.porcentajeConfirmado ?? fila.PORCENTAJE ?? fila.porcentaje;
+  if (porcentaje === undefined || porcentaje === null) porcentaje = total > 0 ? (confirmados / total) * 100 : 0;
+  return { total, confirmados, porcentaje: Math.round(Math.max(0, Math.min(100, numero(porcentaje)))) };
+}
+
+function pintarTarjetasSeguimiento(filas) {
+  const contenedor = document.getElementById('tarjetasSeguimiento');
+  if (!contenedor) return;
+  if (!filas.length) {
+    contenedor.innerHTML = '<div class="seguimiento-card-empty">No hay altas para mostrar.</div>';
+    return;
+  }
+  contenedor.innerHTML = filas.map(fila => {
+    const id = fila.ID_ALTA ?? fila.idAlta;
+    const estado = String(fila.ESTADO ?? fila.estado ?? '-').toUpperCase();
+    const erp = resumenErpFila(fila);
+    return `<article class="seguimiento-summary-card seguimiento-summary-${estado.toLowerCase().replaceAll('_', '-')}">
+      <div class="seguimiento-summary-top"><div class="seguimiento-summary-title"><strong>${escapar(fila.CODIGO_ALTA ?? fila.codigoAlta ?? '-')}</strong><span>ID ${escapar(id ?? '-')}</span></div><span class="badge ${claseEstado(estado)}">${escapar(estado)}</span></div>
+      <div class="seguimiento-summary-brand"><strong>${escapar(fila.DETALLE_MARCA ?? fila.marca ?? '-')}</strong><span>${escapar(fila.DETALLE_RUBRO ?? fila.rubro ?? '-')}</span></div>
+      <div class="seguimiento-summary-meta"><div><span>Campaña</span>${formatearAnoTemporada(fila)}</div><div><span>Tipo</span><strong>${escapar(fila.TIPO_PRODUCTO ?? fila.tipoProducto ?? '-')}</strong></div><div><span>Licencia</span>${badgeLicencia(fila.LICENCIA_ALTA ?? fila.licenciaAlta)}</div><div><span>ERP</span><strong>${erp.confirmados} / ${erp.total}</strong></div></div>
+      <div class="seguimiento-summary-progress"><div><span>Avance ERP</span><strong>${erp.porcentaje}%</strong></div><div class="progress" role="progressbar" aria-valuenow="${erp.porcentaje}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:${erp.porcentaje}%"></div></div></div>
+      <div class="seguimiento-summary-file" title="${escapar(fila.ARCHIVO_EXPORTADO ?? fila.archivoExportado ?? '-')}">${escapar(fila.ARCHIVO_EXPORTADO ?? fila.archivoExportado ?? 'Sin archivo informado')}</div>
+      <div class="seguimiento-summary-footer"><span>Conciliación ERP</span><a href="/seguimiento/${encodeURIComponent(id)}" class="btn btn-sm btn-outline-primary">Ver detalle</a></div>
+    </article>`;
+  }).join('');
 }
 
 function pintarAltas(filas) {

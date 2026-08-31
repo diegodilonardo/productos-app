@@ -1,4 +1,8 @@
 let altasCargadas = [];
+let vistaAltas =
+  sessionStorage.getItem('altas.vista') === 'tabla'
+    ? 'tabla'
+    : 'tarjetas';
 
 document.addEventListener('DOMContentLoaded', iniciarPantallaAltas);
 
@@ -20,7 +24,16 @@ async function iniciarPantallaAltas() {
     .getElementById('filtroEstadoAlta')
     .addEventListener('change', pintarAltasFiltradas);
 
+  document
+    .getElementById('btnVistaTarjetasAltas')
+    .addEventListener('click', () => aplicarVistaAltas('tarjetas'));
+
+  document
+    .getElementById('btnVistaTablaAltas')
+    .addEventListener('click', () => aplicarVistaAltas('tabla'));
+
   mostrarMensajeGuardado();
+  aplicarVistaAltas(vistaAltas);
   await cargarAltas();
 }
 
@@ -235,7 +248,79 @@ function pintarAltasFiltradas() {
       return bolsa.includes(texto);
     });
 
+  pintarTarjetasAltas(filtradas);
   pintarTablaAltas(filtradas);
+}
+
+function aplicarVistaAltas(vista) {
+  vistaAltas = vista === 'tabla' ? 'tabla' : 'tarjetas';
+  sessionStorage.setItem('altas.vista', vistaAltas);
+
+  const mostrarTarjetas = vistaAltas === 'tarjetas';
+  document.getElementById('tarjetasAltas').classList.toggle('d-none', !mostrarTarjetas);
+  document.getElementById('vistaTablaAltas').classList.toggle('d-none', mostrarTarjetas);
+
+  const btnTarjetas = document.getElementById('btnVistaTarjetasAltas');
+  const btnTabla = document.getElementById('btnVistaTablaAltas');
+  btnTarjetas.classList.toggle('is-active', mostrarTarjetas);
+  btnTabla.classList.toggle('is-active', !mostrarTarjetas);
+  btnTarjetas.setAttribute('aria-pressed', String(mostrarTarjetas));
+  btnTabla.setAttribute('aria-pressed', String(!mostrarTarjetas));
+}
+
+function pintarTarjetasAltas(filas) {
+  const contenedor = document.getElementById('tarjetasAltas');
+
+  if (!filas.length) {
+    contenedor.innerHTML = `
+      <div class="altas-card-empty">
+        <div class="altas-empty-icon">ALT</div>
+        <strong>No hay altas para mostrar</strong>
+        <span>Probá cambiando la búsqueda o el filtro de estado.</span>
+        <a href="/altas/nueva" class="btn btn-sm btn-outline-primary mt-2">Crear nueva Alta</a>
+      </div>
+    `;
+    return;
+  }
+
+  contenedor.innerHTML = filas.map(alta => {
+    const id = alta.ID_ALTA ?? alta.idAlta;
+    const estado = String(alta.ESTADO || alta.estado || '-').toUpperCase();
+    const cantidad = alta.CANTIDAD_PRODUCTOS ?? alta.cantidadProductos ?? 0;
+    const temporada = alta.DETALLE_TEMPORADA ?? alta.CODIGO_TEMPORADA ?? '-';
+    const motivo = alta.MOTIVO_ANULACION ?? alta.motivoAnulacion ?? 'Sin motivo informado';
+
+    return `
+      <article class="alta-summary-card alta-summary-${estado.toLowerCase().replaceAll('_', '-')}">
+        <div class="alta-summary-top">
+          <div class="alta-summary-title">
+            <div class="altas-code">${escapar(alta.CODIGO_ALTA ?? '-')}</div>
+            <div class="altas-id">ID ${escapar(id ?? '-')}</div>
+          </div>
+          <span class="badge ${claseEstado(estado)}">${escapar(estado)}</span>
+        </div>
+
+        <div class="alta-summary-brand">
+          <strong>${escapar(alta.DETALLE_MARCA ?? '-')}</strong>
+          <span>${escapar(alta.DETALLE_RUBRO ?? '-')}</span>
+        </div>
+
+        <div class="alta-summary-meta">
+          <div><span>Tipo</span><strong>${escapar(alta.TIPO_PRODUCTO ?? '-')}</strong></div>
+          <div><span>Campaña</span><strong>${escapar(alta.CODIGO_ANO ?? '-')} · ${escapar(temporada)}</strong></div>
+          <div><span>Licencia</span>${badgeLicencia(normalizarLicenciaAlta(alta))}</div>
+          <div><span>Productos</span><strong class="alta-summary-count">${escapar(cantidad)}</strong></div>
+        </div>
+
+        ${estado === 'ANULADO' ? `<div class="alta-summary-cancel">${escapar(motivo)}</div>` : ''}
+
+        <div class="alta-summary-footer">
+          <span>Creada ${escapar(formatearFecha(alta.FECHA_CREACION))}</span>
+          <div>${botonAccion(id, estado)}</div>
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 function pintarTablaAltas(filas) {

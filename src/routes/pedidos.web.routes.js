@@ -20,7 +20,7 @@ router.get('/login', async (req, res) => {
   return res.render('auth/login-v2g', {
     title: 'Iniciar sesión',
     pagina: 'login',
-    style: '/css/login.css',
+    style: '/css/login.css?v=2',
     script: '/js/login.js',
     next: req.query.next || '/pedidos'
   });
@@ -43,7 +43,7 @@ router.get('/recuperar-password', async (req, res) => {
   return res.render('auth/recuperar-password', {
     title: 'Recuperar contraseña',
     pagina: 'login',
-    style: '/css/login.css',
+    style: '/css/login.css?v=2',
     script: '/js/recuperar-password.js'
   });
 });
@@ -53,7 +53,7 @@ router.get('/verificar-email', (req, res) => {
   return res.render('auth/verificar-email', {
     title: 'Verificar email',
     pagina: 'login',
-    style: '/css/login.css',
+    style: '/css/login.css?v=2',
     script: '/js/verificar-email-v2h.js',
     token: String(req.query.token || '')
   });
@@ -74,7 +74,7 @@ router.get('/restablecer-password', async (req, res) => {
   return res.render('auth/restablecer-password', {
     title: 'Restablecer contraseña',
     pagina: 'login',
-    style: '/css/login.css',
+    style: '/css/login.css?v=2',
     script: '/js/restablecer-password.js',
     token: String(req.query.token || '')
   });
@@ -119,8 +119,8 @@ router.get('/pedidos', (req, res) => {
   res.render('pedidos/index', {
     title: 'Pedidos',
     pagina: 'pedidos',
-    style: '/css/pedidos.css?v=2',
-    script: '/js/pedidos-index.js?v=3',
+    style: '/css/pedidos.css?v=5',
+    script: '/js/pedidos-index.js?v=6',
   });
 });
 

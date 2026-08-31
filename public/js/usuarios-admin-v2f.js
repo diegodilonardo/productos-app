@@ -17,6 +17,7 @@ let catalogosAdmin = {
   licencias: []
 };
 let secuenciaAcceso = 0;
+let vistaUsuarios = sessionStorage.getItem('usuarios.vista') === 'tarjetas' ? 'tarjetas' : 'tabla';
 
 
 async function iniciarUsuariosAdmin() {
@@ -27,6 +28,10 @@ async function iniciarUsuariosAdmin() {
   document
     .getElementById('btnNuevoUsuario')
     ?.addEventListener('click', pintarNuevoUsuario);
+
+  document.getElementById('btnVistaTablaUsuarios')?.addEventListener('click', () => aplicarVistaUsuarios('tabla'));
+  document.getElementById('btnVistaTarjetasUsuarios')?.addEventListener('click', () => aplicarVistaUsuarios('tarjetas'));
+  aplicarVistaUsuarios(vistaUsuarios);
 
   await Promise.all([
     cargarCatalogos(),
@@ -73,6 +78,8 @@ async function cargarUsuarios() {
     tabla.innerHTML =
       '<tr><td colspan="3" class="text-center py-5 text-secondary">Cargando...</td></tr>';
   }
+  const tarjetas = document.getElementById('tarjetasUsuarios');
+  if (tarjetas) tarjetas.innerHTML = '<div class="usuarios-card-message">Cargando...</div>';
 
   try {
     const response = await fetch('/api/usuarios', {
@@ -108,6 +115,7 @@ async function cargarUsuarios() {
       tabla.innerHTML =
         '<tr><td colspan="3" class="text-center py-5 text-danger">No se pudieron cargar los usuarios.</td></tr>';
     }
+    if (tarjetas) tarjetas.innerHTML = '<div class="usuarios-card-message text-danger">No se pudieron cargar los usuarios.</div>';
   }
 }
 
@@ -120,6 +128,7 @@ function pintarUsuarios() {
     cantidad.textContent = String(usuariosAdmin.length);
   }
 
+  pintarTarjetasUsuarios();
   if (!tabla) return;
 
   if (!usuariosAdmin.length) {
@@ -159,6 +168,42 @@ function pintarUsuarios() {
     fila.addEventListener('click', () => {
       cargarDetalleUsuario(Number(fila.dataset.idUsuario));
     });
+  });
+}
+
+function aplicarVistaUsuarios(vista) {
+  vistaUsuarios = vista === 'tarjetas' ? 'tarjetas' : 'tabla';
+  sessionStorage.setItem('usuarios.vista', vistaUsuarios);
+  const tarjetas = vistaUsuarios === 'tarjetas';
+  document.getElementById('tarjetasUsuarios')?.classList.toggle('d-none', !tarjetas);
+  document.getElementById('vistaTablaUsuarios')?.classList.toggle('d-none', tarjetas);
+  const btnTabla = document.getElementById('btnVistaTablaUsuarios');
+  const btnTarjetas = document.getElementById('btnVistaTarjetasUsuarios');
+  btnTabla?.classList.toggle('is-active', !tarjetas);
+  btnTarjetas?.classList.toggle('is-active', tarjetas);
+  btnTabla?.setAttribute('aria-pressed', String(!tarjetas));
+  btnTarjetas?.setAttribute('aria-pressed', String(tarjetas));
+}
+
+function pintarTarjetasUsuarios() {
+  const contenedor = document.getElementById('tarjetasUsuarios');
+  if (!contenedor) return;
+  if (!usuariosAdmin.length) {
+    contenedor.innerHTML = '<div class="usuarios-card-message">No hay usuarios registrados.</div>';
+    return;
+  }
+  contenedor.innerHTML = usuariosAdmin.map(usuario => {
+    const activo = Boolean(usuario.activo);
+    const superAdmin = Boolean(usuario.superAdmin);
+    const seleccionado = Number(usuario.idUsuario) === Number(usuarioSeleccionado);
+    return `<button type="button" class="usuario-summary-card${seleccionado ? ' is-selected' : ''}" data-card-id-usuario="${Number(usuario.idUsuario)}">
+      <span class="usuario-summary-avatar" aria-hidden="true">${textoSeguro(String(usuario.nombre || usuario.usuario || '?').trim().charAt(0).toUpperCase())}</span>
+      <span class="usuario-summary-body"><strong>${textoSeguro(usuario.nombre || usuario.usuario)}</strong><small>${textoSeguro(usuario.usuario)}</small><span class="usuario-summary-badges"><span class="badge ${activo ? 'text-bg-success' : 'text-bg-secondary'}">${activo ? 'ACTIVO' : 'INACTIVO'}</span>${superAdmin ? '<span class="badge text-bg-dark">SUPER_ADMIN</span>' : ''}</span></span>
+      <span class="usuario-summary-access"><strong>${Number(usuario.cantidadAccesos || 0)}</strong><small>accesos</small></span>
+    </button>`;
+  }).join('');
+  contenedor.querySelectorAll('[data-card-id-usuario]').forEach(tarjeta => {
+    tarjeta.addEventListener('click', () => cargarDetalleUsuario(Number(tarjeta.dataset.cardIdUsuario)));
   });
 }
 

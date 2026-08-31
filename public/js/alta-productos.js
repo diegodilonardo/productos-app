@@ -1708,6 +1708,8 @@ function filtrarTallesParSueltoPorRubro(
       'T_XL',
       'T_2X',
       'T_3X',
+      'T_2XL',
+      'T_3XL',
       'T_00'
     ]);
 
@@ -1719,7 +1721,9 @@ function filtrarTallesParSueltoPorRubro(
       'T_L',
       'T_XL',
       'T_2X',
-      'T_3X'
+      'T_3X',
+      'T_2XL',
+      'T_3XL'
     ]);
 
   const permitidosAccesorios =
@@ -1750,6 +1754,15 @@ function filtrarTallesParSueltoPorRubro(
           fila.codigoTalle
         );
 
+      const detalle =
+        String(
+          fila.DETALLE_TALLE ??
+          fila.detalleTalle ??
+          ''
+        )
+          .trim()
+          .replace(',', '.');
+
       if (!codigo) {
         return false;
       }
@@ -1758,8 +1771,9 @@ function filtrarTallesParSueltoPorRubro(
 
         case 'CALZADO':
           return (
-            codigo.includes('T_') &&
-            !excluidosCalzado.has(codigo)
+            !excluidosCalzado.has(codigo) &&
+            Number.isFinite(Number(detalle)) &&
+            Number(detalle) > 0
           );
 
         case 'INDUMENTARIA':

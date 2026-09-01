@@ -717,13 +717,23 @@ async function listarDetallePedido(idPedido, idEmpresa) {
     pedido.ID_EMPRESA
   );
 
-  return detalle.map(item => ({
-    ...item,
-    TALLE_CURVA:
-      normalizarTipoProducto(item.TIPO_PRODUCTO) === 'MODULO'
-        ? texto(item.DETALLE_MODULO)
-        : texto(item.DETALLE_TALLE),
-  }));
+  return detalle.map(item => {
+    const parametrosImagen = new URLSearchParams({
+      ano: texto(pedido.CODIGO_ANO),
+      temporada: texto(pedido.CODIGO_TEMPORADA),
+      modelo: texto(item.CODIGO_MODELO),
+      color: texto(item.CODIGO_COLOR),
+    });
+
+    return {
+      ...item,
+      TALLE_CURVA:
+        normalizarTipoProducto(item.TIPO_PRODUCTO) === 'MODULO'
+          ? texto(item.DETALLE_MODULO)
+          : texto(item.DETALLE_TALLE),
+      URL_IMAGEN: `/api/imagenes/archivo?${parametrosImagen.toString()}`,
+    };
+  });
 }
 
 /* ============================================================

@@ -13,6 +13,7 @@ tmp/
 .vscode/
 .DS_Store
 Thumbs.db
+public/img/marcas/WhatsApp Image*.jpeg
 
 # Scripts locales con credenciales iniciales / consultas de trabajo
 src/jobs/crearFabricio.js

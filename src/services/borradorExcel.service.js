@@ -36,6 +36,25 @@ function normalizarTipoProducto(valor) {
 }
 
 
+function esValorVerdadero(valor) {
+    return (
+        valor === true ||
+        valor === 1 ||
+        texto(valor).toUpperCase() === 'TRUE'
+    );
+}
+
+
+const ESTADOS_HABILITADOS_EXCEL_ALTA = [
+    'BORRADOR',
+    'VALIDADO',
+    'EXPORTADO',
+    'PARCIAL_ERP',
+    'GENERADO_OK_EN_ERP',
+    'SIN_NOVEDADES_ERP'
+];
+
+
 async function cargarImagenModulo(
     baseUrl,
     alta,
@@ -180,15 +199,16 @@ async function generarBorradorExcel(
     }
 
 
+    const estadoAlta =
+        texto(alta.ESTADO).toUpperCase();
+
+
     if (
-        texto(
-            alta.ESTADO
-        ).toUpperCase() !==
-        'BORRADOR'
+        !ESTADOS_HABILITADOS_EXCEL_ALTA.includes(estadoAlta)
     ) {
         throw new Error(
-            `El Excel BORRADOR solamente puede generarse ` +
-            `cuando el Alta está en estado BORRADOR.`
+            `El Excel del Alta solamente puede generarse ` +
+            `cuando está activo dentro del circuito de Alta.`
         );
     }
 
@@ -200,24 +220,27 @@ async function generarBorradorExcel(
             );
 
 
-    const modulos =
+    /*
+     * Exportamos una sola fila por producto cargado por el usuario.
+     * Los productos automáticos de la familia (primeras/segundas)
+     * quedan excluidos para no repetir la misma imagen e información.
+     * Esto contempla tanto MÓDULO como PAR SUELTO.
+     */
+    const productosPrincipales =
         (detallesTodos || [])
             .filter(
                 detalle =>
-                    normalizarTipoProducto(
-                        detalle
-                            .TIPO_PRODUCTO_DETALLE ||
-                        alta.TIPO_PRODUCTO
-                    ) ===
-                    'MODULO'
+                    !esValorVerdadero(
+                        detalle.GENERADO_AUTOMATICO
+                    )
             );
 
 
     if (
-        modulos.length === 0
+        productosPrincipales.length === 0
     ) {
         throw new Error(
-            'El Alta no contiene módulos para incluir en el BORRADOR.'
+            'El Alta no contiene productos para incluir en el Excel.'
         );
     }
 
@@ -270,7 +293,9 @@ async function generarBorradorExcel(
 
     const hoja =
         libro.addWorksheet(
-            'BORRADOR',
+        estadoAlta !== 'BORRADOR'
+            ? 'ALTA VALIDADA'
+            : 'BORRADOR',
             {
                 views: [
                     {
@@ -320,7 +345,7 @@ async function generarBorradorExcel(
 
 
     hoja.mergeCells(
-        'A1:J2'
+        'A1:T2'
     );
 
 
@@ -332,7 +357,9 @@ async function generarBorradorExcel(
 
     titulo.value =
         [
-            'BORRADOR',
+            estadoAlta !== 'BORRADOR'
+                ? 'ALTA VALIDADA'
+                : 'BORRADOR',
             codigoAlta,
             detalleAno,
             detalleTemporada,
@@ -415,7 +442,17 @@ async function generarBorradorExcel(
         'PARES',
         'DETALLE_EDAD',
         'DETALLE_CLASIFICACION',
-        'DETALLE_COLOR'
+        'DETALLE_COLOR',
+        'CODIGO_ALFA',
+        'CO_NEW',
+        'MUESTRA',
+        'COMENTARIO',
+        'CORRECCIONES',
+        'MATERIAL_CALZADO',
+        'MATERIAL_SUELA',
+        'TIPO_AJUSTE',
+        'DESCRIPCION',
+        'FLOW'
     ];
 
 
@@ -590,13 +627,53 @@ async function generarBorradorExcel(
 
             width:
                 24
+        },
+        {
+            key: 'codigoAlfa',
+            width: 28
+        },
+        {
+            key: 'coNew',
+            width: 18
+        },
+        {
+            key: 'muestra',
+            width: 18
+        },
+        {
+            key: 'comentario',
+            width: 32
+        },
+        {
+            key: 'correcciones',
+            width: 32
+        },
+        {
+            key: 'materialCalzado',
+            width: 24
+        },
+        {
+            key: 'materialSuela',
+            width: 24
+        },
+        {
+            key: 'tipoAjuste',
+            width: 22
+        },
+        {
+            key: 'descripcion',
+            width: 42
+        },
+        {
+            key: 'flow',
+            width: 20
         }
     ];
 
 
     for (
         const detalle
-        of modulos
+        of productosPrincipales
     ) {
 
         const fila =
@@ -609,7 +686,10 @@ async function generarBorradorExcel(
                     detalle.DETALLE_MODELO
                 ),
                 texto(
-                    detalle.DETALLE_MODULO
+                    detalle.DETALLE_MODULO ||
+                    detalle.DETALLE_TALLE ||
+                    detalle.CODIGO_MODULO ||
+                    detalle.CODIGO_TALLE
                 ),
                 Number(
                     detalle.PARES || 0
@@ -622,7 +702,17 @@ async function generarBorradorExcel(
                 ),
                 texto(
                     detalle.DETALLE_COLOR
-                )
+                ),
+                texto(detalle.CODIGO_ALFA),
+                texto(detalle.CO_NEW),
+                texto(detalle.MUESTRA),
+                texto(detalle.COMENTARIO),
+                texto(detalle.CORRECCIONES),
+                texto(detalle.MATERIAL_CALZADO),
+                texto(detalle.MATERIAL_SUELA),
+                texto(detalle.TIPO_AJUSTE),
+                texto(detalle.DESCRIPCION),
+                texto(detalle.FLOW)
             ]);
 
 
@@ -778,7 +868,7 @@ async function generarBorradorExcel(
                 3,
 
             column:
-                10
+                20
         }
     };
 
@@ -806,12 +896,21 @@ async function generarBorradorExcel(
             ),
 
         nombreArchivo:
-            `BORRADOR_${limpiarNombreArchivo(
+            `${estadoAlta !== 'BORRADOR' ? 'ALTA_VALIDADA' : 'BORRADOR'}_${limpiarNombreArchivo(
                 codigoAlta
             )}.xlsx`,
 
+        cantidadProductos:
+            productosPrincipales.length,
+
         cantidadModulos:
-            modulos.length,
+            productosPrincipales.filter(
+                detalle =>
+                    normalizarTipoProducto(
+                        detalle.TIPO_PRODUCTO_DETALLE ||
+                        alta.TIPO_PRODUCTO
+                    ) === 'MODULO'
+            ).length,
 
         titulo:
             titulo.value

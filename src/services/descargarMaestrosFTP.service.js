@@ -117,10 +117,24 @@ function obtenerCarpetaLocal(
    DESCARGAR MAESTROS DE TODAS LAS EMPRESAS ACTIVAS
    ============================================================= */
 
-async function descargarMaestrosDeEmpresas() {
+async function descargarMaestrosDeEmpresas(codigoEmpresa = null) {
+
+    const empresasActivas =
+        await obtenerEmpresasParaImportar();
+
+    const codigoEmpresaNormalizado =
+        codigoEmpresa == null
+            ? ''
+            : String(codigoEmpresa).trim();
 
     const empresas =
-        await obtenerEmpresasParaImportar();
+        codigoEmpresaNormalizado
+            ? empresasActivas.filter(
+                empresa =>
+                    String(empresa.CODIGO_EMPRESA).trim() ===
+                    codigoEmpresaNormalizado
+            )
+            : empresasActivas;
 
     if (
         !empresas ||
@@ -128,7 +142,10 @@ async function descargarMaestrosDeEmpresas() {
     ) {
 
         throw new Error(
-            'No existen empresas activas con configuración FTP de maestros.'
+            codigoEmpresaNormalizado
+                ? `No existe una empresa activa con configuración FTP ` +
+                  `para el código ${codigoEmpresaNormalizado}.`
+                : 'No existen empresas activas con configuración FTP de maestros.'
         );
     }
 

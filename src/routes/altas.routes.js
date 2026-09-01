@@ -289,8 +289,8 @@ router.post('/:id/exportar', requerirAccesoAlta, requerirEscrituraEmpresa, async
 
 
 /* ============================================================
-   EXCEL BORRADOR DE MODULOS
-   SOLO ESTADO BORRADOR
+   EXCEL DEL ALTA DE MODULOS
+   DISPONIBLE DURANTE EL CIRCUITO ACTIVO DEL ALTA
    ============================================================ */
 
 router.get('/:id/borrador-excel', requerirAccesoAlta, async (req, res) => {

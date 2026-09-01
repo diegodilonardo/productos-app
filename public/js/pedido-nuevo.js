@@ -24,7 +24,21 @@ async function iniciarNuevoPedido() {
 }
 
 async function api(url, opciones) {
-  const response = await fetch(url, opciones);
+  const configuracion = {
+    ...(opciones || {})
+  };
+
+  if (
+    idEmpresaPedido &&
+    url !== '/api/auth/me'
+  ) {
+    configuracion.headers = {
+      ...(configuracion.headers || {}),
+      'x-id-empresa': String(idEmpresaPedido)
+    };
+  }
+
+  const response = await fetch(url, configuracion);
 
   let data = null;
   try {
@@ -55,7 +69,10 @@ async function cargarContextoPedido() {
   }
 
   const select = document.getElementById('selectorEmpresaPedido');
-  const guardada = Number(sessionStorage.getItem('pedidos.idEmpresa'));
+  const guardada = Number(
+    sessionStorage.getItem('app.idEmpresa') ||
+    sessionStorage.getItem('pedidos.idEmpresa')
+  );
   const guardadaValida = empresas.some(x => Number(x.idEmpresa) === guardada);
 
   if (empresas.length === 1) {
@@ -88,6 +105,7 @@ async function cargarContextoPedido() {
     empresas.find(x => Number(x.idEmpresa) === Number(idEmpresaPedido)) || null;
 
   sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
+  sessionStorage.setItem('app.idEmpresa', String(idEmpresaPedido));
   actualizarPermisosVisuales();
 
   if (!puedeEscribirPedido()) {
@@ -120,6 +138,7 @@ async function cambiarEmpresaPedido() {
     ) || null;
 
   sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
+  sessionStorage.setItem('app.idEmpresa', String(idEmpresaPedido));
   actualizarPermisosVisuales();
 
   if (!puedeEscribirPedido()) {

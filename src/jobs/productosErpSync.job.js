@@ -3,7 +3,18 @@ const { sincronizarProductosErp } = require('../services/productosErpSync.servic
 
 let ejecutando = false;
 
-async function ejecutarProductosErpSync() {
+function obtenerCodigoEmpresa(argumentos = process.argv.slice(2)) {
+  const prefijo = '--empresa=';
+  const argumento = argumentos.find(item => String(item).startsWith(prefijo));
+
+  if (!argumento) return null;
+
+  const codigo = String(argumento).slice(prefijo.length).trim();
+  if (!codigo) throw new Error('Debe informar un código en --empresa=.');
+  return codigo;
+}
+
+async function ejecutarProductosErpSync(codigoEmpresa = null) {
   if (ejecutando) {
     console.log('[PRODUCTOS ERP] Sincronizacion omitida: ya hay una ejecucion en curso.');
     return null;
@@ -13,7 +24,7 @@ async function ejecutarProductosErpSync() {
   const inicio = Date.now();
 
   try {
-    const resultado = await sincronizarProductosErp();
+    const resultado = await sincronizarProductosErp(codigoEmpresa);
     console.log('[PRODUCTOS ERP] OK', {
       registros: resultado.registrosLeidos,
       insertados: resultado.insertados,
@@ -32,7 +43,16 @@ async function ejecutarProductosErpSync() {
 }
 
 if (require.main === module) {
-  ejecutarProductosErpSync()
+  let codigoEmpresa;
+
+  try {
+    codigoEmpresa = obtenerCodigoEmpresa();
+  } catch (error) {
+    console.error('[PRODUCTOS ERP] ERROR:', error.message);
+    process.exit(1);
+  }
+
+  ejecutarProductosErpSync(codigoEmpresa)
     .then((resultado) => {
       if (resultado) console.log(JSON.stringify(resultado, null, 2));
       process.exit(0);
@@ -40,4 +60,4 @@ if (require.main === module) {
     .catch(() => process.exit(1));
 }
 
-module.exports = { ejecutarProductosErpSync };
+module.exports = { ejecutarProductosErpSync, obtenerCodigoEmpresa };

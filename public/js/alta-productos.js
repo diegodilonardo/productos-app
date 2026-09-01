@@ -8,6 +8,7 @@ let timerBusquedaModelo = null;
 let secuenciaBusquedaModelo = 0;
 let modulos = [];
 let modulosFiltrados = [];
+let codigosModulosSeleccionados = [];
 let clasificacionesMaestro = [];
 
 document.addEventListener('DOMContentLoaded', iniciar);
@@ -69,8 +70,47 @@ async function cargarUsuarioAutenticado() {
   input.readOnly = true;
 }
 
+function obtenerIdEmpresaContextoAlta() {
+  const idDesdeAlta = Number(
+    altaActual?.ID_EMPRESA ??
+    altaActual?.idEmpresa ??
+    0
+  );
+
+  if (Number.isInteger(idDesdeAlta) && idDesdeAlta > 0) {
+    return idDesdeAlta;
+  }
+
+  const idGuardado = Number(
+    sessionStorage.getItem('app.idEmpresa') ||
+    sessionStorage.getItem('pedidos.idEmpresa') ||
+    0
+  );
+
+  return Number.isInteger(idGuardado) && idGuardado > 0
+    ? idGuardado
+    : null;
+}
+
+function opcionesConEmpresa(opciones = {}) {
+  const idEmpresa = obtenerIdEmpresaContextoAlta();
+  const headers = new Headers(opciones.headers || {});
+
+  if (idEmpresa) {
+    headers.set('x-id-empresa', String(idEmpresa));
+  }
+
+  return {
+    ...opciones,
+    headers
+  };
+}
+
 async function apiJson(url, opciones = {}) {
-  const response = await fetch(url, opciones);
+  const response = await fetch(
+    url,
+    opcionesConEmpresa(opciones)
+  );
   let data = null;
   try { data = await response.json(); } catch {}
   if (!response.ok) throw new Error(data?.mensaje || `Error HTTP ${response.status} en ${url}`);
@@ -218,8 +258,6 @@ async function cargarMaestros() {
       `/api/maestros/licencias-modelos?marca=${detalleMarca}&rubro=${detalleRubro}`
     ]),
     obtenerListado([
-      `/api/maestros/proveedores?marca=${marca}&rubro=${detalleRubro}`,
-      `/api/maestros/proveedores?marca=${marca}&rubro=${rubro}`,
       `/api/maestros/proveedores?marca=${marca}`
     ]),
     obtenerListado(['/api/maestros/grupos']),
@@ -811,7 +849,8 @@ async function buscarModelosEnServidor(texto) {
 
   try {
     const respuesta = await fetch(
-      `/api/maestros/modelos?${params.toString()}`
+      `/api/maestros/modelos?${params.toString()}`,
+      opcionesConEmpresa()
     );
 
     const data = await respuesta.json();
@@ -1498,6 +1537,21 @@ function pintarModulos(lista) {
     boton.type = 'button';
     boton.className = 'alta-module-item';
 
+    const seleccionado =
+      codigosModulosSeleccionados.includes(
+        modulo.codigo
+      );
+
+    boton.classList.toggle(
+      'is-selected',
+      seleccionado
+    );
+
+    boton.setAttribute(
+      'aria-pressed',
+      seleccionado ? 'true' : 'false'
+    );
+
     boton.innerHTML = `
       <div class="alta-module-code">
         ${resaltarCoincidencia(modulo.codigo, busqueda)}
@@ -1557,93 +1611,109 @@ function seleccionarModulo(fila) {
   const modulo =
     obtenerDatosModulo(fila);
 
-  const hidden =
-    document.getElementById('codigoModulo');
+  if (!modulo.codigo) return;
 
-  const buscador =
-    document.getElementById('buscarModulo');
+  if (
+    codigosModulosSeleccionados.includes(
+      modulo.codigo
+    )
+  ) {
+    codigosModulosSeleccionados =
+      codigosModulosSeleccionados.filter(
+        codigo => codigo !== modulo.codigo
+      );
+  } else {
+    codigosModulosSeleccionados.push(
+      modulo.codigo
+    );
+  }
 
-  const lista =
-    document.getElementById('listaModulos');
+  renderizarModulosSeleccionados();
+  pintarModulos(modulosFiltrados);
+}
 
-  const seleccionado =
-    document.getElementById('moduloSeleccionado');
+
+function renderizarModulosSeleccionados() {
+  const hidden = document.getElementById('codigoModulo');
+  const panel = document.getElementById('moduloSeleccionado');
+  const cantidad = codigosModulosSeleccionados.length;
 
   if (hidden) {
-    hidden.value =
-      modulo.codigo;
+    hidden.value = codigosModulosSeleccionados.join(',');
   }
 
-  if (buscador) {
-    buscador.value = '';
-    buscador.classList.add('d-none');
+  panel?.classList.toggle('d-none', cantidad === 0);
+
+  const codigo = document.getElementById('moduloSeleccionadoCodigo');
+  if (codigo) {
+    codigo.textContent = `${cantidad} curva${cantidad === 1 ? '' : 's'}`;
   }
 
-  lista?.classList.add('d-none');
-  seleccionado?.classList.remove('d-none');
+  const chips = document.getElementById('modulosSeleccionadosChips');
+  if (chips) {
+    chips.innerHTML = '';
 
-  document.getElementById(
-    'moduloSeleccionadoCodigo'
-  ).textContent =
-    modulo.codigo;
+    for (const codigoModulo of codigosModulosSeleccionados) {
+      const fila = modulos.find(
+        item => obtenerDatosModulo(item).codigo === codigoModulo
+      );
+      const modulo = obtenerDatosModulo(fila || {});
+      const textoModulo = [
+        codigoModulo,
+        modulo.rango || modulo.detalle
+      ].filter(Boolean).join(' - ');
 
-  document.getElementById(
-    'moduloSeleccionadoRango'
-  ).textContent =
-    modulo.rango ||
-    modulo.detalle ||
-    'Curva';
+      const chip = document.createElement('span');
+      chip.className =
+        'badge rounded-pill text-bg-primary d-inline-flex align-items-center gap-2 px-3 py-2';
 
-  const pares =
-    document.getElementById(
-      'moduloSeleccionadoPares'
-    );
+      const textoChip = document.createElement('span');
+      textoChip.textContent = textoModulo;
 
-  if (pares) {
-    pares.textContent =
-      modulo.pares
-        ? `${modulo.pares} PARES`
+      const quitar = document.createElement('button');
+      quitar.type = 'button';
+      quitar.className =
+        'btn btn-link text-white p-0 border-0 text-decoration-none lh-1';
+      quitar.setAttribute(
+        'aria-label',
+        `Quitar curva ${textoModulo}`
+      );
+      quitar.textContent = '×';
+      quitar.addEventListener('click', () => {
+        codigosModulosSeleccionados =
+          codigosModulosSeleccionados.filter(
+            codigo => codigo !== codigoModulo
+          );
+        renderizarModulosSeleccionados();
+        pintarModulos(modulosFiltrados);
+      });
+
+      chip.append(textoChip, quitar);
+      chips.appendChild(chip);
+    }
+  }
+
+  const detalle = document.getElementById('moduloSeleccionadoComposicion');
+  if (detalle) {
+    detalle.textContent =
+      cantidad > 0
+        ? 'Se generará una familia por cada combinación de color y curva.'
         : '';
-    pares.classList.toggle(
-      'd-none',
-      !modulo.pares
-    );
   }
-
-  document.getElementById(
-    'moduloSeleccionadoComposicion'
-  ).textContent =
-    modulo.composicion ||
-    modulo.descripcion ||
-    modulo.detalle ||
-    '';
 }
 
 
 function limpiarModuloSeleccionado() {
-  const hidden =
-    document.getElementById('codigoModulo');
-
   const buscador =
     document.getElementById('buscarModulo');
 
-  const lista =
-    document.getElementById('listaModulos');
-
-  const seleccionado =
-    document.getElementById('moduloSeleccionado');
-
-  if (hidden) {
-    hidden.value = '';
-  }
+  codigosModulosSeleccionados = [];
 
   if (buscador) {
     buscador.value = '';
-    buscador.classList.remove('d-none');
   }
 
-  seleccionado?.classList.add('d-none');
-  lista?.classList.remove('d-none');
+  renderizarModulosSeleccionados();
 
   modulosFiltrados =
     modulos.slice();
@@ -2588,14 +2658,23 @@ async function agregarProducto(event) {
     sexo: valor('codigoSexo'),
     codigoPais: valor('codigoPais'),
     codigosColor,
+    coNew: valor('coNew'),
+    muestra: valor('muestra'),
+    comentario: valor('comentario'),
+    correcciones: valor('correcciones'),
+    materialCalzado: valor('materialCalzado'),
+    materialSuela: valor('materialSuela'),
+    tipoAjuste: valor('tipoAjuste'),
+    descripcion: valor('descripcion'),
+    flow: valor('flow'),
     usuario: valor('usuarioProducto').toUpperCase()
   };
 
   if (normalizarTipo(altaActual.TIPO_PRODUCTO) === 'MODULO') {
 
-    if (!valor('codigoModulo')) {
+    if (!codigosModulosSeleccionados.length) {
       mostrarAlerta(
-        'Debe seleccionar una curva / módulo.',
+        'Debe seleccionar al menos una curva / módulo.',
         'warning'
       );
 
@@ -2632,11 +2711,18 @@ async function agregarProducto(event) {
     }
 
     payload.codigoClasificacion = valor('codigoClasificacion');
-    payload.codigoModulo = valor('codigoModulo');
 
   } else {
     payload.codigoTalle = valor('codigoTalle');
   }
+
+  const cuerpoSolicitud =
+    normalizarTipo(altaActual.TIPO_PRODUCTO) === 'MODULO'
+      ? {
+          ...payload,
+          codigosModulo: codigosModulosSeleccionados
+      }
+      : payload;
 
   const btn = document.getElementById('btnAgregarProducto');
 
@@ -2647,7 +2733,7 @@ async function agregarProducto(event) {
     const resultado = extraerDatos(await apiJson(`/api/altas/${ID_ALTA}/detalle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(cuerpoSolicitud)
     }));
 
     const cantidad =
@@ -2965,19 +3051,6 @@ function htmlImagenFamilia(
                 >
               </label>
 
-              <button
-                type="button"
-                id="guardarFotoFila_${id}"
-                class="btn btn-sm btn-success alta-family-image-button d-none"
-                data-accion="guardar-imagen-familia"
-                data-id-detalle="${escapar(
-                  fila.ID_DETALLE ??
-                  fila.idDetalle ??
-                  ''
-                )}"
-              >
-                Guardar
-              </button>
             </div>
           `
           : `
@@ -3116,7 +3189,7 @@ async function cargarEstadoImagenFila(
 }
 
 
-function manejarCambioImagenDetalle(
+async function manejarCambioImagenDetalle(
   event
 ) {
   const input =
@@ -3141,16 +3214,7 @@ function manejarCambioImagenDetalle(
       fila
     );
 
-  const botonGuardar =
-    document.getElementById(
-      `guardarFotoFila_${id}`
-    );
-
   if (!archivo) {
-    botonGuardar?.classList.add(
-      'd-none'
-    );
-
     cargarEstadoImagenFila(
       fila
     );
@@ -3245,8 +3309,8 @@ function manejarCambioImagenDetalle(
       extension;
   }
 
-  botonGuardar?.classList.remove(
-    'd-none'
+  await guardarImagenFamilia(
+    input
   );
 }
 
@@ -3297,7 +3361,7 @@ async function archivoABase64Familia(
 
 
 async function guardarImagenFamilia(
-  boton
+  input
 ) {
   if (
     !puedeModificarImagenes()
@@ -3311,7 +3375,7 @@ async function guardarImagenFamilia(
 
   const fila =
     buscarFilaDetallePorId(
-      boton.dataset.idDetalle
+      input.dataset.idDetalle
     );
 
   if (!fila) {
@@ -3325,17 +3389,6 @@ async function guardarImagenFamilia(
   const id =
     idImagenFamilia(
       fila
-    );
-
-  const input =
-    document.querySelector(
-      `[data-accion="seleccionar-imagen-familia"][data-id-detalle="${CSS.escape(
-        String(
-          fila.ID_DETALLE ??
-          fila.idDetalle ??
-          ''
-        )
-      )}"]`
     );
 
   const archivo =
@@ -3355,11 +3408,13 @@ async function guardarImagenFamilia(
     );
 
   try {
-    boton.disabled =
+    input.disabled =
       true;
 
-    boton.textContent =
-      'Guardando...';
+    if (estado) {
+      estado.textContent = 'Guardando imagen...';
+      estado.className = 'alta-family-image-status text-primary';
+    }
 
     const contenidoBase64 =
       await archivoABase64Familia(
@@ -3390,10 +3445,6 @@ async function guardarImagenFamilia(
 
     input.value = '';
 
-    boton.classList.add(
-      'd-none'
-    );
-
     await cargarEstadoImagenFila(
       fila
     );
@@ -3418,11 +3469,8 @@ async function guardarImagenFamilia(
     );
 
   } finally {
-    boton.disabled =
+    input.disabled =
       false;
-
-    boton.textContent =
-      'Guardar';
   }
 }
 
@@ -4153,18 +4201,6 @@ async function manejarAccionesDetalle(event) {
     return;
   }
 
-  const botonImagen =
-    event.target.closest(
-      '[data-accion="guardar-imagen-familia"]'
-    );
-
-  if (botonImagen) {
-    await guardarImagenFamilia(
-      botonImagen
-    );
-    return;
-  }
-
   const boton = event.target.closest(
     '[data-accion="eliminar-detalle"]'
   );
@@ -4429,6 +4465,7 @@ function actualizarControlesEstado() {
   const mensajeEstado = document.getElementById('mensajeEstadoAlta');
   const archivo = document.getElementById('archivoExportadoAlta');
   const panelCargaProductos = document.getElementById('panelCargaProductos');
+  const panelInformacionAdicional = document.getElementById('panelInformacionAdicional');
   const panelMotivoAnulacion = document.getElementById('panelMotivoAnulacion');
   const motivoAnulacionAlta = document.getElementById('motivoAnulacionAlta');
 
@@ -4453,6 +4490,15 @@ function actualizarControlesEstado() {
       'd-none',
       !esBorrador
     );
+  }
+
+  if (panelInformacionAdicional) {
+    panelInformacionAdicional.classList.toggle('d-none', !esBorrador);
+    panelInformacionAdicional
+      .querySelectorAll('input, textarea')
+      .forEach(control => {
+        control.disabled = !esBorrador;
+      });
   }
 
   if (panelMotivoAnulacion) {
@@ -4489,28 +4535,39 @@ function actualizarControlesEstado() {
   }
 
   if (btnBorradorExcel) {
-    const tieneModulos =
+    const tieneProductosPrincipales =
       detalleActual().some(
         item =>
-          String(
-            item?.TIPO_PRODUCTO_DETALLE ??
-            altaActual?.TIPO_PRODUCTO ??
-            ''
+          !esValorVerdadero(
+            item?.GENERADO_AUTOMATICO
           )
-            .trim()
-            .toUpperCase()
-            .replace(/[\s-]+/g, '_') === 'MODULO'
       );
 
+    const puedeDescargarExcel =
+      [
+        'BORRADOR',
+        'VALIDADO',
+        'EXPORTADO',
+        'PARCIAL_ERP',
+        'GENERADO_OK_EN_ERP',
+        'SIN_NOVEDADES_ERP'
+      ].includes(estado) &&
+      tieneProductosPrincipales;
+
     btnBorradorExcel.disabled =
-      !esBorrador ||
-      !tieneModulos;
+      !puedeDescargarExcel;
 
     btnBorradorExcel.classList.toggle(
       'd-none',
-      !esBorrador ||
-      !tieneModulos
+      !puedeDescargarExcel
     );
+
+    if (!btnBorradorExcel.disabled || btnBorradorExcel.textContent !== 'Generando Excel...') {
+      btnBorradorExcel.textContent =
+        esBorrador
+          ? 'Exportar Excel con imágenes'
+          : 'Descargar Excel del Alta';
+    }
   }
 
   if (btnValidar) {
@@ -4826,11 +4883,17 @@ async function validarAlta() {
 async function exportarBorradorExcel() {
 
   if (
-    estadoAlta() !==
-    'BORRADOR'
+    ![
+      'BORRADOR',
+      'VALIDADO',
+      'EXPORTADO',
+      'PARCIAL_ERP',
+      'GENERADO_OK_EN_ERP',
+      'SIN_NOVEDADES_ERP'
+    ].includes(estadoAlta())
   ) {
     mostrarAlerta(
-      'El Excel BORRADOR solamente está disponible mientras el Alta está en BORRADOR.',
+      'El Excel no está disponible para el estado actual del Alta.',
       'warning'
     );
 
@@ -4851,7 +4914,7 @@ async function exportarBorradorExcel() {
         true;
 
       btn.textContent =
-        'Generando BORRADOR...';
+        'Generando Excel...';
     }
 
 
@@ -4875,7 +4938,7 @@ async function exportarBorradorExcel() {
     ) {
 
       let mensaje =
-        `No se pudo generar el BORRADOR (${respuesta.status}).`;
+        `No se pudo generar el Excel del Alta (${respuesta.status}).`;
 
 
       try {
@@ -4905,7 +4968,7 @@ async function exportarBorradorExcel() {
 
 
     let nombreArchivo =
-      `BORRADOR_ALTA_${ID_ALTA}.xlsx`;
+      `ALTA_${ID_ALTA}.xlsx`;
 
 
     const disposicion =
@@ -4989,7 +5052,7 @@ async function exportarBorradorExcel() {
 
 
     mostrarAlerta(
-      `BORRADOR generado: ${nombreArchivo}`,
+      `Excel generado: ${nombreArchivo}`,
       'success'
     );
 
@@ -5005,9 +5068,6 @@ async function exportarBorradorExcel() {
     if (btn) {
       btn.disabled =
         false;
-
-      btn.textContent =
-        'Descargar BORRADOR Excel';
     }
 
 

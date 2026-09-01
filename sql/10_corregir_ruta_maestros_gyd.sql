@@ -1,0 +1,52 @@
+/* ============================================================
+   CORREGIR RUTA FTP DE MAESTROS - INDUSTRIAS GYD
+
+   Corrige únicamente EMPRESAS_CONFIG de la empresa 70000.
+   Es transaccional e idempotente.
+   ============================================================ */
+
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    DECLARE @ID_EMPRESA INT;
+
+    SELECT @ID_EMPRESA = ID_EMPRESA
+    FROM dbo.EMPRESAS WITH (UPDLOCK, HOLDLOCK)
+    WHERE CODIGO_EMPRESA = '70000'
+      AND UPPER(LTRIM(RTRIM(RAZON_SOCIAL))) = 'INDUSTRIAS GYD';
+
+    IF @ID_EMPRESA IS NULL
+        THROW 51040, 'No se encontró Industrias GYD con código 70000.', 1;
+
+    UPDATE dbo.EMPRESAS_CONFIG
+    SET
+        FTP_RUTA_MAESTROS = '/PRODUCTOS/MAESTROS_GYD',
+        FTP_ARCHIVO_PRODUCTOS = 'TBL_MAESTRO_PRODS_GYD.TXT',
+        ACTIVA = 1,
+        FECHA_ACTUALIZACION = SYSDATETIME()
+    WHERE ID_EMPRESA = @ID_EMPRESA;
+
+    IF @@ROWCOUNT <> 1
+        THROW 51041, 'No se encontró una única configuración de maestros para GYD.', 1;
+
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
+
+SELECT
+    E.ID_EMPRESA,
+    E.CODIGO_EMPRESA,
+    E.RAZON_SOCIAL,
+    C.FTP_RUTA_MAESTROS,
+    C.FTP_ARCHIVO_PRODUCTOS,
+    C.ACTIVA
+FROM dbo.EMPRESAS E
+INNER JOIN dbo.EMPRESAS_CONFIG C
+    ON C.ID_EMPRESA = E.ID_EMPRESA
+WHERE E.CODIGO_EMPRESA = '70000';

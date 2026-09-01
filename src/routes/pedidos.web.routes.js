@@ -129,7 +129,7 @@ router.get('/pedidos/nuevo', (req, res) => {
     title: 'Nuevo Pedido',
     pagina: 'pedidos',
     style: '/css/pedidos.css?v=3',
-    script: '/js/pedido-nuevo.js',
+    script: '/js/pedido-nuevo.js?v=2',
     idAltaPreseleccionada: req.query.alta || '',
   });
 });

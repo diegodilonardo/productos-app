@@ -7,8 +7,8 @@ const config = {
     database: process.env.DB_DATABASE,
 
     options: {
-        encrypt: false,
-        trustServerCertificate: true
+        encrypt: process.env.DB_ENCRYPT === 'true',
+        trustServerCertificate: process.env.DB_TRUST_CERT === 'true'
     },
 
     pool: {

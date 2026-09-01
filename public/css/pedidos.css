@@ -19,6 +19,32 @@
 
 @media(max-width:767.98px){.pedido-detail-summary .pedido-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pedido-detail-summary .pedido-info-grid>div{padding:8px 10px}.pedido-export-card .d-flex>.d-flex{width:100%}.pedido-export-card .d-flex>.d-flex .btn{flex:1 1 160px}}
 
+/* PRODUCTOS DEL DETALLE: TARJETAS + LISTA */
+.pedido-detail-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;width:min(680px,100%)}
+.pedido-detail-toolbar .pedido-busqueda-producto{flex:1 1 360px;max-width:none}
+.pedido-product-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px;background:#f7f9fb}
+.pedido-product-card{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden;border:1px solid #dfe6ed;border-radius:13px;background:#fff;box-shadow:0 2px 7px rgba(24,39,55,.045);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.pedido-product-card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#377bc4}
+.pedido-product-card.is-loaded::before{background:#32965a}
+.pedido-product-card:hover{transform:translateY(-2px);border-color:#cdd9e5;box-shadow:0 7px 18px rgba(24,39,55,.09)}
+.pedido-product-card-main{display:flex;align-items:flex-start;gap:13px;padding:15px 15px 12px 19px}
+.pedido-product-card-image{display:grid;flex:0 0 82px;width:82px;height:82px;place-items:center;overflow:hidden;border:1px solid #e1e7ed;border-radius:10px;background:#fff}
+.pedido-product-card-image img{width:100%;height:100%;object-fit:contain}
+.pedido-product-card-image.is-empty{color:#9aa6b2;font-size:.67rem;text-align:center}
+.pedido-product-card-title{min-width:0;flex:1}
+.pedido-product-card-title strong{display:block;overflow:hidden;color:#26313c;font-size:.92rem;line-height:1.32;text-overflow:ellipsis}
+.pedido-product-card-title .pedido-code{display:block;margin-top:5px;color:#7c8996;font-size:.69rem;white-space:normal;overflow-wrap:anywhere}
+.pedido-product-card-model{margin-top:5px;color:#647383;font-size:.75rem;font-weight:700}
+.pedido-product-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin:0 15px 0 19px;padding:13px 0;border-top:1px solid #edf0f3}
+.pedido-product-card-meta span{display:block;margin-bottom:3px;color:#8a96a2;font-size:.64rem;font-weight:800;letter-spacing:.025em;text-transform:uppercase}
+.pedido-product-card-meta strong{display:block;color:#465463;font-size:.79rem;line-height:1.35;overflow-wrap:anywhere}
+.pedido-product-card-meta .pedido-product-emphasis strong{color:#263b52;font-size:.95rem;font-weight:800}
+.pedido-product-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding:12px 15px 13px 19px;border-top:1px solid #edf0f3;background:#fcfdfe}
+.pedido-product-card-footer .pedido-product-total{color:#263b52;font-size:1rem;font-weight:800}
+.pedido-product-card-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.pedido-product-card-empty{grid-column:1/-1;padding:40px 16px;color:#7b8794;text-align:center}
+@media(max-width:767.98px){.pedido-detail-toolbar{align-items:stretch;flex-direction:column}.pedido-detail-toolbar .pedidos-view-switch{width:100%}.pedido-detail-toolbar .pedidos-view-btn{flex:1}.pedido-product-card-grid{grid-template-columns:minmax(0,1fr);padding:12px}}
+
 /* ============================================================
    NUEVO PEDIDO V2
    Alineado visualmente con la pantalla Nueva Alta.

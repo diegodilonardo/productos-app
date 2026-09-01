@@ -287,6 +287,7 @@ function pintarTarjetasAltas(filas) {
     const id = alta.ID_ALTA ?? alta.idAlta;
     const estado = String(alta.ESTADO || alta.estado || '-').toUpperCase();
     const cantidad = alta.CANTIDAD_PRODUCTOS ?? alta.cantidadProductos ?? 0;
+    const cantidadModulos = alta.CANTIDAD_MODULOS ?? alta.cantidadModulos ?? 0;
     const temporada = alta.DETALLE_TEMPORADA ?? alta.CODIGO_TEMPORADA ?? '-';
     const motivo = alta.MOTIVO_ANULACION ?? alta.motivoAnulacion ?? 'Sin motivo informado';
 
@@ -310,6 +311,7 @@ function pintarTarjetasAltas(filas) {
           <div><span>Campaña</span><strong>${escapar(alta.CODIGO_ANO ?? '-')} · ${escapar(temporada)}</strong></div>
           <div><span>Licencia</span>${badgeLicencia(normalizarLicenciaAlta(alta))}</div>
           <div><span>Productos</span><strong class="alta-summary-count">${escapar(cantidad)}</strong></div>
+          <div><span>Módulos</span><strong class="alta-summary-count">${escapar(cantidadModulos)}</strong></div>
         </div>
 
         ${estado === 'ANULADO' ? `<div class="alta-summary-cancel">${escapar(motivo)}</div>` : ''}
@@ -332,7 +334,7 @@ function pintarTablaAltas(filas) {
   if (!filas.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" class="text-center py-5 text-secondary">
+        <td colspan="10" class="text-center py-5 text-secondary">
           <div class="altas-empty">
             <div class="altas-empty-icon">ALT</div>
             <strong>No hay altas para mostrar</strong>
@@ -363,6 +365,11 @@ function pintarTablaAltas(filas) {
     const cantidad =
       alta.CANTIDAD_PRODUCTOS ??
       alta.cantidadProductos ??
+      0;
+
+    const cantidadModulos =
+      alta.CANTIDAD_MODULOS ??
+      alta.cantidadModulos ??
       0;
 
     const licencia =
@@ -449,6 +456,12 @@ function pintarTablaAltas(filas) {
           ${escapar(
             cantidad
           )}
+        </span>
+      </td>
+
+      <td class="text-center">
+        <span class="altas-product-count">
+          ${escapar(cantidadModulos)}
         </span>
       </td>
 

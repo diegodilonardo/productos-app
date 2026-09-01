@@ -7,7 +7,7 @@ const {
 } = require('./importarMaestros.service');
 
 
-async function importarMaestrosMultiempresa() {
+async function importarMaestrosMultiempresa(codigoEmpresa = null) {
 
     /*
      * Paso 1:
@@ -15,7 +15,7 @@ async function importarMaestrosMultiempresa() {
      * EMPRESAS + EMPRESAS_CONFIG.
      */
     const descargas =
-        await descargarMaestrosDeEmpresas();
+        await descargarMaestrosDeEmpresas(codigoEmpresa);
 
     const resultados = [];
 

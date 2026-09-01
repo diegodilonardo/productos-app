@@ -53,46 +53,27 @@ async function buscarProveedores({
 
     Regla de elegibilidad:
     - proveedor activo
-    - rubro del proveedor = rubro del Alta, cuando se informa rubro
+
+    El rubro se conserva en la firma por compatibilidad, pero no limita
+    el selector: un proveedor puede trabajar con más de un rubro aunque
+    el maestro tenga uno solo informado.
   */
 
-  const pool =
-    await getConnection();
+  void rubro;
+  void idEmpresa;
+  void codigoMarca;
 
-  const request =
-    pool.request()
-      .input(
-        'RUBRO',
-        sql.VarChar(100),
-        rubro
-      );
+  const pool = await getConnection();
 
   const resultado =
-    await request.query(`
+    await pool.request().query(`
       SELECT
         P.CODIGO,
         P.PRESEA,
         P.RUBRO,
         P.NVA_RAZON_SOCIAL
       FROM dbo.MAESTRO_PROVEEDORES P
-      WHERE
-        P.ACTIVO = 1
-        AND
-        (
-          @RUBRO IS NULL
-          OR UPPER(
-               LTRIM(
-                 RTRIM(
-                   ISNULL(P.RUBRO, '')
-                 )
-               )
-             ) =
-             UPPER(
-               LTRIM(
-                 RTRIM(@RUBRO)
-               )
-             )
-        )
+      WHERE P.ACTIVO = 1
       ORDER BY
         P.NVA_RAZON_SOCIAL,
         P.CODIGO;

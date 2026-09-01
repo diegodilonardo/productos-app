@@ -273,7 +273,7 @@ const maestros = {
                 archivo: 0,
                 nombre: 'CODIGO_MARCA',
                 tipo: 'VARCHAR',
-                longitud: 3,
+                longitud: 5,
                 requerido: true
             },
             {

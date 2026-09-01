@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/alta-productos-v2.css">
+<link rel="stylesheet" href="/css/alta-productos-v2.css?v=2">
 
 <div id="paginaProductosAlta" data-id-alta="{{idAlta}}" class="alta-v2">
   <!-- HERO / CABECERA -->
@@ -462,12 +462,15 @@
 
                     <div id="moduloSeleccionado" class="alta-module-selected d-none">
                       <div class="alta-module-selected-main">
-                        <span class="alta-module-selected-label">Curva seleccionada</span>
-                        <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="alta-module-selected-label">Curvas seleccionadas</span>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                           <span id="moduloSeleccionadoCodigo" class="alta-module-code"></span>
-                          <strong id="moduloSeleccionadoRango"></strong>
-                          <span id="moduloSeleccionadoPares" class="badge rounded-pill text-bg-primary"></span>
                         </div>
+                        <div
+                          id="modulosSeleccionadosChips"
+                          class="d-flex flex-wrap gap-2"
+                          aria-label="Curvas seleccionadas"
+                        ></div>
                         <div id="moduloSeleccionadoComposicion" class="alta-module-composition mt-2"></div>
                       </div>
 
@@ -476,13 +479,13 @@
                         type="button"
                         class="btn btn-sm btn-outline-secondary"
                       >
-                        Cambiar curva
+                        Limpiar curvas
                       </button>
                     </div>
                   </div>
 
                   <div class="form-text">
-                    Podés buscar, por ejemplo: C0, 35-40, 37, 37:4 o 15 pares.
+                    Podés elegir varias curvas. Se generarán todas las combinaciones entre los colores y las curvas seleccionadas.
                   </div>
                 </div>
 
@@ -616,7 +619,7 @@
                 class="btn btn-outline-primary d-none"
                 disabled
               >
-                Descargar BORRADOR Excel
+                Exportar Excel con imágenes
               </button>
 
               <button
@@ -657,6 +660,63 @@
               <div>
                 MÓDULO genera módulo + PRIMERAS + SEGUNDAS por talle activo.
                 PAR SUELTO genera PRIMERA + SEGUNDA.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="panelInformacionAdicional" class="card border-0 shadow-sm alta-card mt-3">
+          <div class="card-body p-4">
+            <div class="alta-section-kicker">PRODUCTO</div>
+            <h2 class="h5 mb-1">Información adicional</h2>
+            <p class="small text-secondary mb-3">
+              Estos datos se aplican a toda la familia que se genere.
+            </p>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-6 col-xl-12">
+                <label for="coNew" class="form-label">CO_NEW</label>
+                <input id="coNew" form="formProducto" type="text" class="form-control" maxlength="50">
+              </div>
+
+              <div class="col-12 col-md-6 col-xl-12">
+                <label for="muestra" class="form-label">Muestra</label>
+                <input id="muestra" form="formProducto" type="text" class="form-control" maxlength="50">
+              </div>
+
+              <div class="col-12">
+                <label for="comentario" class="form-label">Comentario</label>
+                <textarea id="comentario" form="formProducto" class="form-control" rows="2" maxlength="255"></textarea>
+              </div>
+
+              <div class="col-12">
+                <label for="correcciones" class="form-label">Correcciones</label>
+                <textarea id="correcciones" form="formProducto" class="form-control" rows="2" maxlength="255"></textarea>
+              </div>
+
+              <div class="col-12 col-md-6 col-xl-12">
+                <label for="materialCalzado" class="form-label">Material del calzado</label>
+                <input id="materialCalzado" form="formProducto" type="text" class="form-control" maxlength="100">
+              </div>
+
+              <div class="col-12 col-md-6 col-xl-12">
+                <label for="materialSuela" class="form-label">Material de la suela</label>
+                <input id="materialSuela" form="formProducto" type="text" class="form-control" maxlength="100">
+              </div>
+
+              <div class="col-12 col-md-6 col-xl-12">
+                <label for="tipoAjuste" class="form-label">Tipo de ajuste</label>
+                <input id="tipoAjuste" form="formProducto" type="text" class="form-control" maxlength="100">
+              </div>
+
+              <div class="col-12 col-md-6 col-xl-12">
+                <label for="flow" class="form-label">Flow</label>
+                <input id="flow" form="formProducto" type="text" class="form-control" maxlength="100">
+              </div>
+
+              <div class="col-12">
+                <label for="descripcion" class="form-label">Descripción</label>
+                <textarea id="descripcion" form="formProducto" class="form-control" rows="3" maxlength="500"></textarea>
               </div>
             </div>
           </div>
@@ -886,4 +946,4 @@
 
 
 <script src="/js/reglas-talles-par-suelto.js?v=1"></script>
-<script src="/js/alta-productos.js?v=4"></script>
+<script src="/js/alta-productos.js?v=7"></script>

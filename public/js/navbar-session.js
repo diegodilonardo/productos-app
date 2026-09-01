@@ -564,6 +564,21 @@ function obtenerClaseVisualMarca(
     return 'marca-47-street';
   }
 
+  if (
+    String(codigo).trim() === '101' ||
+    identidad.includes('MASSIMO')
+  ) {
+    return 'marca-massimo';
+  }
+
+  if (
+    ['34', '5'].includes(String(codigo).trim()) ||
+    identidad.includes('WAKE') ||
+    identidad.includes('MARCEL')
+  ) {
+    return 'marca-logo-oscuro';
+  }
+
   return '';
 }
 

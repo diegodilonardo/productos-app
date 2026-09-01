@@ -2348,6 +2348,26 @@ main .progress {
     height: 34px;
 }
 
+.app-navbar-brand-chip.marca-logo-oscuro {
+    border-color: rgba(255, 255, 255, .72);
+    background: #fff;
+}
+
+.app-navbar-brand-chip.marca-logo-oscuro .app-navbar-brand-logo {
+    width: 110px;
+    height: 34px;
+}
+
+.app-navbar-brand-chip.marca-massimo {
+    border-color: rgba(255, 255, 255, .16);
+    background: rgba(255, 255, 255, .06);
+}
+
+.app-navbar-brand-chip.marca-massimo .app-navbar-brand-logo {
+    width: 110px;
+    height: 34px;
+}
+
 @media (max-width: 1399.98px) {
     .app-navbar-brand-context {
         flex: 1 1 auto;

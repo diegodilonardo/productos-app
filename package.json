@@ -7,6 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "importar-maestros": "node src/jobs/importarMaestrosManual.js",
+    "importar-maestros-multiempresa": "node src/jobs/importarMaestrosMultiempresaManual.js",
+    "sincronizar-productos-erp": "node src/jobs/productosErpSync.job.js",
     "sync": "node src/jobs/syncAll.js"
   },
   "keywords": [],

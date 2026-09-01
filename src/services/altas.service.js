@@ -21,6 +21,20 @@ function normalizarTexto(valor) {
 }
 
 
+function normalizarTextoLimitado(valor, campo, largoMaximo) {
+
+    const texto = normalizarTexto(valor);
+
+    if (texto.length > largoMaximo) {
+        throw new Error(
+            `${campo} no puede superar los ${largoMaximo} caracteres.`
+        );
+    }
+
+    return texto || null;
+}
+
+
 function normalizarEspacios(texto) {
 
     return String(texto || '')
@@ -740,6 +754,62 @@ function determinarRubroFact(
     }
 
 
+    /* ========================================================
+       INDUSTRIAS GYD / MARCEL
+       ======================================================== */
+
+    if (marcaNormalizada === 'MARCEL') {
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto ? 'CALZ_MAR' : 'MOD_CALZ_MAR';
+        }
+
+        if (rubroNormalizado === 'ACCESORIOS') {
+            return esParSuelto ? 'ACCE_MAR' : 'MOD_PACK_MAR';
+        }
+
+        if (rubroNormalizado === 'POP' && esParSuelto) {
+            return 'POP_MAR';
+        }
+    }
+
+
+    /* ========================================================
+       INDUSTRIAS GYD / MASSIMO
+       ======================================================== */
+
+    if (marcaNormalizada === 'MASSIMO') {
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto ? 'CALZ_MAS' : 'MOD_CALZ_MAS';
+        }
+
+        if (rubroNormalizado === 'ACCESORIOS' && esParSuelto) {
+            return 'ACCE_MAS';
+        }
+
+        if (rubroNormalizado === 'POP' && esParSuelto) {
+            return 'POP_MAS';
+        }
+    }
+
+    /* ========================================================
+       INDUSTRIAS GYD / WAKE
+       ======================================================== */
+
+    if (marcaNormalizada === 'WAKE') {
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto ? 'CALZ_WK' : 'MOD_CALZ_WK';
+        }
+
+        if (rubroNormalizado === 'LICENCIAS') {
+            return esParSuelto ? 'LICE_WK' : 'MOD_LICE_WK';
+        }
+
+        if (rubroNormalizado === 'POP' && esParSuelto) {
+            return 'POP_WK';
+        }
+    }
+
+
     throw new Error(
         `No existe regla de RUBRO_FACT para ` +
         `${marca} / ${rubro} / ` +
@@ -1015,12 +1085,13 @@ function construirCodigoAlfa({
      * (por ejemplo MT062).
      *
      * Para conservar la estructura ERP de COD_ALFA de 15
-     * caracteres, únicamente para MONTAGNE completamos el
-     * segmento MODELO a 6 caracteres agregando un 0 a la
-     * izquierda:
+     * caracteres, las marcas que admiten modelos variables
+     * de 5/6 posiciones completan el segmento MODELO a 6
+     * caracteres agregando un 0 a la izquierda:
      *
      * MT062  ->  0MT062
      *
+     * MONTAGNE y las marcas de GYD comparten esta regla.
      * Las demás marcas conservan exactamente su código.
      */
     const detalleMarca =
@@ -1034,10 +1105,10 @@ function construirCodigoAlfa({
         );
 
     const codigoModeloCodigoAlfa =
-        detalleMarca === 'MONTAGNE' &&
-        codigoModeloOriginal.length === 5
-            ? `0${codigoModeloOriginal}`
-            : codigoModeloOriginal;
+        normalizarCodigoModeloCodigoAlfa(
+            detalleMarca,
+            codigoModeloOriginal
+        );
 
 
     return [
@@ -1049,6 +1120,21 @@ function construirCodigoAlfa({
         color.CODIGO_COLOR,
         ultimoSegmento
     ].join('');
+}
+
+function normalizarCodigoModeloCodigoAlfa(detalleMarca, codigoModelo) {
+    const marca = normalizarTexto(detalleMarca).toUpperCase();
+    const modelo = normalizarTexto(codigoModelo);
+    const marcasModeloVariable = new Set([
+        'MONTAGNE',
+        'MASSIMO',
+        'WAKE',
+        'MARCEL'
+    ]);
+
+    return marcasModeloVariable.has(marca) && modelo.length === 5
+        ? `0${modelo}`
+        : modelo;
 }
 
 /* ============================================================
@@ -1367,6 +1453,18 @@ async function prepararDetalleProducto(
     const codigoTalle = normalizarTexto(datosEntrada.codigoTalle);
     const usuario = normalizarTexto(datosEntrada.usuario) || 'SISTEMA';
 
+    const informacionAdicional = {
+        CO_NEW: normalizarTextoLimitado(datosEntrada.coNew, 'CO_NEW', 50),
+        MUESTRA: normalizarTextoLimitado(datosEntrada.muestra, 'MUESTRA', 50),
+        COMENTARIO: normalizarTextoLimitado(datosEntrada.comentario, 'COMENTARIO', 255),
+        CORRECCIONES: normalizarTextoLimitado(datosEntrada.correcciones, 'CORRECCIONES', 255),
+        MATERIAL_CALZADO: normalizarTextoLimitado(datosEntrada.materialCalzado, 'MATERIAL_CALZADO', 100),
+        MATERIAL_SUELA: normalizarTextoLimitado(datosEntrada.materialSuela, 'MATERIAL_SUELA', 100),
+        TIPO_AJUSTE: normalizarTextoLimitado(datosEntrada.tipoAjuste, 'TIPO_AJUSTE', 100),
+        DESCRIPCION: normalizarTextoLimitado(datosEntrada.descripcion, 'DESCRIPCION', 500),
+        FLOW: normalizarTextoLimitado(datosEntrada.flow, 'FLOW', 100)
+    };
+
     let codigoClasificacion;
 
     if (tipoProducto === 'PAR_SUELTO') {
@@ -1481,8 +1579,7 @@ async function prepararDetalleProducto(
     );
     if (!proveedor) {
         throw new Error(
-            `Proveedor ${codigoProveedor} inexistente, inactivo ` +
-            `o no corresponde al rubro ${alta.DETALLE_RUBRO}.`
+            `Proveedor ${codigoProveedor} inexistente o inactivo.`
         );
     }
     if (!grupo) throw new Error('Grupo inexistente o inactivo.');
@@ -1748,7 +1845,8 @@ async function prepararDetalleProducto(
             TIPO_PRODUCTO_DETALLE: tipoDetalle,
             GENERADO_AUTOMATICO: generadoAutomatico,
             ESTADO_VALIDACION: estadoValidacion,
-            OBSERVACION_VALIDACION: observacionValidacion
+            OBSERVACION_VALIDACION: observacionValidacion,
+            ...informacionAdicional
         };
     }
 
@@ -2120,6 +2218,47 @@ async function prepararDetalleProducto(
    todos los registros se insertan dentro de una única transacción.
    ============================================================ */
 
+function expandirCombinatoriaCurvas(datosEntrada) {
+    if (
+        !datosEntrada ||
+        typeof datosEntrada !== 'object' ||
+        Array.isArray(datosEntrada) ||
+        Array.isArray(datosEntrada.productos) ||
+        !Array.isArray(datosEntrada.codigosModulo)
+    ) {
+        return datosEntrada;
+    }
+
+    const codigosModulo = [
+        ...new Set(
+            datosEntrada.codigosModulo
+                .map(normalizarTexto)
+                .filter(Boolean)
+        )
+    ];
+
+    if (codigosModulo.length === 0) {
+        throw new Error(
+            'Debe seleccionar al menos una curva/módulo.'
+        );
+    }
+
+    const {
+        codigosModulo: _codigosModulo,
+        ...datosComunes
+    } = datosEntrada;
+
+    return {
+        usuario: datosComunes.usuario,
+        productos: codigosModulo.map(
+            codigoModulo => ({
+                ...datosComunes,
+                codigoModulo
+            })
+        )
+    };
+}
+
 async function agregarDetalle(
     idAlta,
     datosEntrada,
@@ -2131,6 +2270,11 @@ async function agregarDetalle(
     if (!datosEntrada || typeof datosEntrada !== 'object') {
         throw new Error('El cuerpo de la petición es inválido.');
     }
+
+    datosEntrada =
+        expandirCombinatoriaCurvas(
+            datosEntrada
+        );
 
     const esLote =
         Array.isArray(datosEntrada.productos);
@@ -2783,6 +2927,10 @@ module.exports = {
     anularAlta,
 
     _internals: {
-        validarEdadSexoClasificacion
+        validarEdadSexoClasificacion,
+        normalizarTextoLimitado,
+        normalizarCodigoModeloCodigoAlfa,
+        determinarRubroFact,
+        expandirCombinatoriaCurvas
     }
 };

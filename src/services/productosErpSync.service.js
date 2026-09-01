@@ -1081,7 +1081,7 @@ async function sincronizarEmpresa(
    SINCRONIZACIÓN MULTIEMPRESA
    ============================================================ */
 
-async function sincronizarProductosErp() {
+async function sincronizarProductosErp(codigoEmpresa = null) {
 
   const pool =
     await getConnection();
@@ -1093,8 +1093,21 @@ async function sincronizarProductosErp() {
     );
 
 
-  const empresas =
+  const empresasActivas =
     await obtenerEmpresasProductos();
+
+  const codigoEmpresaNormalizado =
+    codigoEmpresa == null
+      ? ''
+      : texto(codigoEmpresa);
+
+  const empresas =
+    codigoEmpresaNormalizado
+      ? empresasActivas.filter(
+          empresa =>
+            texto(empresa.CODIGO_EMPRESA) === codigoEmpresaNormalizado
+        )
+      : empresasActivas;
 
 
   if (
@@ -1102,7 +1115,10 @@ async function sincronizarProductosErp() {
   ) {
 
     throw new Error(
-      'No existen empresas activas con archivo ERP de productos configurado.'
+      codigoEmpresaNormalizado
+        ? `No existe una empresa activa con archivo ERP configurado ` +
+          `para el código ${codigoEmpresaNormalizado}.`
+        : 'No existen empresas activas con archivo ERP de productos configurado.'
     );
   }
 

@@ -54,9 +54,16 @@
   <div id="panelProductosDisponibles" class="card pedidos-card mb-3 d-none">
     <div class="pedidos-list-head">
       <div><div class="pedidos-kicker">ALTA + PROVEEDOR</div><strong>Productos disponibles</strong></div>
-      <input id="buscarProductoPedido" class="form-control pedido-busqueda-producto" type="search" placeholder="Buscar modelo, color, detalle o curva...">
+      <div class="pedido-detail-toolbar">
+        <input id="buscarProductoPedido" class="form-control pedido-busqueda-producto" type="search" placeholder="Buscar modelo, color, detalle o curva...">
+        <div class="pedidos-view-switch" aria-label="Vista de productos disponibles">
+          <button id="btnDisponiblesTarjetas" class="pedidos-view-btn is-active" type="button" aria-pressed="true">▦ Tarjetas</button>
+          <button id="btnDisponiblesLista" class="pedidos-view-btn" type="button" aria-pressed="false">☷ Lista</button>
+        </div>
+      </div>
     </div>
-    <div class="table-responsive">
+    <div id="tarjetasProductosDisponibles" class="pedido-product-card-grid"></div>
+    <div id="listaProductosDisponibles" class="table-responsive d-none">
       <table class="table align-middle mb-0 pedidos-table pedido-productos-table">
         <thead><tr><th>Imagen</th><th>Modelo</th><th>Color</th><th>Detalle producto</th><th>Talle / Curva</th><th>Pares</th><th>Edad</th><th></th></tr></thead>
         <tbody id="tablaProductosDisponibles"></tbody>
@@ -67,11 +74,18 @@
   <div class="card pedidos-card overflow-hidden">
     <div class="pedidos-list-head">
       <div><div class="pedidos-kicker">DETALLE</div><strong>Productos del Pedido</strong></div>
-      <div id="resumenPedido" class="pedido-resumen"></div>
+      <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+        <div id="resumenPedido" class="pedido-resumen"></div>
+        <div class="pedidos-view-switch" aria-label="Vista del detalle del pedido">
+          <button id="btnDetalleTarjetas" class="pedidos-view-btn is-active" type="button" aria-pressed="true">▦ Tarjetas</button>
+          <button id="btnDetalleLista" class="pedidos-view-btn" type="button" aria-pressed="false">☷ Lista</button>
+        </div>
+      </div>
     </div>
-    <div class="table-responsive">
+    <div id="tarjetasDetallePedido" class="pedido-product-card-grid pedido-detail-card-grid"></div>
+    <div id="listaDetallePedido" class="table-responsive d-none">
       <table class="table align-middle mb-0 pedidos-table">
-        <thead><tr><th>Producto</th><th>Curva</th><th>Pares</th><th>Módulos</th><th>FOB/Par</th><th>FOB</th><th>Adicional/Par</th><th>Total</th><th></th></tr></thead>
+        <thead><tr><th>Imagen</th><th>Producto</th><th>Curva</th><th>Pares</th><th>Módulos</th><th>FOB/Par</th><th>FOB</th><th>Adicional/Par</th><th>Total</th><th></th></tr></thead>
         <tbody id="tablaDetallePedido"></tbody>
       </table>
     </div>

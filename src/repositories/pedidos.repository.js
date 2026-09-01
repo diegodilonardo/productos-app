@@ -472,6 +472,8 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
         A.CODIGO_ALTA,
         A.CODIGO_MARCA,
         A.DETALLE_MARCA,
+        A.CODIGO_ANO,
+        A.CODIGO_TEMPORADA,
         A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
         A.ESTADO AS ESTADO_ALTA
       FROM dbo.PEDIDOS P

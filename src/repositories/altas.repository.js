@@ -9,7 +9,7 @@ async function buscarMarca(codigoMarca, idEmpresa) {
 
   const resultado = await pool
     .request()
-    .input("CODIGO_MARCA", sql.VarChar(3), codigoMarca)
+    .input("CODIGO_MARCA", sql.VarChar(5), codigoMarca)
     .input("ID_EMPRESA", sql.Int, idEmpresa).query(`
             SELECT TOP 1
                 CODIGO_MARCA,
@@ -98,7 +98,7 @@ async function crearAlta(datos) {
 
     .input("CODIGO_ALTA", sql.VarChar(50), datos.codigoAlta)
 
-    .input("CODIGO_MARCA", sql.VarChar(3), datos.codigoMarca)
+    .input("CODIGO_MARCA", sql.VarChar(5), datos.codigoMarca)
 
     .input("DETALLE_MARCA", sql.VarChar(30), datos.detalleMarca)
 
@@ -224,7 +224,16 @@ async function listarAltas(idEmpresa) {
                     SELECT COUNT(*)
                     FROM dbo.ALTAS_PRODUCTOS_DETALLE D
                     WHERE D.ID_ALTA = A.ID_ALTA
-                ) AS CANTIDAD_PRODUCTOS
+                ) AS CANTIDAD_PRODUCTOS,
+
+                (
+                    SELECT COUNT(*)
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DM
+                    WHERE
+                        DM.ID_ALTA = A.ID_ALTA
+                        AND UPPER(LTRIM(RTRIM(ISNULL(DM.TIPO_PRODUCTO_DETALLE, '')))) = 'MODULO'
+                        AND ISNULL(DM.GENERADO_AUTOMATICO, 0) = 0
+                ) AS CANTIDAD_MODULOS
 
             FROM dbo.ALTAS_PRODUCTOS A
             WHERE A.ID_EMPRESA = @ID_EMPRESA
@@ -373,7 +382,6 @@ async function buscarProveedor(
    * La habilitación funcional del Alta se determina por:
    *   - CODIGO
    *   - ACTIVO
-   *   - RUBRO
    *
    * Conservamos idEmpresa/codigoMarca en la firma para no romper
    * las llamadas multiempresa existentes, pero no se usan como
@@ -381,10 +389,13 @@ async function buscarProveedor(
    */
   const pool = await getConnection();
 
+  void rubro;
+  void idEmpresa;
+  void codigoMarca;
+
   const resultado = await pool
     .request()
     .input("CODIGO", sql.VarChar(30), codigo)
-    .input("RUBRO", sql.VarChar(100), rubro)
     .query(`
       SELECT TOP 1
         P.CODIGO,
@@ -394,13 +405,7 @@ async function buscarProveedor(
       FROM dbo.MAESTRO_PROVEEDORES P
       WHERE
         P.CODIGO = @CODIGO
-        AND P.ACTIVO = 1
-        AND
-        (
-          @RUBRO IS NULL
-          OR UPPER(LTRIM(RTRIM(ISNULL(P.RUBRO, '')))) =
-             UPPER(LTRIM(RTRIM(@RUBRO)))
-        );
+        AND P.ACTIVO = 1;
     `);
 
   return resultado.recordset[0] || null;
@@ -1016,6 +1021,15 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
           sql.VarChar(255),
           d.OBSERVACION_VALIDACION || null,
         )
+        .input("CO_NEW", sql.NVarChar(50), d.CO_NEW || null)
+        .input("MUESTRA", sql.NVarChar(50), d.MUESTRA || null)
+        .input("COMENTARIO", sql.NVarChar(255), d.COMENTARIO || null)
+        .input("CORRECCIONES", sql.NVarChar(255), d.CORRECCIONES || null)
+        .input("MATERIAL_CALZADO", sql.NVarChar(100), d.MATERIAL_CALZADO || null)
+        .input("MATERIAL_SUELA", sql.NVarChar(100), d.MATERIAL_SUELA || null)
+        .input("TIPO_AJUSTE", sql.NVarChar(100), d.TIPO_AJUSTE || null)
+        .input("DESCRIPCION", sql.NVarChar(500), d.DESCRIPCION || null)
+        .input("FLOW", sql.NVarChar(100), d.FLOW || null)
         .input("USUARIO_CREACION", sql.VarChar(100), usuario).query(`
           INSERT INTO dbo.ALTAS_PRODUCTOS_DETALLE
           (
@@ -1061,6 +1075,15 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
             GENERADO_AUTOMATICO,
             ESTADO_VALIDACION,
             OBSERVACION_VALIDACION,
+            CO_NEW,
+            MUESTRA,
+            COMENTARIO,
+            CORRECCIONES,
+            MATERIAL_CALZADO,
+            MATERIAL_SUELA,
+            TIPO_AJUSTE,
+            DESCRIPCION,
+            FLOW,
             FECHA_CREACION,
             USUARIO_CREACION
           )
@@ -1109,6 +1132,15 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
             @GENERADO_AUTOMATICO,
             @ESTADO_VALIDACION,
             @OBSERVACION_VALIDACION,
+            @CO_NEW,
+            @MUESTRA,
+            @COMENTARIO,
+            @CORRECCIONES,
+            @MATERIAL_CALZADO,
+            @MATERIAL_SUELA,
+            @TIPO_AJUSTE,
+            @DESCRIPCION,
+            @FLOW,
             SYSDATETIME(),
             @USUARIO_CREACION
           );

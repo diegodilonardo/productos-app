@@ -2593,6 +2593,22 @@ function configurarEventos() {
     .addEventListener('change', manejarCambioImagenDetalle);
 
   document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('dragenter', manejarArrastreImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('dragover', manejarArrastreImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('dragleave', manejarSalidaArrastreImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('drop', manejarDropImagenDetalle);
+
+  document
     .getElementById('filtroProductosTexto')
     ?.addEventListener('input', aplicarFiltrosProductos);
 
@@ -2995,9 +3011,10 @@ function htmlImagenFamilia(
 
   return `
     <div
-      class="alta-family-image"
+      class="alta-family-image${editable ? ' alta-family-image--editable' : ''}"
       data-id-imagen="${escapar(id)}"
-      title="${escapar(nombre)}.JPG / PNG"
+      data-imagen-editable="${editable ? 'true' : 'false'}"
+      title="${escapar(nombre)}.JPG / PNG${editable ? ' · También podés arrastrar la imagen aquí' : ''}"
     >
       <div class="alta-family-image-preview">
         <div
@@ -3190,7 +3207,8 @@ async function cargarEstadoImagenFila(
 
 
 async function manejarCambioImagenDetalle(
-  event
+  event,
+  archivoArrastrado = null
 ) {
   const input =
     event.target.closest(
@@ -3207,6 +3225,7 @@ async function manejarCambioImagenDetalle(
   if (!fila) return;
 
   const archivo =
+    archivoArrastrado ||
     input.files?.[0];
 
   const id =
@@ -3310,7 +3329,101 @@ async function manejarCambioImagenDetalle(
   }
 
   await guardarImagenFamilia(
-    input
+    input,
+    archivo
+  );
+}
+
+
+function zonaArrastreImagenDetalle(
+  event
+) {
+  return event.target.closest(
+    '.alta-family-image[data-imagen-editable="true"]'
+  );
+}
+
+
+function manejarArrastreImagenDetalle(
+  event
+) {
+  const zona =
+    zonaArrastreImagenDetalle(
+      event
+    );
+
+  if (!zona) return;
+
+  event.preventDefault();
+
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect =
+      'copy';
+  }
+
+  zona.classList.add(
+    'is-dragging'
+  );
+}
+
+
+function manejarSalidaArrastreImagenDetalle(
+  event
+) {
+  const zona =
+    zonaArrastreImagenDetalle(
+      event
+    );
+
+  if (!zona) return;
+
+  if (
+    event.relatedTarget &&
+    zona.contains(
+      event.relatedTarget
+    )
+  ) {
+    return;
+  }
+
+  zona.classList.remove(
+    'is-dragging'
+  );
+}
+
+
+async function manejarDropImagenDetalle(
+  event
+) {
+  const zona =
+    zonaArrastreImagenDetalle(
+      event
+    );
+
+  if (!zona) return;
+
+  event.preventDefault();
+
+  zona.classList.remove(
+    'is-dragging'
+  );
+
+  const archivo =
+    event.dataTransfer
+      ?.files?.[0];
+
+  if (!archivo) return;
+
+  const input =
+    zona.querySelector(
+      '[data-accion="seleccionar-imagen-familia"]'
+    );
+
+  if (!input) return;
+
+  await manejarCambioImagenDetalle(
+    { target: input },
+    archivo
   );
 }
 
@@ -3361,7 +3474,8 @@ async function archivoABase64Familia(
 
 
 async function guardarImagenFamilia(
-  input
+  input,
+  archivoSeleccionado = null
 ) {
   if (
     !puedeModificarImagenes()
@@ -3392,6 +3506,7 @@ async function guardarImagenFamilia(
     );
 
   const archivo =
+    archivoSeleccionado ||
     input?.files?.[0];
 
   if (!archivo) {

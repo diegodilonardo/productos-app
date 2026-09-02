@@ -606,6 +606,13 @@ function obtenerLogoMarcaConocida(
     return '/img/marcas/47.png';
   }
 
+  if (
+    String(codigo).trim() === '160' ||
+    identidad.includes('BAGUNZA')
+  ) {
+    return '/img/marcas/160.jpg';
+  }
+
   return '';
 }
 

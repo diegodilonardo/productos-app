@@ -1084,7 +1084,349 @@ async function descargarArchivos(
 }
 
 
+function firmaArchivoRemoto(
+    archivo
+) {
+
+    const fecha =
+        archivo &&
+        archivo.modifiedAt instanceof Date
+            ? archivo.modifiedAt.toISOString()
+            : texto(
+                archivo &&
+                archivo.rawModifiedAt
+            );
+
+    return {
+        tamano:
+            Number(
+                archivo &&
+                archivo.size
+            ) || 0,
+        fecha
+    };
+}
+
+
+function indiceArchivosRemotos(
+    listado
+) {
+
+    return new Map(
+        (listado || []).map(
+            archivo => [
+                texto(archivo.name).toUpperCase(),
+                archivo
+            ]
+        )
+    );
+}
+
+
+function mismaFirmaRemota(
+    izquierda,
+    derecha
+) {
+
+    return Boolean(
+        izquierda &&
+        derecha &&
+        izquierda.tamano === derecha.tamano &&
+        izquierda.fecha &&
+        izquierda.fecha === derecha.fecha
+    );
+}
+
+
+async function leerManifestMaestros(
+    rutaManifest
+) {
+
+    try {
+        return JSON.parse(
+            await fs.promises.readFile(
+                rutaManifest,
+                'utf8'
+            )
+        );
+    } catch (error) {
+        if (
+            error &&
+            error.code !== 'ENOENT'
+        ) {
+            console.warn(
+                `[FTP] No se pudo leer el manifiesto ${rutaManifest}: ` +
+                error.message
+            );
+        }
+
+        return {};
+    }
+}
+
+
+async function guardarManifestMaestros(
+    rutaManifest,
+    firmas
+) {
+
+    const rutaTemporal =
+        `${rutaManifest}.tmp`;
+
+    await fs.promises.writeFile(
+        rutaTemporal,
+        JSON.stringify(
+            firmas,
+            null,
+            2
+        ),
+        'utf8'
+    );
+
+    await fs.promises.rename(
+        rutaTemporal,
+        rutaManifest
+    );
+}
+
+
+/* =============================================================
+   DESCARGA INTELIGENTE DE MAESTROS
+
+   Compara fecha + tamaño remoto, comprueba que los archivos estén
+   estables y descarga únicamente los que cambiaron desde la última
+   ejecución exitosa.
+   ============================================================= */
+
+async function descargarArchivosModificados(
+    remotePath,
+    archivos,
+    carpetaLocal,
+    opciones = {}
+) {
+
+    const config =
+        obtenerConfiguracion();
+
+    const carpetaFTP =
+        texto(remotePath);
+
+    if (!carpetaFTP) {
+        throw new Error(
+            'La ruta remota FTP de maestros está vacía.'
+        );
+    }
+
+    if (
+        !Array.isArray(archivos) ||
+        archivos.length === 0
+    ) {
+        throw new Error(
+            'No se informaron archivos para descargar.'
+        );
+    }
+
+    const estabilidadMs =
+        enteroSeguro(
+            opciones.estabilidadMs ??
+            process.env.MAESTROS_ESTABILIDAD_MS,
+            5000,
+            1000,
+            60000
+        );
+
+    await fs.promises.mkdir(
+        carpetaLocal,
+        { recursive: true }
+    );
+
+    const rutaManifest =
+        path.join(
+            carpetaLocal,
+            '.ftp-maestros.json'
+        );
+
+    const manifestAnterior =
+        await leerManifestMaestros(
+            rutaManifest
+        );
+
+    try {
+        return await ejecutarConCircuitBreaker(
+            config,
+            async () => ejecutarConRetry(
+                `Descarga inteligente ${carpetaFTP}`,
+                async () => {
+                    const cliente =
+                        new ftp.Client(
+                            config.timeout
+                        );
+
+                    cliente.ftp.verbose =
+                        booleano(
+                            process.env.FTP_VERBOSE
+                        );
+
+                    try {
+                        await cliente.access({
+                            host: config.host,
+                            port: config.port,
+                            user: config.user,
+                            password: config.password,
+                            secure: config.secure
+                        });
+
+                        await cliente.cd(
+                            carpetaFTP
+                        );
+
+                        const primerIndice =
+                            indiceArchivosRemotos(
+                                await cliente.list()
+                            );
+
+                        await esperar(
+                            estabilidadMs
+                        );
+
+                        const segundoIndice =
+                            indiceArchivosRemotos(
+                                await cliente.list()
+                            );
+
+                        const firmasActuales = {};
+                        const modificados = [];
+
+                        for (
+                            const nombreOriginal
+                            of archivos
+                        ) {
+                            const nombre =
+                                texto(nombreOriginal);
+
+                            if (!nombre) continue;
+
+                            const clave =
+                                nombre.toUpperCase();
+
+                            const primero =
+                                primerIndice.get(clave);
+
+                            const segundo =
+                                segundoIndice.get(clave);
+
+                            if (!primero || !segundo) {
+                                throw new Error(
+                                    `No se encontró el archivo maestro ${nombre} en ${carpetaFTP}.`
+                                );
+                            }
+
+                            const firmaPrimera =
+                                firmaArchivoRemoto(
+                                    primero
+                                );
+
+                            const firmaSegunda =
+                                firmaArchivoRemoto(
+                                    segundo
+                                );
+
+                            if (
+                                !mismaFirmaRemota(
+                                    firmaPrimera,
+                                    firmaSegunda
+                                )
+                            ) {
+                                const error =
+                                    new Error(
+                                        `El archivo ${nombre} todavía está siendo actualizado por el ERP.`
+                                    );
+
+                                error.code = 450;
+                                throw error;
+                            }
+
+                            firmasActuales[nombre] =
+                                firmaSegunda;
+
+                            if (
+                                !mismaFirmaRemota(
+                                    manifestAnterior[nombre],
+                                    firmaSegunda
+                                )
+                            ) {
+                                modificados.push(
+                                    nombre
+                                );
+                            }
+                        }
+
+                        const descargados = [];
+
+                        for (
+                            const nombre
+                            of modificados
+                        ) {
+                            const rutaLocal =
+                                path.join(
+                                    carpetaLocal,
+                                    nombre
+                                );
+
+                            await cliente.downloadTo(
+                                rutaLocal,
+                                nombre
+                            );
+
+                            descargados.push({
+                                archivo: nombre,
+                                rutaLocal
+                            });
+                        }
+
+                        await guardarManifestMaestros(
+                            rutaManifest,
+                            firmasActuales
+                        );
+
+                        return {
+                            carpetaFTP,
+                            carpetaLocal,
+                            cantidad:
+                                descargados.length,
+                            archivos:
+                                descargados,
+                            revisados:
+                                archivos.length,
+                            sinCambios:
+                                descargados.length === 0,
+                            estabilidadMs
+                        };
+                    } finally {
+                        cliente.close();
+                    }
+                }
+            )
+        );
+    } catch (error) {
+        const mensajeOriginal =
+            error && error.message
+                ? error.message
+                : String(error);
+
+        throw new Error(
+            `No se pudieron revisar los maestros desde ` +
+            `${config.host}:${config.port}${carpetaFTP}. ` +
+            `Detalle: ${mensajeOriginal}`
+        );
+    }
+}
+
+
 module.exports = {
     subirArchivo,
-    descargarArchivos
+    descargarArchivos,
+    descargarArchivosModificados,
+    firmaArchivoRemoto,
+    mismaFirmaRemota
 };

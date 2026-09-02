@@ -22,6 +22,7 @@ Las rutas funcionales por empresa/marca viven en SQL, no en `.env`.
 ## Archivos y jobs
 
 - `MAESTROS_PATH`, `MAESTROS_TEMP_PATH`, `MAESTROS_CRON`, `MAESTROS_MAX_MS`.
+- `MAESTROS_ESTABILIDAD_MS`: intervalo entre los dos listados FTP usados para confirmar que el ERP terminó de escribir los archivos; defecto `5000`.
 - `PRODUCTOS_ERP_FILE`, `PRODUCTOS_ERP_CRON`, `PRODUCTOS_ERP_MAX_MS`.
 - `EXPORT_PATH`, `IMAGENES_PRODUCTOS_PATH`, `SYNC_RESTART_MS`.
 - `PROVEEDORES_GOOGLE_SHEET_URL`.

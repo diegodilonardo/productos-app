@@ -51,3 +51,36 @@ test('cada curva seleccionada se puede quitar desde su chip', () => {
     /codigosModulosSeleccionados\.filter\(\s*codigo => codigo !== codigoModulo/
   );
 });
+
+test('varios talles de PAR_SUELTO se expanden en una sola operación', () => {
+  const entrada = {
+    codigoModelo: 'ABC123',
+    codigosTalle: ['03', '04', '03'],
+    codigosColor: ['10', '20'],
+    usuario: 'OPERADOR'
+  };
+
+  const resultado = expandirCombinatoriaCurvas(entrada);
+
+  assert.equal(resultado.productos.length, 2);
+  assert.deepEqual(
+    resultado.productos.map(item => item.codigoTalle),
+    ['03', '04']
+  );
+  assert.deepEqual(resultado.productos[0].codigosColor, ['10', '20']);
+  assert.equal(resultado.productos[0].codigoModelo, 'ABC123');
+});
+
+test('la combinatoria rechaza una selección de talles vacía', () => {
+  assert.throws(
+    () => expandirCombinatoriaCurvas({ codigosTalle: [' ', null] }),
+    /al menos un talle/
+  );
+});
+
+test('la combinatoria rechaza mezclar curvas y talles', () => {
+  assert.throws(
+    () => expandirCombinatoriaCurvas({ codigosModulo: ['A'], codigosTalle: ['1'] }),
+    /No se pueden combinar curvas y talles/
+  );
+});

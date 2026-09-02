@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const altasService = require('../src/services/altas.service');
 
 const script = fs.readFileSync(
   path.resolve(__dirname, '../sql/12_incorporar_bagunza.sql'),
@@ -44,4 +45,38 @@ test('el navbar utiliza el logo JPG confirmado de BAGUNZA', () => {
 
   assert.equal(fs.existsSync(logo), true);
   assert.match(navbar, /return '\/img\/marcas\/160\.jpg'/);
+});
+
+test('BAGUNZA utiliza únicamente las reglas presentes en su maestro RUBRO_FACT', () => {
+  const determinar = altasService._internals.determinarRubroFact;
+
+  assert.equal(
+    determinar('BAGUNZA', 'CALZADO', null, 'MODULO'),
+    'MOD_CALZ_BGZ'
+  );
+  assert.equal(
+    determinar('BAGUNZA', 'CALZADO', null, 'PAR_SUELTO'),
+    'CALZ_BGZ'
+  );
+  assert.equal(
+    determinar('BAGUNZA', 'ACCESORIOS', null, 'PAR_SUELTO'),
+    'ACC_BGZ'
+  );
+  assert.equal(
+    determinar('BAGUNZA', 'POP', null, 'PAR_SUELTO'),
+    'POP_BGZ'
+  );
+
+  assert.throws(
+    () => determinar('BAGUNZA', 'ACCESORIOS', null, 'MODULO'),
+    /No existe regla/
+  );
+  assert.throws(
+    () => determinar('BAGUNZA', 'POP', null, 'MODULO'),
+    /No existe regla/
+  );
+  assert.throws(
+    () => determinar('BAGUNZA', 'INDUMENTARIA', null, 'PAR_SUELTO'),
+    /No existe regla/
+  );
 });

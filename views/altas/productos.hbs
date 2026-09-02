@@ -489,11 +489,33 @@
                   </div>
                 </div>
 
-                <div id="contenedorTalle" class="col-12 col-md-6 d-none">
-                  <label for="codigoTalle" class="form-label">Talle</label>
-                  <select id="codigoTalle" class="form-select"></select>
+                <div id="contenedorTalle" class="col-12 d-none">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <label for="buscarTalle" class="form-label fw-semibold mb-0">Talles</label>
+                    <span id="cantidadTalles" class="badge rounded-pill text-bg-secondary px-3 py-2">
+                      0 seleccionados
+                    </span>
+                  </div>
+
+                  <input id="codigoTalle" type="hidden" value="">
+
+                  <div
+                    id="tallesSeleccionados"
+                    class="d-none flex-wrap gap-2 mb-3"
+                    aria-label="Talles seleccionados"
+                  ></div>
+
+                  <input
+                    id="buscarTalle"
+                    type="search"
+                    class="form-control mb-2"
+                    autocomplete="off"
+                    placeholder="Buscar por código o talle..."
+                  >
+
+                  <div id="listaTalles" class="app-color-list alta-color-list"></div>
                   <div class="form-text">
-                    Se muestran únicamente los talles habilitados para el rubro del Alta.
+                    Podés elegir varios talles. Se generarán todas las combinaciones entre los talles y colores seleccionados.
                   </div>
                 </div>
 
@@ -606,12 +628,19 @@
 
             <div class="d-grid gap-2">
               <button
-                id="btnGuardarBorrador"
+                id="btnVolverAltas"
                 type="button"
                 class="btn btn-outline-success d-none"
               >
-                Guardar borrador
+                Volver a Altas
               </button>
+
+              <div
+                id="mensajeGuardadoAutomatico"
+                class="small text-secondary text-center d-none"
+              >
+                Los productos agregados y las imágenes se guardan automáticamente.
+              </div>
 
               <button
                 id="btnBorradorExcel"

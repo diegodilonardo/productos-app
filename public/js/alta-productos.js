@@ -9,6 +9,7 @@ let secuenciaBusquedaModelo = 0;
 let modulos = [];
 let modulosFiltrados = [];
 let codigosModulosSeleccionados = [];
+let tallesParSuelto = [];
 let clasificacionesMaestro = [];
 
 document.addEventListener('DOMContentLoaded', iniciar);
@@ -400,19 +401,8 @@ async function cargarMaestros() {
         altaActual.codigoRubro
       );
 
-    cargarSelect(
-      'codigoTalle',
-      tallesFiltrados,
-
-      // IMPORTANTE:
-      // enviamos siempre el CODIGO_TALLE real al backend.
-      ['CODIGO_TALLE', 'codigoTalle'],
-
-      // Al usuario le mostramos el DETALLE_TALLE.
-      ['DETALLE_TALLE', 'detalleTalle'],
-
-      'Seleccionar talle...'
-    );
+    tallesParSuelto = tallesFiltrados;
+    pintarTallesParSuelto();
   }
 }
 
@@ -728,6 +718,31 @@ function actualizarLicenciaAlta() {
       'listaModelos'
     );
 
+  /*
+   * Después de generar una familia, cargarAlta() actualiza el detalle.
+   * Si el usuario ya había elegido un modelo, lo conservamos fijado para
+   * facilitar nuevas combinaciones. Sólo el botón "Cambiar" lo libera.
+   */
+  const modeloYaSeleccionado =
+    Boolean(
+      String(
+        hiddenModelo?.value || ''
+      ).trim()
+    );
+
+  if (modeloYaSeleccionado) {
+    panelModelo?.classList.remove(
+      'd-none'
+    );
+    buscadorModelo?.classList.add(
+      'd-none'
+    );
+    listaModelos?.classList.add(
+      'd-none'
+    );
+    return;
+  }
+
   if (hiddenModelo) {
     hiddenModelo.value = '';
   }
@@ -916,6 +931,39 @@ function filtrarModelos() {
     () => buscarModelosEnServidor(texto),
     300
   );
+}
+
+
+async function seleccionarModeloConEnter(
+  event
+) {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+
+  const input = event.currentTarget;
+  const criterio =
+    String(input?.value || '').trim();
+
+  clearTimeout(timerBusquedaModelo);
+
+  await buscarModelosEnServidor(
+    criterio
+  );
+
+  /* La respuesta sólo es válida si el texto no cambió durante la consulta. */
+  if (
+    normalizarBusqueda(input?.value) !==
+    normalizarBusqueda(criterio)
+  ) {
+    return;
+  }
+
+  if (modelosFiltrados.length === 1) {
+    seleccionarModelo(
+      modelosFiltrados[0]
+    );
+  }
 }
 
 function seleccionarModelo(fila) {
@@ -1364,6 +1412,73 @@ function obtenerDatosModulo(fila) {
 }
 
 
+/*
+ * Las curvas consecutivas se leen mejor mostrando únicamente sus
+ * cantidades. Cuando hay saltos entre talles conservamos talle:cantidad
+ * para que la composición no resulte ambigua.
+ */
+function composicionModuloParaMostrar(
+  composicion
+) {
+  const original =
+    String(composicion || '').trim();
+
+  if (!original) return '';
+
+  const partes =
+    original
+      .split('|')
+      .map(parte => parte.trim())
+      .filter(Boolean);
+
+  const items =
+    partes.map(parte => {
+      const coincidencia =
+        parte.match(
+          /^(-?\d+(?:[.,]\d+)?)\s*:\s*(.+)$/
+        );
+
+      if (!coincidencia) return null;
+
+      return {
+        talle: Number(
+          coincidencia[1]
+            .replace(',', '.')
+        ),
+        cantidad: coincidencia[2].trim()
+      };
+    });
+
+  if (
+    items.length !== partes.length ||
+    items.some(
+      item =>
+        !item ||
+        !Number.isFinite(item.talle) ||
+        !item.cantidad
+    )
+  ) {
+    return original;
+  }
+
+  const haySalteos =
+    items.some(
+      (item, indice) =>
+        indice > 0 &&
+        item.talle !==
+          items[indice - 1].talle + 1
+    );
+
+  if (haySalteos) {
+    return original;
+  }
+
+  return items
+    .map(item => item.cantidad)
+    .join(' | ');
+}
+
+
 function claveOrdenModulo(fila) {
   const modulo =
     obtenerDatosModulo(fila);
@@ -1496,6 +1611,25 @@ function filtrarModulos() {
 }
 
 
+function seleccionarModuloConEnter(event) {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+  filtrarModulos();
+
+  if (modulosFiltrados.length !== 1) return;
+
+  const modulo = obtenerDatosModulo(modulosFiltrados[0]);
+
+  if (
+    modulo.codigo &&
+    !codigosModulosSeleccionados.includes(modulo.codigo)
+  ) {
+    seleccionarModulo(modulosFiltrados[0]);
+  }
+}
+
+
 function pintarModulos(lista) {
   const contenedor =
     document.getElementById('listaModulos');
@@ -1573,7 +1707,10 @@ function pintarModulos(lista) {
         <div class="alta-module-composition">
           ${
             modulo.composicion
-              ? resaltarCoincidencia(modulo.composicion, busqueda)
+              ? resaltarCoincidencia(
+                  composicionModuloParaMostrar(modulo.composicion),
+                  busqueda
+                )
               : escapar(modulo.descripcion || modulo.detalle || '')
           }
         </div>
@@ -2049,6 +2186,21 @@ function inicializarBuscadorMaestro({
       )
   );
 
+  if (
+    buscador &&
+    buscador.dataset.enterUnico !== 'true'
+  ) {
+    buscador.dataset.enterUnico = 'true';
+    buscador.addEventListener(
+      'keydown',
+      event =>
+        seleccionarBuscadorMaestroConEnter(
+          event,
+          clave
+        )
+    );
+  }
+
   limpiar?.addEventListener(
     'click',
     () =>
@@ -2105,6 +2257,28 @@ function filtrarBuscadorMaestro(clave) {
     clave,
     estado.filtradas
   );
+}
+
+
+function seleccionarBuscadorMaestroConEnter(
+  event,
+  clave
+) {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+  filtrarBuscadorMaestro(clave);
+
+  const coincidencias =
+    buscadoresMaestro[clave]
+      ?.filtradas || [];
+
+  if (coincidencias.length === 1) {
+    seleccionarBuscadorMaestro(
+      clave,
+      coincidencias[0]
+    );
+  }
 }
 
 
@@ -2403,6 +2577,138 @@ function validarBuscadoresMaestro() {
 }
 
 
+function datosTalleParSuelto(fila) {
+  return {
+    codigo: String(
+      obtenerCampo(fila, ['CODIGO_TALLE', 'codigoTalle']) ?? ''
+    ).trim(),
+    detalle: String(
+      obtenerCampo(fila, ['DETALLE_TALLE', 'detalleTalle']) ?? ''
+    ).trim()
+  };
+}
+
+
+function pintarTallesParSuelto() {
+  const contenedor = document.getElementById('listaTalles');
+  if (!contenedor) return;
+
+  contenedor.innerHTML = '';
+
+  for (const fila of tallesParSuelto) {
+    const talle = datosTalleParSuelto(fila);
+    if (!talle.codigo) continue;
+
+    const item = document.createElement('div');
+    item.className = 'form-check app-color-item app-talle-item';
+    item.dataset.texto = normalizarBusqueda(`${talle.codigo} ${talle.detalle}`);
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'form-check-input talle-check';
+    input.value = talle.codigo;
+    input.id = `talle_${talle.codigo.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    input.addEventListener('change', actualizarTallesSeleccionados);
+
+    const label = document.createElement('label');
+    label.className = 'form-check-label';
+    label.htmlFor = input.id;
+    label.textContent = talle.detalle
+      ? `${talle.codigo} - ${talle.detalle}`
+      : talle.codigo;
+
+    item.append(input, label);
+    contenedor.appendChild(item);
+  }
+
+  actualizarTallesSeleccionados();
+}
+
+
+function filtrarTallesParSuelto() {
+  const texto = normalizarBusqueda(
+    document.getElementById('buscarTalle')?.value
+  );
+
+  document.querySelectorAll('.app-talle-item').forEach(item => {
+    const check = item.querySelector('.talle-check');
+    const coincide = !texto || item.dataset.texto.includes(texto);
+
+    item.classList.toggle('d-none', !check?.checked && !coincide);
+  });
+}
+
+
+function actualizarTallesSeleccionados() {
+  const seleccionados = [
+    ...document.querySelectorAll('.talle-check:checked')
+  ];
+  const hidden = document.getElementById('codigoTalle');
+  const contador = document.getElementById('cantidadTalles');
+  const chips = document.getElementById('tallesSeleccionados');
+
+  if (hidden) {
+    hidden.value = seleccionados.map(check => check.value).join(',');
+  }
+
+  if (contador) {
+    contador.textContent =
+      `${seleccionados.length} seleccionado${seleccionados.length === 1 ? '' : 's'}`;
+  }
+
+  if (!chips) return;
+
+  chips.innerHTML = '';
+  chips.classList.toggle('d-none', seleccionados.length === 0);
+  chips.classList.toggle('d-flex', seleccionados.length > 0);
+
+  for (const check of seleccionados) {
+    const label = document.querySelector(`label[for="${CSS.escape(check.id)}"]`);
+    const chip = document.createElement('span');
+    chip.className =
+      'badge rounded-pill text-bg-primary d-inline-flex align-items-center gap-2 px-3 py-2';
+    chip.append(document.createTextNode(label?.textContent?.trim() || check.value));
+
+    const quitar = document.createElement('button');
+    quitar.type = 'button';
+    quitar.className = 'btn btn-link text-white p-0 border-0 lh-1';
+    quitar.textContent = '×';
+    quitar.setAttribute('aria-label', `Quitar talle ${check.value}`);
+    quitar.addEventListener('click', () => {
+      check.checked = false;
+      actualizarTallesSeleccionados();
+      filtrarTallesParSuelto();
+    });
+
+    chip.appendChild(quitar);
+    chips.appendChild(chip);
+  }
+}
+
+
+function seleccionarTalleConEnter(event) {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+  filtrarTallesParSuelto();
+
+  const coincidencias = [...document.querySelectorAll('.app-talle-item')]
+    .filter(item => {
+      const check = item.querySelector('.talle-check');
+      return !item.classList.contains('d-none') && !check?.checked;
+    });
+
+  if (coincidencias.length !== 1) return;
+
+  const check = coincidencias[0].querySelector('.talle-check');
+  if (!check) return;
+
+  check.checked = true;
+  actualizarTallesSeleccionados();
+  filtrarTallesParSuelto();
+}
+
+
 function pintarColores(lista) {
   const contenedor = document.getElementById('listaColores');
   contenedor.innerHTML = '';
@@ -2522,6 +2828,40 @@ function filtrarColores() {
   });
 }
 
+
+function seleccionarColorConEnter(event) {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+
+  const texto = normalizarBusqueda(
+    event.currentTarget?.value
+  );
+
+  filtrarColores();
+
+  const coincidencias =
+    [...document.querySelectorAll('.app-color-item')]
+      .filter(item => {
+        const check = item.querySelector('.color-check');
+
+        return (
+          !check?.checked &&
+          (!texto || normalizarBusqueda(item.dataset.texto).includes(texto))
+        );
+      });
+
+  if (coincidencias.length !== 1) return;
+
+  const check = coincidencias[0].querySelector('.color-check');
+  if (!check) return;
+
+  check.checked = true;
+  actualizarCantidadColores();
+  filtrarColores();
+  actualizarImagenesProducto();
+}
+
 function configurarEventos() {
 
   document
@@ -2529,6 +2869,13 @@ function configurarEventos() {
     ?.addEventListener(
       'input',
       filtrarModelos
+    );
+
+  document
+    .getElementById('buscarModelo')
+    ?.addEventListener(
+      'keydown',
+      seleccionarModeloConEnter
     );
 
   document
@@ -2553,6 +2900,13 @@ function configurarEventos() {
     );
 
   document
+    .getElementById('buscarModulo')
+    ?.addEventListener(
+      'keydown',
+      seleccionarModuloConEnter
+    );
+
+  document
     .getElementById('btnLimpiarModulo')
     ?.addEventListener(
       'click',
@@ -2560,9 +2914,12 @@ function configurarEventos() {
     );
 
   document.getElementById('formProducto').addEventListener('submit', agregarProducto);
+  document.getElementById('buscarTalle')?.addEventListener('input', filtrarTallesParSuelto);
+  document.getElementById('buscarTalle')?.addEventListener('keydown', seleccionarTalleConEnter);
   document.getElementById('buscarColor').addEventListener('input', filtrarColores);
+  document.getElementById('buscarColor').addEventListener('keydown', seleccionarColorConEnter);
   document.getElementById('btnActualizarAlta').addEventListener('click', cargarAlta);
-  document.getElementById('btnGuardarBorrador').addEventListener('click', guardarBorrador);
+  document.getElementById('btnVolverAltas').addEventListener('click', volverAAltas);
   document.getElementById('btnAnularAlta')?.addEventListener('click', anularAlta);
   document.getElementById('btnBorradorExcel')?.addEventListener('click', exportarBorradorExcel);
   document.getElementById('btnValidarAlta').addEventListener('click', validarAlta);
@@ -2591,6 +2948,22 @@ function configurarEventos() {
   document
     .getElementById('tablaProductosAlta')
     .addEventListener('change', manejarCambioImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('dragenter', manejarArrastreImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('dragover', manejarArrastreImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('dragleave', manejarSalidaArrastreImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('drop', manejarDropImagenDetalle);
 
   document
     .getElementById('filtroProductosTexto')
@@ -2713,7 +3086,15 @@ async function agregarProducto(event) {
     payload.codigoClasificacion = valor('codigoClasificacion');
 
   } else {
-    payload.codigoTalle = valor('codigoTalle');
+    payload.codigosTalle = [
+      ...document.querySelectorAll('.talle-check:checked')
+    ].map(input => input.value);
+
+    if (!payload.codigosTalle.length) {
+      mostrarAlerta('Debe seleccionar al menos un talle.', 'warning');
+      document.getElementById('buscarTalle')?.focus();
+      return;
+    }
   }
 
   const cuerpoSolicitud =
@@ -2722,7 +3103,10 @@ async function agregarProducto(event) {
           ...payload,
           codigosModulo: codigosModulosSeleccionados
       }
-      : payload;
+      : {
+          ...payload,
+          codigosTalle: payload.codigosTalle
+        };
 
   const btn = document.getElementById('btnAgregarProducto');
 
@@ -2995,9 +3379,10 @@ function htmlImagenFamilia(
 
   return `
     <div
-      class="alta-family-image"
+      class="alta-family-image${editable ? ' alta-family-image--editable' : ''}"
       data-id-imagen="${escapar(id)}"
-      title="${escapar(nombre)}.JPG / PNG"
+      data-imagen-editable="${editable ? 'true' : 'false'}"
+      title="${escapar(nombre)}.JPG / PNG${editable ? ' · También podés arrastrar la imagen aquí' : ''}"
     >
       <div class="alta-family-image-preview">
         <div
@@ -3190,7 +3575,8 @@ async function cargarEstadoImagenFila(
 
 
 async function manejarCambioImagenDetalle(
-  event
+  event,
+  archivoArrastrado = null
 ) {
   const input =
     event.target.closest(
@@ -3207,6 +3593,7 @@ async function manejarCambioImagenDetalle(
   if (!fila) return;
 
   const archivo =
+    archivoArrastrado ||
     input.files?.[0];
 
   const id =
@@ -3310,7 +3697,101 @@ async function manejarCambioImagenDetalle(
   }
 
   await guardarImagenFamilia(
-    input
+    input,
+    archivo
+  );
+}
+
+
+function zonaArrastreImagenDetalle(
+  event
+) {
+  return event.target.closest(
+    '.alta-family-image[data-imagen-editable="true"]'
+  );
+}
+
+
+function manejarArrastreImagenDetalle(
+  event
+) {
+  const zona =
+    zonaArrastreImagenDetalle(
+      event
+    );
+
+  if (!zona) return;
+
+  event.preventDefault();
+
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect =
+      'copy';
+  }
+
+  zona.classList.add(
+    'is-dragging'
+  );
+}
+
+
+function manejarSalidaArrastreImagenDetalle(
+  event
+) {
+  const zona =
+    zonaArrastreImagenDetalle(
+      event
+    );
+
+  if (!zona) return;
+
+  if (
+    event.relatedTarget &&
+    zona.contains(
+      event.relatedTarget
+    )
+  ) {
+    return;
+  }
+
+  zona.classList.remove(
+    'is-dragging'
+  );
+}
+
+
+async function manejarDropImagenDetalle(
+  event
+) {
+  const zona =
+    zonaArrastreImagenDetalle(
+      event
+    );
+
+  if (!zona) return;
+
+  event.preventDefault();
+
+  zona.classList.remove(
+    'is-dragging'
+  );
+
+  const archivo =
+    event.dataTransfer
+      ?.files?.[0];
+
+  if (!archivo) return;
+
+  const input =
+    zona.querySelector(
+      '[data-accion="seleccionar-imagen-familia"]'
+    );
+
+  if (!input) return;
+
+  await manejarCambioImagenDetalle(
+    { target: input },
+    archivo
   );
 }
 
@@ -3361,7 +3842,8 @@ async function archivoABase64Familia(
 
 
 async function guardarImagenFamilia(
-  input
+  input,
+  archivoSeleccionado = null
 ) {
   if (
     !puedeModificarImagenes()
@@ -3392,6 +3874,7 @@ async function guardarImagenFamilia(
     );
 
   const archivo =
+    archivoSeleccionado ||
     input?.files?.[0];
 
   if (!archivo) {
@@ -4454,7 +4937,8 @@ function actualizarControlesEstado() {
   const cantidad = detalleActual().length;
 
   const btnAgregar = document.getElementById('btnAgregarProducto');
-  const btnGuardarBorrador = document.getElementById('btnGuardarBorrador');
+  const btnVolverAltas = document.getElementById('btnVolverAltas');
+  const mensajeGuardadoAutomatico = document.getElementById('mensajeGuardadoAutomatico');
   const btnAnular = document.getElementById('btnAnularAlta');
   const btnBorradorExcel = document.getElementById('btnBorradorExcel');
   const btnValidar = document.getElementById('btnValidarAlta');
@@ -4524,9 +5008,13 @@ function actualizarControlesEstado() {
 
   if (btnAgregar) btnAgregar.disabled = !esBorrador;
 
-  if (btnGuardarBorrador) {
-    btnGuardarBorrador.disabled = !esBorrador;
-    btnGuardarBorrador.classList.toggle('d-none', !esBorrador);
+  if (btnVolverAltas) {
+    btnVolverAltas.disabled = !esBorrador;
+    btnVolverAltas.classList.toggle('d-none', !esBorrador);
+  }
+
+  if (mensajeGuardadoAutomatico) {
+    mensajeGuardadoAutomatico.classList.toggle('d-none', !esBorrador);
   }
 
   if (btnAnular) {
@@ -4734,15 +5222,15 @@ async function anularAlta() {
 }
 
 
-async function guardarBorrador() {
+async function volverAAltas() {
   ocultarAlerta();
 
   const btn =
-    document.getElementById('btnGuardarBorrador');
+    document.getElementById('btnVolverAltas');
 
   try {
     btn.disabled = true;
-    btn.textContent = 'Guardando...';
+    btn.textContent = 'Volviendo...';
 
     /*
       La cabecera y cada detalle ya se persisten en SQL al momento
@@ -4760,14 +5248,14 @@ async function guardarBorrador() {
     const cantidad = detalleActual().length;
 
     window.location.href =
-      `/altas?guardado=${encodeURIComponent(ID_ALTA)}` +
+      `/altas?retorno=${encodeURIComponent(ID_ALTA)}` +
       `&productos=${encodeURIComponent(cantidad)}`;
 
   } catch (error) {
     mostrarAlerta(error.message, 'danger');
 
     btn.disabled = false;
-    btn.textContent = 'Guardar borrador';
+    btn.textContent = 'Volver a Altas';
   }
 }
 

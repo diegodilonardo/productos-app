@@ -665,7 +665,7 @@ function mostrarMensajeGuardado() {
     );
 
   const id =
-    params.get('guardado');
+    params.get('retorno');
 
   if (!id) {
     return;
@@ -677,11 +677,11 @@ function mostrarMensajeGuardado() {
   mostrarAlerta(
     productos !== null
       ? (
-          `Borrador ID ${id} guardado correctamente. ` +
+          `Volviste desde el Alta ID ${id}. ` +
           `${productos} producto(s) permanecen en el lote y podés retomarlo cuando quieras.`
         )
       : (
-          `Borrador ID ${id} guardado correctamente.`
+          `Volviste desde el Alta ID ${id}. Los cambios agregados quedaron guardados automáticamente.`
         ),
     'success'
   );

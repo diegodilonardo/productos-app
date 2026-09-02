@@ -810,6 +810,34 @@ function determinarRubroFact(
     }
 
 
+    /* ========================================================
+       BAGUNZA / BAGUNZA
+
+       Maestro recibido:
+         CALZ_BGZ
+         MOD_CALZ_BGZ
+         ACC_BGZ
+         POP_BGZ
+
+       ACCESORIOS y POP no poseen regla de módulo en el maestro,
+       por lo que sólo se habilitan como PAR_SUELTO.
+       ======================================================== */
+
+    if (marcaNormalizada === 'BAGUNZA') {
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto ? 'CALZ_BGZ' : 'MOD_CALZ_BGZ';
+        }
+
+        if (rubroNormalizado === 'ACCESORIOS' && esParSuelto) {
+            return 'ACC_BGZ';
+        }
+
+        if (rubroNormalizado === 'POP' && esParSuelto) {
+            return 'POP_BGZ';
+        }
+    }
+
+
     throw new Error(
         `No existe regla de RUBRO_FACT para ` +
         `${marca} / ${rubro} / ` +
@@ -2223,37 +2251,50 @@ function expandirCombinatoriaCurvas(datosEntrada) {
         !datosEntrada ||
         typeof datosEntrada !== 'object' ||
         Array.isArray(datosEntrada) ||
-        Array.isArray(datosEntrada.productos) ||
-        !Array.isArray(datosEntrada.codigosModulo)
+        Array.isArray(datosEntrada.productos)
     ) {
         return datosEntrada;
     }
 
-    const codigosModulo = [
+    const usaModulos = Array.isArray(datosEntrada.codigosModulo);
+    const usaTalles = Array.isArray(datosEntrada.codigosTalle);
+
+    if (!usaModulos && !usaTalles) return datosEntrada;
+
+    if (usaModulos && usaTalles) {
+        throw new Error('No se pueden combinar curvas y talles en la misma operación.');
+    }
+
+    const codigos = [
         ...new Set(
-            datosEntrada.codigosModulo
+            (usaModulos
+                ? datosEntrada.codigosModulo
+                : datosEntrada.codigosTalle)
                 .map(normalizarTexto)
                 .filter(Boolean)
         )
     ];
 
-    if (codigosModulo.length === 0) {
+    if (codigos.length === 0) {
         throw new Error(
-            'Debe seleccionar al menos una curva/módulo.'
+            usaModulos
+                ? 'Debe seleccionar al menos una curva/módulo.'
+                : 'Debe seleccionar al menos un talle.'
         );
     }
 
     const {
         codigosModulo: _codigosModulo,
+        codigosTalle: _codigosTalle,
         ...datosComunes
     } = datosEntrada;
 
     return {
         usuario: datosComunes.usuario,
-        productos: codigosModulo.map(
-            codigoModulo => ({
+        productos: codigos.map(
+            codigo => ({
                 ...datosComunes,
-                codigoModulo
+                [usaModulos ? 'codigoModulo' : 'codigoTalle']: codigo
             })
         )
     };

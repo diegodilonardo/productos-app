@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 
 const CRON_MAESTROS =
     process.env.MAESTROS_CRON ||
-    '*/10 * * * *';
+    '2-59/10 * * * *';
 
 const MAESTROS_MAX_MS =
     numeroPositivo(

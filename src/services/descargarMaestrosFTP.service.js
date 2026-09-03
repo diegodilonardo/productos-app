@@ -10,7 +10,7 @@ const {
 } = require('../config/masters');
 
 const {
-    descargarArchivos
+    descargarArchivosModificados
 } = require('./ftp.service');
 
 
@@ -196,11 +196,18 @@ async function descargarMaestrosDeEmpresas(codigoEmpresa = null) {
         try {
 
             const descarga =
-                await descargarArchivos(
+                await descargarArchivosModificados(
                     empresa.FTP_RUTA_MAESTROS,
                     archivos,
                     carpetaLocal
                 );
+
+            console.log(
+                descarga.sinCambios
+                    ? `FTP sin cambios: ${descarga.revisados} archivo(s) revisado(s), 0 descargado(s).`
+                    : `FTP actualizado: ${descarga.revisados} archivo(s) revisado(s), ` +
+                      `${descarga.cantidad} descargado(s).`
+            );
 
 
             resultados.push({
@@ -218,6 +225,12 @@ async function descargarMaestrosDeEmpresas(codigoEmpresa = null) {
 
                 archivos:
                     descarga.cantidad,
+
+                revisados:
+                    descarga.revisados,
+
+                sinCambios:
+                    descarga.sinCambios,
 
                 carpetaLocal
             });

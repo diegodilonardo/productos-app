@@ -15,6 +15,7 @@ async function iniciarPedidos() {
   document.getElementById('buscarPedido')?.addEventListener('input', pintarPedidosFiltrados);
   document.getElementById('filtroEstadoPedido')?.addEventListener('change', pintarPedidosFiltrados);
   document.getElementById('filtroExportacionPedido')?.addEventListener('change', pintarPedidosFiltrados);
+  document.getElementById('mostrarAnuladosPedido')?.addEventListener('change', cambiarVisibilidadAnuladosPedido);
   document.getElementById('selectorEmpresaPedido')?.addEventListener('change', cambiarEmpresaPedido);
   document.getElementById('btnVistaTarjetasPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tarjetas'));
   document.getElementById('btnVistaTablaPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tabla'));
@@ -256,9 +257,10 @@ function pintarPedidosFiltrados() {
   const q = (document.getElementById('buscarPedido')?.value || '').trim().toUpperCase();
   const e = document.getElementById('filtroEstadoPedido')?.value || '';
   const ex = document.getElementById('filtroExportacionPedido')?.value || '';
+  const mostrarAnulados = document.getElementById('mostrarAnuladosPedido')?.checked === true;
   const lista = pedidos.filter(p => {
     const texto = [p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN,p.DETALLE_RUBRO,p.CODIGO_ANO,p.DETALLE_TEMPORADA].join(' ').toUpperCase();
-    return (!q || texto.includes(q)) && (!e || estado(p)===e) && (!ex || estadoExportacion(p)===ex);
+    return (mostrarAnulados || estado(p) !== 'ANULADO') && (!q || texto.includes(q)) && (!e || estado(p)===e) && (!ex || estadoExportacion(p)===ex);
   });
   setTexto(
     'cantidadPedidosVisible',
@@ -266,6 +268,17 @@ function pintarPedidosFiltrados() {
   );
   pintarTarjetas(lista);
   pintarTabla(lista);
+}
+
+function cambiarVisibilidadAnuladosPedido(event) {
+  const mostrar = event.currentTarget.checked;
+  const filtro = document.getElementById('filtroEstadoPedido');
+  const opcionAnulado = filtro?.querySelector('option[value="ANULADO"]');
+
+  if (opcionAnulado) opcionAnulado.disabled = !mostrar;
+  if (!mostrar && filtro?.value === 'ANULADO') filtro.value = '';
+
+  pintarPedidosFiltrados();
 }
 
 function aplicarVistaPedidos(vista) {

@@ -25,6 +25,10 @@ async function iniciarPantallaAltas() {
     .addEventListener('change', pintarAltasFiltradas);
 
   document
+    .getElementById('mostrarAnuladasAlta')
+    .addEventListener('change', cambiarVisibilidadAnuladasAlta);
+
+  document
     .getElementById('btnVistaTarjetasAltas')
     .addEventListener('click', () => aplicarVistaAltas('tarjetas'));
 
@@ -209,6 +213,11 @@ function pintarAltasFiltradas() {
       .trim()
       .toUpperCase();
 
+  const mostrarAnuladas =
+    document
+      .getElementById('mostrarAnuladasAlta')
+      ?.checked === true;
+
   const filtradas =
     altasCargadas.filter(item => {
       const estado =
@@ -217,6 +226,13 @@ function pintarAltasFiltradas() {
           item.estado ||
           ''
         ).toUpperCase();
+
+      if (
+        estado === 'ANULADO' &&
+        !mostrarAnuladas
+      ) {
+        return false;
+      }
 
       if (
         estadoFiltro &&
@@ -250,6 +266,22 @@ function pintarAltasFiltradas() {
 
   pintarTarjetasAltas(filtradas);
   pintarTablaAltas(filtradas);
+}
+
+function cambiarVisibilidadAnuladasAlta(event) {
+  const mostrar = event.currentTarget.checked;
+  const filtro = document.getElementById('filtroEstadoAlta');
+  const opcionAnulado = filtro?.querySelector('option[value="ANULADO"]');
+
+  if (opcionAnulado) {
+    opcionAnulado.disabled = !mostrar;
+  }
+
+  if (!mostrar && filtro?.value === 'ANULADO') {
+    filtro.value = '';
+  }
+
+  pintarAltasFiltradas();
 }
 
 function aplicarVistaAltas(vista) {

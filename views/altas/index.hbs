@@ -171,8 +171,20 @@
           <option value="EXPORTADO">EXPORTADO</option>
           <option value="PARCIAL_ERP">PARCIAL_ERP</option>
           <option value="GENERADO_OK_EN_ERP">GENERADO_OK_EN_ERP</option>
-          <option value="ANULADO">ANULADO</option>
+          <option value="ANULADO" disabled>ANULADO</option>
         </select>
+
+        <div class="form-check form-switch altas-cancel-switch">
+          <input
+            id="mostrarAnuladasAlta"
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+          >
+          <label class="form-check-label" for="mostrarAnuladasAlta">
+            Mostrar anuladas
+          </label>
+        </div>
 
         <div class="altas-view-switch" role="group" aria-label="Vista del listado">
           <button id="btnVistaTarjetasAltas" type="button" class="altas-view-btn" aria-pressed="true" title="Ver como tarjetas">

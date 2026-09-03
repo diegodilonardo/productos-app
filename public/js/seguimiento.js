@@ -21,6 +21,11 @@ async function iniciarSeguimiento() {
   document.getElementById('btnVistaTablaSeguimiento')?.addEventListener('click', () => aplicarVistaSeguimiento('tabla'));
   aplicarVistaSeguimiento(vistaSeguimiento);
 
+  document.getElementById('mostrarAnuladasSeguimiento')?.addEventListener(
+    'change',
+    cambiarVisibilidadAnuladasSeguimiento
+  );
+
   const filtroEstado =
     document.getElementById('filtroEstadoSeguimiento');
 
@@ -204,12 +209,14 @@ function pintarResumen(resumen) {
 function pintarAltasFiltradas() {
   const estadoFiltro =
     document.getElementById('filtroEstadoSeguimiento').value;
+  const mostrarAnuladas =
+    document.getElementById('mostrarAnuladasSeguimiento')?.checked === true;
 
-  const filas = estadoFiltro
-    ? altasSeguimiento.filter(item =>
-        String(item.ESTADO ?? item.estado ?? '').toUpperCase() === estadoFiltro
-      )
-    : altasSeguimiento;
+  const filas = altasSeguimiento.filter(item => {
+    const estado = String(item.ESTADO ?? item.estado ?? '').toUpperCase();
+    if (estado === 'ANULADO' && !mostrarAnuladas) return false;
+    return !estadoFiltro || estado === estadoFiltro;
+  });
 
   setTexto(
     'cantidadSeguimientoVisible',
@@ -218,6 +225,15 @@ function pintarAltasFiltradas() {
 
   pintarTarjetasSeguimiento(filas);
   pintarAltas(filas);
+}
+
+function cambiarVisibilidadAnuladasSeguimiento() {
+  const mostrar = document.getElementById('mostrarAnuladasSeguimiento')?.checked === true;
+  const filtro = document.getElementById('filtroEstadoSeguimiento');
+  const opcionAnulado = filtro?.querySelector('option[value="ANULADO"]');
+  if (opcionAnulado) opcionAnulado.disabled = !mostrar;
+  if (!mostrar && filtro?.value === 'ANULADO') filtro.value = '';
+  pintarAltasFiltradas();
 }
 
 function aplicarVistaSeguimiento(vista) {

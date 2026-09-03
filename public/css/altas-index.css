@@ -65,9 +65,28 @@
 
 .altas-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1.4fr) minmax(175px, .8fr) auto;
+  grid-template-columns: minmax(320px, 1.4fr) minmax(175px, .75fr) auto auto;
   gap: 9px;
-  width: min(820px, 100%);
+  width: min(1080px, 100%);
+}
+
+.altas-cancel-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  margin: 0;
+  padding: 0.4rem 0.7rem 0.4rem 2.8rem;
+  border: 1px solid #dce3eb;
+  border-radius: 0.55rem;
+  background: #fbfcfd;
+  white-space: nowrap;
+}
+
+.altas-cancel-switch .form-check-label {
+  color: #59697a;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .altas-view-switch {
@@ -325,10 +344,14 @@
   border-radius: 8px;
 }
 
-@media (max-width: 991.98px) {
+@media (max-width: 1199.98px) {
   .altas-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     width: 100%;
+  }
+
+  .altas-search-wrap {
+    grid-column: 1 / -1;
   }
 
   .altas-list-head {
@@ -337,6 +360,14 @@
 }
 
 @media (max-width: 575.98px) {
+  .altas-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .altas-search-wrap {
+    grid-column: auto;
+  }
+
   .altas-page-head {
     align-items: stretch;
   }

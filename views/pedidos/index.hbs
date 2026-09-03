@@ -41,7 +41,7 @@
           <option value="BORRADOR">Borrador</option>
           <option value="VALIDADO">Validado</option>
           <option value="SINCRONIZADO">Sincronizado</option>
-          <option value="ANULADO">Anulado</option>
+          <option value="ANULADO" disabled>Anulado</option>
         </select>
         <select id="filtroExportacionPedido" class="form-select">
           <option value="">Todas las exportaciones</option>
@@ -49,6 +49,17 @@
           <option value="PARCIAL">Parcial</option>
           <option value="COMPLETO">Completo</option>
         </select>
+        <div class="form-check form-switch pedidos-cancel-switch">
+          <input
+            id="mostrarAnuladosPedido"
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+          >
+          <label class="form-check-label" for="mostrarAnuladosPedido">
+            Mostrar anulados
+          </label>
+        </div>
         <div class="pedidos-view-switch" role="group" aria-label="Vista del listado">
           <button id="btnVistaTarjetasPedidos" class="pedidos-view-btn" type="button" aria-pressed="true">▦ Tarjetas</button>
           <button id="btnVistaTablaPedidos" class="pedidos-view-btn" type="button" aria-pressed="false">☷ Tabla</button>

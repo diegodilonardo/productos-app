@@ -10,6 +10,8 @@ const API_PEDIDOS =
 let ID_EMPRESA_DASHBOARD = null;
 let vistaAltasDashboard = sessionStorage.getItem('dashboard.altas.vista') === 'lista' ? 'lista' : 'tarjetas';
 let vistaPedidosDashboard = sessionStorage.getItem('dashboard.pedidos.vista') === 'lista' ? 'lista' : 'tarjetas';
+let altasDashboard = [];
+let pedidosDashboard = [];
 
 
 document.addEventListener(
@@ -37,6 +39,8 @@ document.addEventListener(
         document.getElementById('btnVistaTarjetasPedidosDashboard')?.addEventListener('click', () => aplicarVistaPedidosDashboard('tarjetas'));
         document.getElementById('btnVistaListaPedidosDashboard')?.addEventListener('click', () => aplicarVistaPedidosDashboard('lista'));
         aplicarVistaPedidosDashboard(vistaPedidosDashboard);
+        document.getElementById('mostrarAnuladasAltasDashboard')?.addEventListener('change', pintarAltasDashboardFiltradas);
+        document.getElementById('mostrarAnuladosPedidosDashboard')?.addEventListener('change', pintarPedidosDashboardFiltrados);
 
         try {
             ID_EMPRESA_DASHBOARD =
@@ -60,6 +64,9 @@ function actualizarEmpresaDashboard(event) {
         Number(
             event.detail?.idEmpresa
         ) || null;
+
+    altasDashboard = [];
+    pedidosDashboard = [];
 
     cargarDashboard();
 }
@@ -218,9 +225,8 @@ async function cargarDashboard() {
             resumenJson.resultado
         );
 
-        pintarAltas(
-            altasJson.resultado
-        );
+        altasDashboard = Array.isArray(altasJson.resultado) ? altasJson.resultado : [];
+        pintarAltasDashboardFiltradas();
 
         await cargarPedidosDashboard(
             altasJson.resultado
@@ -468,6 +474,13 @@ function pintarAltas(altas) {
     }
 }
 
+function pintarAltasDashboardFiltradas() {
+    const mostrarAnuladas = document.getElementById('mostrarAnuladasAltasDashboard')?.checked === true;
+    pintarAltas(altasDashboard.filter(alta =>
+        mostrarAnuladas || String(alta.ESTADO || '').trim().toUpperCase() !== 'ANULADO'
+    ));
+}
+
 function aplicarVistaAltasDashboard(vista) {
     vistaAltasDashboard = vista === 'lista' ? 'lista' : 'tarjetas';
     sessionStorage.setItem('dashboard.altas.vista', vistaAltasDashboard);
@@ -576,11 +589,11 @@ async function cargarPedidosDashboard(altasEmpresa) {
             pedidos
         );
 
-        pintarPedidosRecientes(
-            pedidos
-        );
+        pedidosDashboard = pedidos;
+        pintarPedidosDashboardFiltrados();
 
     } catch (error) {
+        pedidosDashboard = [];
         pintarResumenPedidos([]);
 
         if (contenedor) {
@@ -800,6 +813,13 @@ function pintarPedidosRecientes(pedidos) {
                 `;
             }
         ).join('');
+}
+
+function pintarPedidosDashboardFiltrados() {
+    const mostrarAnulados = document.getElementById('mostrarAnuladosPedidosDashboard')?.checked === true;
+    pintarPedidosRecientes(pedidosDashboard.filter(pedido =>
+        mostrarAnulados || String(pedido.ESTADO || '').trim().toUpperCase() !== 'ANULADO'
+    ));
 }
 
 function aplicarVistaPedidosDashboard(vista) {

@@ -2922,6 +2922,7 @@ function configurarEventos() {
   document.getElementById('btnVolverAltas').addEventListener('click', volverAAltas);
   document.getElementById('btnAnularAlta')?.addEventListener('click', anularAlta);
   document.getElementById('btnBorradorExcel')?.addEventListener('click', exportarBorradorExcel);
+  document.getElementById('btnDescargarImagenesAlta')?.addEventListener('click', descargarImagenesAlta);
   document.getElementById('btnValidarAlta').addEventListener('click', validarAlta);
   document.getElementById('btnPreviewAlta').addEventListener('click', mostrarPreview);
   document.getElementById('btnExportarPreviewExcel')?.addEventListener('click', exportarPreviewExcel);
@@ -4941,6 +4942,7 @@ function actualizarControlesEstado() {
   const mensajeGuardadoAutomatico = document.getElementById('mensajeGuardadoAutomatico');
   const btnAnular = document.getElementById('btnAnularAlta');
   const btnBorradorExcel = document.getElementById('btnBorradorExcel');
+  const btnDescargarImagenesAlta = document.getElementById('btnDescargarImagenesAlta');
   const btnValidar = document.getElementById('btnValidarAlta');
   const btnPreview = document.getElementById('btnPreviewAlta');
   const btnExportar = document.getElementById('btnExportarAlta');
@@ -5055,6 +5057,23 @@ function actualizarControlesEstado() {
         esBorrador
           ? 'Exportar Excel con imágenes'
           : 'Descargar Excel del Alta';
+    }
+  }
+
+  if (btnDescargarImagenesAlta) {
+    const puedeDescargarImagenes = [
+      'BORRADOR',
+      'VALIDADO',
+      'EXPORTADO',
+      'PARCIAL_ERP',
+      'GENERADO_OK_EN_ERP',
+      'SIN_NOVEDADES_ERP'
+    ].includes(estado) && detalleActual().some(item => !esValorVerdadero(item?.GENERADO_AUTOMATICO));
+
+    btnDescargarImagenesAlta.disabled = !puedeDescargarImagenes;
+    btnDescargarImagenesAlta.classList.toggle('d-none', !puedeDescargarImagenes);
+    if (btnDescargarImagenesAlta.textContent !== 'Generando ZIP...') {
+      btnDescargarImagenesAlta.textContent = 'Descargar imágenes (ZIP)';
     }
   }
 
@@ -5367,6 +5386,53 @@ async function validarAlta() {
     actualizarControlesEstado();
   }
 }
+
+async function descargarImagenesAlta() {
+  const btn = document.getElementById('btnDescargarImagenesAlta');
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Generando ZIP...';
+    }
+
+    const respuesta = await fetch(`/api/altas/${ID_ALTA}/imagenes.zip`, {
+      headers: { Accept: 'application/zip' }
+    });
+
+    if (!respuesta.ok) {
+      let mensaje = `No se pudieron descargar las imágenes (${respuesta.status}).`;
+      try {
+        const errorJson = await respuesta.json();
+        mensaje = errorJson?.mensaje || errorJson?.message || mensaje;
+      } catch (_) {
+        // La respuesta puede no ser JSON.
+      }
+      throw new Error(mensaje);
+    }
+
+    const blob = await respuesta.blob();
+    const disposicion = respuesta.headers.get('Content-Disposition') || '';
+    const coincidencia = disposicion.match(/filename="?([^";]+)"?/i);
+    const nombre = coincidencia?.[1] || `IMAGENES_ALTA_${ID_ALTA}.zip`;
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(url);
+
+    mostrarAlerta('ZIP de imágenes generado correctamente.', 'success');
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  } finally {
+    if (btn) btn.textContent = 'Descargar imágenes (ZIP)';
+    actualizarControlesEstado();
+  }
+}
+
 
 async function exportarBorradorExcel() {
 

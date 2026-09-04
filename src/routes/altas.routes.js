@@ -14,6 +14,11 @@ const modelosBusquedaService =
 const borradorExcelService =
     require('../services/borradorExcel.service');
 
+const imagenesAltaService =
+    require('../services/imagenesAlta.service');
+
+const archiver = require('archiver');
+
 const {
     requerirAutenticacion,
     requerirEmpresa,
@@ -345,6 +350,41 @@ router.get('/:id/borrador-excel', requerirAccesoAlta, async (req, res) => {
 
             mensaje:
                 error.message
+        });
+    }
+});
+
+
+/* ============================================================
+   DESCARGAR IMAGENES DEL ALTA
+   ============================================================ */
+
+router.get('/:id/imagenes.zip', requerirAccesoAlta, async (req, res) => {
+    try {
+        const resultado =
+            await imagenesAltaService.prepararDescargaImagenesAlta(req.params.id);
+
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${resultado.nombreArchivo}"`
+        );
+
+        const zip = archiver('zip', { zlib: { level: 9 } });
+        zip.on('error', error => res.destroy(error));
+        zip.pipe(res);
+
+        for (const imagen of resultado.archivos) {
+            zip.file(imagen.archivo, { name: imagen.nombre });
+        }
+
+        zip.append(resultado.csv, { name: 'referencias_productos.csv' });
+        await zip.finalize();
+    } catch (error) {
+        if (res.headersSent) return res.destroy(error);
+        return res.status(400).json({
+            ok: false,
+            mensaje: error.message
         });
     }
 });

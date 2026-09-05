@@ -245,7 +245,16 @@ async function obtenerResumen({
                 normalizarEstado(alta.ESTADO) === estado
         ).length;
 
-    const erp = altas.reduce(
+    /*
+     * Un Alta anulada conserva su historial de exportación para auditoría,
+     * pero ya no representa trabajo pendiente ni confirmado del circuito
+     * operativo. Por eso no participa en las métricas del Dashboard/ERP.
+     */
+    const altasOperativas = altas.filter(
+        alta => normalizarEstado(alta.ESTADO) !== 'ANULADO'
+    );
+
+    const erp = altasOperativas.reduce(
         (acum, alta) => {
             const s = alta.seguimientoErp || {};
 
@@ -266,7 +275,8 @@ async function obtenerResumen({
 
     return {
         altas: {
-            total: altas.length,
+            total: altasOperativas.length,
+            totalIncluyendoAnuladas: altas.length,
             borrador: contarEstado('BORRADOR'),
             validado: contarEstado('VALIDADO'),
             exportado: contarEstado('EXPORTADO'),

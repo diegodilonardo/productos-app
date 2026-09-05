@@ -96,6 +96,7 @@ async function listarAltasSeguimiento({
 
         LEFT JOIN dbo.ALTAS_PRODUCTOS_EXPORTADOS E
             ON E.ID_ALTA = A.ID_ALTA
+           AND E.ID_EMPRESA = A.ID_EMPRESA
 
         WHERE A.ID_EMPRESA = @ID_EMPRESA
         ${filtroEstado}
@@ -193,6 +194,7 @@ async function obtenerSeguimientoAlta(idAlta, idEmpresa) {
     const resumen = await pool
         .request()
         .input('ID_ALTA', sql.Int, idAlta)
+        .input('ID_EMPRESA', sql.Int, idEmpresa)
         .query(`
             SELECT
                 COUNT(*) AS TOTAL,
@@ -213,12 +215,14 @@ async function obtenerSeguimientoAlta(idAlta, idEmpresa) {
                 END) AS ERRORES
 
             FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS
-            WHERE ID_ALTA = @ID_ALTA;
+            WHERE ID_ALTA = @ID_ALTA
+              AND ID_EMPRESA = @ID_EMPRESA;
         `);
 
     const productos = await pool
         .request()
         .input('ID_ALTA', sql.Int, idAlta)
+        .input('ID_EMPRESA', sql.Int, idEmpresa)
         .query(`
             SELECT
                 ID_ALTA,
@@ -233,6 +237,7 @@ async function obtenerSeguimientoAlta(idAlta, idEmpresa) {
 
             FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS
             WHERE ID_ALTA = @ID_ALTA
+              AND ID_EMPRESA = @ID_EMPRESA
             ORDER BY COD_ALFA;
         `);
 

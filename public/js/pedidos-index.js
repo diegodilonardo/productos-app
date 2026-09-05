@@ -309,7 +309,7 @@ function pintarTarjetas(lista) {
       <div class="pedido-summary-provider"><strong>${esc(p.DETALLE_PROVEEDOR || '-')}</strong><span>${esc(p.CODIGO_PROVEEDOR || '')} · Orden ${esc(p.NUMERO_ORDEN || '-')}</span></div>
       <div class="pedido-summary-meta"><div><span>Rubro</span><strong>${esc(p.DETALLE_RUBRO || p.CODIGO_RUBRO || '-')}</strong></div><div><span>Año / Temporada</span><strong>${esc(p.CODIGO_ANO || '-')} · ${esc(p.DETALLE_TEMPORADA || p.CODIGO_TEMPORADA || '-')}</strong></div><div><span>Productos</span><strong>${num(p.CANTIDAD_PRODUCTOS)}</strong></div><div class="pedido-summary-emphasis"><span>Pares</span><strong>${num(p.TOTAL_PARES)}</strong></div><div class="pedido-summary-emphasis"><span>Total</span><strong>${esc(p.MONEDA || 'USD')} ${dinero(p.TOTAL_PEDIDO)}</strong></div><div><span>Exportación</span>${badgeExportacion(p)}</div></div>
       ${est === 'ANULADO' && p.MOTIVO_ANULACION ? `<div class="pedido-summary-cancel">${esc(p.MOTIVO_ANULACION)}</div>` : ''}
-      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)}</span><a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div>
+      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div>
     </article>`;
   }).join('');
 }

@@ -515,7 +515,7 @@ function pintarTarjetasAltasDashboard(altas) {
           <div class="dashboard-alta-meta"><div><span>Campaña</span>${formatearAnoTemporada(alta)}</div><div><span>Tipo</span><strong>${escaparHtml(alta.TIPO_PRODUCTO || '-')}</strong></div><div><span>Licencia</span>${badgeLicencia(alta.LICENCIA_ALTA)}</div><div><span>ERP</span><strong>${confirmados}/${total} · ${porcentajeTexto}</strong></div></div>
           <div class="progress dashboard-alta-progress"><div class="progress-bar" style="width:${porcentaje}%"></div></div>
           <div class="dashboard-alta-file" title="${escaparHtml(alta.ARCHIVO_EXPORTADO || '-')}">${escaparHtml(alta.ARCHIVO_EXPORTADO || 'Sin archivo informado')}</div>
-          <div class="dashboard-alta-footer"><span>Seguimiento ERP</span><a class="btn btn-sm btn-outline-primary" href="/seguimiento/${encodeURIComponent(alta.ID_ALTA)}">Ver</a></div>
+          <div class="dashboard-alta-footer"><span>Creada ${escaparHtml(formatearFechaPedidoDashboard(alta.FECHA_CREACION))} · ${escaparHtml(alta.USUARIO_CREACION || 'SISTEMA')}</span><a class="btn btn-sm btn-outline-primary" href="/seguimiento/${encodeURIComponent(alta.ID_ALTA)}">Ver</a></div>
         </article>`;
     }).join('');
 }
@@ -800,7 +800,7 @@ function pintarPedidosRecientes(pedidos) {
 
                         <div class="dashboard-pedido-footer">
                             <span>
-                                Creado ${escaparHtml(formatearFechaPedidoDashboard(pedido.FECHA_CREACION))}
+                                Creado ${escaparHtml(formatearFechaPedidoDashboard(pedido.FECHA_CREACION))} · ${escaparHtml(pedido.USUARIO_CREACION || 'SISTEMA')}
                             </span>
                             <a
                                 href="/pedidos/${id}"

@@ -32,6 +32,14 @@ function validarIdAlta(idAlta) {
   return id;
 }
 
+function validarIdsAltas(valor) {
+  const entrada = Array.isArray(valor) ? valor : [valor];
+  const ids = [...new Set(entrada.map(validarIdAlta))];
+  if (!ids.length) throw new Error('Debe seleccionar al menos un Alta.');
+  if (ids.length > 50) throw new Error('No se pueden seleccionar más de 50 Altas por pedido.');
+  return ids;
+}
+
 function validarIdPedido(idPedido) {
   const id = Number(idPedido);
 
@@ -230,6 +238,11 @@ async function validarAltaDisponible(idAlta, idEmpresa, accesoEmpresa) {
   return { ...alta, TIPO_PRODUCTO: tipo };
 }
 
+async function validarAltasDisponibles(idsAltas, idEmpresa, accesoEmpresa) {
+  const ids = validarIdsAltas(idsAltas);
+  return Promise.all(ids.map(id => validarAltaDisponible(id, idEmpresa, accesoEmpresa)));
+}
+
 /* ============================================================
    PROVEEDORES DEL ALTA
    ============================================================ */
@@ -241,6 +254,19 @@ async function obtenerProveedoresPorAlta(idAlta, idEmpresa, accesoEmpresa) {
     .obtenerProveedoresPorAlta(alta.ID_ALTA, alta.ID_EMPRESA);
 
   return proveedores;
+}
+
+async function obtenerProveedoresPorAltas(idsAltas, idEmpresa, accesoEmpresa) {
+  const altas = await validarAltasDisponibles(idsAltas, idEmpresa, accesoEmpresa);
+  if (altas.length === 1) {
+    return pedidosRepository.obtenerProveedoresPorAlta(
+      altas[0].ID_ALTA, validarIdEmpresa(idEmpresa)
+    );
+  }
+  return pedidosRepository.obtenerProveedoresPorAltas(
+    altas.map(alta => alta.ID_ALTA),
+    validarIdEmpresa(idEmpresa)
+  );
 }
 
 async function validarProveedorDelAlta(idAlta, codigoProveedor, idEmpresa, accesoEmpresa) {
@@ -301,16 +327,76 @@ async function obtenerProductosDisponibles(idAlta, codigoProveedor, idEmpresa, a
         : texto(producto.DETALLE_TALLE);
 
     const parametrosImagen = new URLSearchParams({
+      idAlta: texto(producto.ID_ALTA),
       ano: texto(producto.CODIGO_ANO),
       temporada: texto(producto.CODIGO_TEMPORADA),
       modelo: texto(producto.CODIGO_MODELO),
       color: texto(producto.CODIGO_COLOR),
     });
+    if (!texto(producto.ID_ALTA)) parametrosImagen.delete('idAlta');
 
     return {
       ...producto,
       TALLE_CURVA: talleCurva,
       URL_IMAGEN: `/api/imagenes/archivo?${parametrosImagen.toString()}`,
+    };
+  });
+}
+
+async function obtenerProductosDisponiblesPorAltas(idsAltas, codigoProveedor, idEmpresa, accesoEmpresa) {
+  const altas = await validarAltasDisponibles(idsAltas, idEmpresa, accesoEmpresa);
+  const codigo = texto(codigoProveedor);
+  if (!codigo) throw new Error('Debe seleccionar un proveedor.');
+
+  if (altas.length === 1) {
+    return obtenerProductosDisponibles(
+      altas[0].ID_ALTA, codigo, idEmpresa, accesoEmpresa
+    );
+  }
+
+  const proveedores = await pedidosRepository.obtenerProveedoresPorAltas(
+    altas.map(alta => alta.ID_ALTA),
+    validarIdEmpresa(idEmpresa)
+  );
+  if (!proveedores.some(item => texto(item.CODIGO_PROVEEDOR) === codigo)) {
+    throw new Error('El proveedor seleccionado no posee productos en las Altas elegidas.');
+  }
+
+  const productos = await pedidosRepository.obtenerProductosDisponiblesPorAltas(
+    altas.map(alta => alta.ID_ALTA), codigo, validarIdEmpresa(idEmpresa)
+  );
+  return productos.map(producto => {
+    const tipo = normalizarTipoProducto(producto.TIPO_PRODUCTO_DETALLE);
+    const parametrosImagen = new URLSearchParams({
+      idAlta: texto(producto.ID_ALTA),
+      ano: texto(producto.CODIGO_ANO), temporada: texto(producto.CODIGO_TEMPORADA),
+      modelo: texto(producto.CODIGO_MODELO), color: texto(producto.CODIGO_COLOR)
+    });
+    if (!texto(producto.ID_ALTA)) parametrosImagen.delete('idAlta');
+    return {
+      ...producto,
+      TALLE_CURVA: tipo === 'MODULO' ? texto(producto.DETALLE_MODULO) : texto(producto.DETALLE_TALLE),
+      URL_IMAGEN: `/api/imagenes/archivo?${parametrosImagen.toString()}`
+    };
+  });
+}
+
+async function obtenerResumenModelosAlta(idAlta, idEmpresa, accesoEmpresa) {
+  const alta = await validarAltaDisponible(idAlta, idEmpresa, accesoEmpresa);
+  const filas = await pedidosRepository.obtenerResumenModelosAlta(
+    alta.ID_ALTA,
+    alta.ID_EMPRESA
+  );
+
+  return filas.map(fila => {
+    const tipo = normalizarTipoProducto(fila.TIPO_PRODUCTO_DETALLE);
+    return {
+      ...fila,
+      CURVA_TALLE: tipo === 'MODULO'
+        ? texto(fila.DETALLE_MODULO || fila.CODIGO_MODULO)
+        : texto(fila.DETALLE_TALLE || fila.CODIGO_TALLE),
+      CANTIDAD_REFERENCIA: tipo === 'MODULO' ? Number(fila.PARES || 0) : 1,
+      UNIDAD_REFERENCIA: tipo === 'MODULO' ? 'PARES' : 'UNIDAD'
     };
   });
 }
@@ -359,7 +445,7 @@ async function validarProductoDisponible(
    ============================================================ */
 
 async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usuarioAutenticado) {
-  const idAlta = validarIdAlta(datos.idAlta);
+  const idsAltas = validarIdsAltas(datos.idsAltas ?? datos.idAlta);
   const empresa = validarIdEmpresa(idEmpresa);
 
   const numeroOrden = texto(datos.numeroOrden);
@@ -386,17 +472,26 @@ async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usua
     throw new Error('El usuario de creación supera los 100 caracteres.');
   }
 
-  const { alta, proveedor } = await validarProveedorDelAlta(
-    idAlta,
-    datos.codigoProveedor,
-    empresa,
-    accesoEmpresa
+  const altas = await validarAltasDisponibles(idsAltas, empresa, accesoEmpresa);
+  const marcas = [...new Set(altas.map(item => texto(item.CODIGO_MARCA)))];
+  if (marcas.length > 1) {
+    throw new Error('Las Altas seleccionadas deben pertenecer a la misma marca para conservar un único destino de exportación.');
+  }
+  const proveedores = await obtenerProveedoresPorAltas(idsAltas, empresa, accesoEmpresa);
+  const proveedor = proveedores.find(item =>
+    texto(item.CODIGO_PROVEEDOR) === texto(datos.codigoProveedor)
   );
+  if (!proveedor) throw new Error('El proveedor seleccionado no posee productos en las Altas elegidas.');
+  const alta = altas[0];
 
   return {
     ID_EMPRESA: alta.ID_EMPRESA,
     ID_ALTA: alta.ID_ALTA,
-    CODIGO_ALTA: alta.CODIGO_ALTA,
+    IDS_ALTAS: altas.map(item => item.ID_ALTA),
+    CODIGO_ALTA: altas.length > 1
+      ? `${alta.CODIGO_ALTA}-MAS-${altas.length - 1}`
+      : alta.CODIGO_ALTA,
+    CODIGOS_ALTAS: altas.map(item => item.CODIGO_ALTA),
     TIPO_PRODUCTO: alta.TIPO_PRODUCTO,
 
     CODIGO_PROVEEDOR: proveedor.CODIGO_PROVEEDOR,
@@ -526,7 +621,20 @@ async function listarPedidos(idEmpresa, accesoEmpresa) {
   const pedidos = await pedidosRepository.listarPedidos(
     validarIdEmpresa(idEmpresa)
   );
-  return pedidos.filter(pedido => accesoPermiteAlta(accesoEmpresa, pedido));
+  const evaluados = await Promise.all(pedidos.map(async pedido => {
+    if (!accesoPermiteAlta(accesoEmpresa, pedido)) return null;
+
+    const altasAsociadas = await pedidosRepository.obtenerAltasPorPedido(
+      pedido.ID_PEDIDO,
+      pedido.ID_EMPRESA
+    );
+    const alcances = altasAsociadas.length ? altasAsociadas : [pedido];
+    return alcances.every(alta => accesoPermiteAlta(accesoEmpresa, alta))
+      ? pedido
+      : null;
+  }));
+
+  return evaluados.filter(Boolean);
 }
 
 
@@ -535,12 +643,39 @@ async function listarPedidos(idEmpresa, accesoEmpresa) {
    ============================================================ */
 async function obtenerPedidoPorId(idPedido, idEmpresa) {
   const id = validarIdPedido(idPedido);
-  return pedidosRepository.obtenerPedidoPorId(id, validarIdEmpresa(idEmpresa));
+  const empresa = validarIdEmpresa(idEmpresa);
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
+  if (!pedido) return null;
+  let altas = [];
+  if (Array.isArray(pedido.ALTAS_ASOCIADAS)) {
+    altas = pedido.ALTAS_ASOCIADAS;
+  } else if (Array.isArray(pedido.IDS_ALTAS)) {
+    altas = pedido.IDS_ALTAS.map((idAlta, indice) => ({
+      ID_ALTA: idAlta,
+      CODIGO_ALTA: pedido.CODIGOS_ALTAS?.[indice] || (indice === 0 ? pedido.CODIGO_ALTA : null),
+      CODIGO_ANO: indice === 0 ? pedido.CODIGO_ANO : null,
+      CODIGO_TEMPORADA: indice === 0 ? pedido.CODIGO_TEMPORADA : null
+    }));
+  } else if (pedido.ID_ALTA) {
+    altas = await pedidosRepository.obtenerAltasPorPedido(id, empresa);
+  }
+  if (!altas.length && pedido.ID_ALTA) altas = [{
+    ID_ALTA: pedido.ID_ALTA,
+    CODIGO_ALTA: pedido.CODIGO_ALTA,
+    CODIGO_ANO: pedido.CODIGO_ANO,
+    CODIGO_TEMPORADA: pedido.CODIGO_TEMPORADA
+  }];
+  return {
+    ...pedido,
+    ALTAS_ASOCIADAS: altas,
+    IDS_ALTAS: altas.map(alta => alta.ID_ALTA),
+    CODIGOS_ALTAS: altas.map(alta => alta.CODIGO_ALTA).filter(Boolean).join(', ')
+  };
 }
 
 async function validarPedidoBorrador(idPedido, idEmpresa) {
   const id = validarIdPedido(idPedido);
-  const pedido = await pedidosRepository.obtenerPedidoPorId(id, validarIdEmpresa(idEmpresa));
+  const pedido = await obtenerPedidoPorId(id, validarIdEmpresa(idEmpresa));
 
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
@@ -576,13 +711,16 @@ async function prepararProductoPedido(idPedido, datos = {}, idEmpresa, accesoEmp
     throw new Error('ID_PRODUCTO inválido.');
   }
 
-  const producto = await validarProductoDisponible(
-    pedido.ID_ALTA,
+  const productos = await obtenerProductosDisponiblesPorAltas(
+    pedido.IDS_ALTAS,
     pedido.CODIGO_PROVEEDOR,
-    idProducto,
     pedido.ID_EMPRESA,
     accesoEmpresa
   );
+  const producto = productos.find(item => Number(item.ID_PRODUCTO) === idProducto);
+  if (!producto) {
+    throw new Error('El producto no está habilitado para las Altas y proveedor seleccionados.');
+  }
 
   const duplicado = await pedidosRepository.buscarProductoEnPedido(
     pedido.ID_PEDIDO,
@@ -641,6 +779,7 @@ async function prepararProductoPedido(idPedido, datos = {}, idEmpresa, accesoEmp
   return {
     ID_EMPRESA: pedido.ID_EMPRESA,
     ID_PEDIDO: pedido.ID_PEDIDO,
+    ID_ALTA: producto.ID_ALTA,
     ID_PRODUCTO: producto.ID_PRODUCTO,
 
     TIPO_PRODUCTO: tipoProducto,
@@ -719,11 +858,13 @@ async function listarDetallePedido(idPedido, idEmpresa) {
 
   return detalle.map(item => {
     const parametrosImagen = new URLSearchParams({
-      ano: texto(pedido.CODIGO_ANO),
-      temporada: texto(pedido.CODIGO_TEMPORADA),
+      idAlta: texto(item.ID_ALTA || pedido.ID_ALTA),
+      ano: texto(item.CODIGO_ANO || pedido.CODIGO_ANO),
+      temporada: texto(item.CODIGO_TEMPORADA || pedido.CODIGO_TEMPORADA),
       modelo: texto(item.CODIGO_MODELO),
       color: texto(item.CODIGO_COLOR),
     });
+    if (!texto(item.ID_ALTA || pedido.ID_ALTA)) parametrosImagen.delete('idAlta');
 
     return {
       ...item,
@@ -1697,9 +1838,13 @@ module.exports = {
   listarPedidos,
   obtenerAltasDisponibles,
   validarAltaDisponible,
+  validarAltasDisponibles,
   obtenerProveedoresPorAlta,
+  obtenerProveedoresPorAltas,
   validarProveedorDelAlta,
   obtenerProductosDisponibles,
+  obtenerProductosDisponiblesPorAltas,
+  obtenerResumenModelosAlta,
   validarProductoDisponible,
   prepararCabeceraPedido,
   generarCodigoPedido,

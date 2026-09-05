@@ -14,6 +14,7 @@
 @media(max-width:575.98px){.pedidos-toolbar{grid-template-columns:1fr}.pedidos-toolbar> :first-child,.pedidos-view-switch{grid-column:auto}.pedidos-view-switch{width:100%}.pedidos-view-btn{flex:1}.pedidos-card-grid{grid-template-columns:minmax(0,1fr);padding:12px}}
 
 .pedido-summary-meta .pedido-summary-emphasis strong{color:#263b52;font-size:1rem;font-weight:800;letter-spacing:-.015em}
+.pedido-altas-selector{max-height:250px;overflow:auto;border:1px solid #d8e0e8;border-radius:10px;background:#fff}.pedido-alta-option{display:flex;align-items:center;gap:10px;margin:0;padding:11px 13px;border-bottom:1px solid #edf0f3}.pedido-alta-option:last-child{border-bottom:0}.pedido-alta-option:hover{background:#f7faff}.pedido-alta-option:has(input:checked){background:#edf5ff}.pedido-alta-option-main{display:flex;align-items:flex-start;gap:10px;min-width:0;flex:1;cursor:pointer}.pedido-alta-option-main>span{min-width:0}.pedido-alta-option input{flex:0 0 auto;margin-top:3px}.pedido-alta-option span,.pedido-alta-option strong,.pedido-alta-option small{display:block}.pedido-alta-option small{margin-top:2px;color:#7c8996;font-size:.72rem}.pedido-alta-modelos-btn{flex:0 0 auto;white-space:nowrap}
 
 /* DETALLE DE PEDIDO V2 */
 .pedido-detail-summary{overflow:hidden;background:linear-gradient(135deg,#fff 0%,#fbfcfd 100%)}.pedido-detail-summary .card-body{padding:17px 20px!important}.pedido-export-card{overflow:hidden;border-color:#cfe0f5;background:radial-gradient(circle at top right,rgba(13,110,253,.08),transparent 34%),#fff}.pedido-export-card::before{content:'';display:block;height:3px;background:linear-gradient(90deg,#0d6efd,#65a5f7)}.pedido-export-card .card-body{padding:17px 20px!important}.pedido-detail-hero-icon{background:#edf4ff;color:#176bd7}.pedido-productos-table tbody tr,.pedidos-table tbody tr{transition:background-color .14s ease}.pedido-productos-table tbody tr:hover,.pedidos-table tbody tr:hover{background:#fafcff}.pedidos-v1 .modal-content{overflow:hidden;border:0;border-radius:15px;box-shadow:0 18px 50px rgba(15,23,42,.18)}.pedidos-v1 .modal-header{padding:16px 20px;border-bottom-color:#e8edf2;background:#fbfcfd}.pedidos-v1 .modal-footer{padding:13px 20px;border-top-color:#e8edf2;background:#fbfcfd}
@@ -101,6 +102,26 @@
     margin-top: 18px;
 }
 
+.pedido-altas-filtros {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    align-items: end;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e2e8ef;
+    border-radius: 11px;
+    background: #f8fafc;
+}
+
+.pedido-altas-filtros .form-label {
+    margin-bottom: 4px;
+    color: #647383;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .035em;
+    text-transform: uppercase;
+}
+
 @media (max-width: 1199.98px) {
     .pedido-nuevo-v2 .pedido-flowbar {
         grid-template-columns: repeat(4, 1fr);
@@ -109,6 +130,19 @@
 
 @media (max-width: 767.98px) {
     .pedido-nuevo-v2 .pedido-flowbar {
+        grid-template-columns: 1fr;
+    }
+
+    .pedido-alta-option {
+        align-items:stretch;
+        flex-direction:column;
+    }
+
+    .pedido-alta-modelos-btn {
+        align-self:flex-end;
+    }
+
+    .pedido-altas-filtros {
         grid-template-columns: 1fr;
     }
 }

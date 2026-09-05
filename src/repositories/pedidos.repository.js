@@ -133,6 +133,40 @@ async function obtenerProveedoresPorAlta(idAlta, idEmpresa) {
   return resultado.recordset;
 }
 
+async function obtenerProveedoresPorAltas(idsAltas, idEmpresa) {
+  const ids = [...new Set(idsAltas.map(Number))];
+  const pool = await getConnection();
+  const request = pool.request().input('ID_EMPRESA', sql.Int, idEmpresa);
+  const parametros = ids.map((id, indice) => {
+    const nombre = `ID_ALTA_${indice}`;
+    request.input(nombre, sql.BigInt, id);
+    return `@${nombre}`;
+  });
+
+  const resultado = await request.query(`
+    SELECT D.CODIGO_PROVEEDOR,
+      MAX(D.DETALLE_PROVEEDOR) AS DETALLE_PROVEEDOR,
+      COUNT(DISTINCT D.ID_ALTA) AS CANTIDAD_ALTAS,
+      COUNT(DISTINCT P.ID_PRODUCTO) AS CANTIDAD_PRODUCTOS
+    FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+    INNER JOIN dbo.ALTAS_PRODUCTOS A
+      ON A.ID_EMPRESA = D.ID_EMPRESA AND A.ID_ALTA = D.ID_ALTA
+    INNER JOIN dbo.PRODUCTOS P
+      ON P.ID_EMPRESA = D.ID_EMPRESA AND P.CODIGO_ALFA = D.CODIGO_ALFA
+    WHERE D.ID_EMPRESA = @ID_EMPRESA
+      AND D.ID_ALTA IN (${parametros.join(', ')})
+      AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
+      AND P.ACTIVO = 1
+      AND NULLIF(LTRIM(RTRIM(D.CODIGO_PROVEEDOR)), '') IS NOT NULL
+      AND ((A.TIPO_PRODUCTO = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
+        OR (A.TIPO_PRODUCTO = 'PAR_SUELTO' AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+          AND D.CODIGO_CLASIFICACION = '1'))
+    GROUP BY D.CODIGO_PROVEEDOR
+    ORDER BY MAX(D.DETALLE_PROVEEDOR);
+  `);
+  return resultado.recordset;
+}
+
 /* ============================================================
    PRODUCTOS DISPONIBLES POR ALTA + PROVEEDOR
 
@@ -163,7 +197,7 @@ async function obtenerProductosDisponibles(idAlta, codigoProveedor, idEmpresa) {
         D.CODIGO_TALLE, D.DETALLE_TALLE,
         D.CODIGO_MODULO, D.DETALLE_MODULO,
         D.PARES,
-        D.CODIGO_EDAD, D.DETALLE_EDAD,
+        D.CODIGO_EDAD, D.DETALLE_EDAD, D.SEXO,
         D.CODIGO_CLASIFICACION, D.DETALLE_CLASIFICACION,
         D.CODIGO_PROVEEDOR, D.DETALLE_PROVEEDOR
       FROM dbo.ALTAS_PRODUCTOS_DETALLE D
@@ -188,6 +222,73 @@ async function obtenerProductosDisponibles(idAlta, codigoProveedor, idEmpresa) {
       ORDER BY
         D.DETALLE_MODELO, D.DETALLE_COLOR,
         D.DETALLE_MODULO, D.DETALLE_TALLE, P.CODIGO_ALFA;
+    `);
+  return resultado.recordset;
+}
+
+async function obtenerProductosDisponiblesPorAltas(idsAltas, codigoProveedor, idEmpresa) {
+  const ids = [...new Set(idsAltas.map(Number))];
+  const pool = await getConnection();
+  const request = pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('CODIGO_PROVEEDOR', sql.VarChar(30), codigoProveedor);
+  const parametros = ids.map((id, indice) => {
+    const nombre = `ID_ALTA_${indice}`;
+    request.input(nombre, sql.Int, id);
+    return `@${nombre}`;
+  });
+
+  const resultado = await request.query(`
+    SELECT P.ID_PRODUCTO, P.ID_EMPRESA, P.CODIGO_ALFA,
+      P.CODIGO_ERP, COALESCE(P.CODIGO_EAN, P.EAN) AS CODIGO_EAN, P.ACTIVO,
+      A.ID_ALTA, A.CODIGO_ALTA, A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
+      A.CODIGO_ANO, A.CODIGO_TEMPORADA,
+      D.ID_DETALLE, D.TIPO_PRODUCTO_DETALLE,
+      D.CODIGO_MODELO, D.DETALLE_MODELO,
+      D.CODIGO_COLOR, D.DETALLE_COLOR, D.DETALLE_PRODUCTO,
+      D.CODIGO_TALLE, D.DETALLE_TALLE,
+      D.CODIGO_MODULO, D.DETALLE_MODULO, D.PARES,
+      D.CODIGO_EDAD, D.DETALLE_EDAD, D.SEXO,
+      D.CODIGO_CLASIFICACION, D.DETALLE_CLASIFICACION,
+      D.CODIGO_PROVEEDOR, D.DETALLE_PROVEEDOR
+    FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+    INNER JOIN dbo.ALTAS_PRODUCTOS A
+      ON A.ID_EMPRESA = D.ID_EMPRESA AND A.ID_ALTA = D.ID_ALTA
+    INNER JOIN dbo.PRODUCTOS P
+      ON P.ID_EMPRESA = D.ID_EMPRESA AND P.CODIGO_ALFA = D.CODIGO_ALFA
+    WHERE D.ID_EMPRESA = @ID_EMPRESA
+      AND D.ID_ALTA IN (${parametros.join(', ')})
+      AND D.CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR
+      AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
+      AND P.ACTIVO = 1
+      AND ((A.TIPO_PRODUCTO = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
+        OR (A.TIPO_PRODUCTO = 'PAR_SUELTO' AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+          AND D.CODIGO_CLASIFICACION = '1'))
+    ORDER BY A.ID_ALTA, D.DETALLE_MODELO, D.DETALLE_COLOR,
+      D.DETALLE_MODULO, D.DETALLE_TALLE, P.CODIGO_ALFA;
+  `);
+  return resultado.recordset;
+}
+
+async function obtenerResumenModelosAlta(idAlta, idEmpresa) {
+  const pool = await getConnection();
+  const resultado = await pool.request()
+    .input('ID_ALTA', sql.Int, idAlta)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .query(`
+      SELECT
+        D.CODIGO_MODELO, D.DETALLE_MODELO,
+        D.CODIGO_COLOR, D.DETALLE_COLOR,
+        D.TIPO_PRODUCTO_DETALLE,
+        D.CODIGO_MODULO, D.DETALLE_MODULO,
+        D.CODIGO_TALLE, D.DETALLE_TALLE,
+        D.PARES
+      FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+      WHERE D.ID_EMPRESA = @ID_EMPRESA
+        AND D.ID_ALTA = @ID_ALTA
+        AND ISNULL(D.GENERADO_AUTOMATICO, 0) = 0
+      ORDER BY D.DETALLE_MODELO, D.DETALLE_COLOR,
+        D.DETALLE_MODULO, D.DETALLE_TALLE, D.ID_DETALLE;
     `);
   return resultado.recordset;
 }
@@ -318,6 +419,17 @@ async function crearPedido(datos, generarCodigoPedido) {
 
     if (!Number.isInteger(idPedido) || idPedido <= 0) {
       throw new Error('SQL Server no devolvió un ID_PEDIDO válido.');
+    }
+
+    for (const idAlta of datos.IDS_ALTAS) {
+      await new sql.Request(transaction)
+        .input('ID_EMPRESA_ALTA', sql.Int, datos.ID_EMPRESA)
+        .input('ID_PEDIDO_ALTA', sql.BigInt, idPedido)
+        .input('ID_ALTA_REL', sql.Int, idAlta)
+        .query(`
+          INSERT INTO dbo.PEDIDOS_ALTAS (ID_EMPRESA, ID_PEDIDO, ID_ALTA)
+          VALUES (@ID_EMPRESA_ALTA, @ID_PEDIDO_ALTA, @ID_ALTA_REL);
+        `);
     }
 
     const codigoPedido = generarCodigoPedido({
@@ -486,6 +598,33 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
   return resultado.recordset[0] || null;
 }
 
+async function obtenerAltasPorPedido(idPedido, idEmpresa) {
+  const pool = await getConnection();
+  const resultado = await pool.request()
+    .input('ID_PEDIDO', sql.BigInt, idPedido)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .query(`
+      SELECT A.ID_ALTA, A.CODIGO_ALTA, A.CODIGO_MARCA, A.DETALLE_MARCA,
+        A.CODIGO_RUBRO, A.DETALLE_RUBRO, A.TIPO_PRODUCTO,
+        A.CODIGO_ANO, A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA, A.ESTADO,
+        (
+          SELECT TOP 1 CASE
+            WHEN NULLIF(LTRIM(RTRIM(D.LICENCIA)), '') IS NULL THEN 'SIN LICENCIA'
+            ELSE LTRIM(RTRIM(D.LICENCIA))
+          END
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+          WHERE D.ID_EMPRESA = A.ID_EMPRESA AND D.ID_ALTA = A.ID_ALTA
+          ORDER BY D.ID_DETALLE
+        ) AS LICENCIA_ALTA
+      FROM dbo.PEDIDOS_ALTAS PA
+      INNER JOIN dbo.ALTAS_PRODUCTOS A
+        ON A.ID_EMPRESA = PA.ID_EMPRESA AND A.ID_ALTA = PA.ID_ALTA
+      WHERE PA.ID_EMPRESA = @ID_EMPRESA AND PA.ID_PEDIDO = @ID_PEDIDO
+      ORDER BY PA.ID_ALTA;
+    `);
+  return resultado.recordset;
+}
+
 /* ============================================================
    BUSCAR PRODUCTO DENTRO DEL PEDIDO
    ============================================================ */
@@ -564,6 +703,7 @@ async function agregarProductoPedido(datos) {
     const insertado = await new sql.Request(transaction)
       .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_PEDIDO', sql.BigInt, datos.ID_PEDIDO)
+      .input('ID_ALTA', sql.Int, datos.ID_ALTA)
       .input('ID_PRODUCTO', sql.BigInt, datos.ID_PRODUCTO)
       .input('TIPO_PRODUCTO', sql.VarChar(15), datos.TIPO_PRODUCTO)
       .input('CODIGO_ALFA', sql.VarChar(30), datos.CODIGO_ALFA)
@@ -592,6 +732,7 @@ async function agregarProductoPedido(datos) {
         (
           ID_EMPRESA,
           ID_PEDIDO,
+          ID_ALTA,
           ID_PRODUCTO,
           TIPO_PRODUCTO,
           CODIGO_ALFA,
@@ -623,6 +764,7 @@ async function agregarProductoPedido(datos) {
         (
           @ID_EMPRESA,
           @ID_PEDIDO,
+          @ID_ALTA,
           @ID_PRODUCTO,
           @TIPO_PRODUCTO,
           @CODIGO_ALFA,
@@ -684,11 +826,22 @@ async function listarDetallePedido(idPedido, idEmpresa) {
     .input('ID_PEDIDO', sql.BigInt, idPedido)
     .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
-      SELECT *
-      FROM dbo.PEDIDOS_DETALLE
-      WHERE ID_EMPRESA = @ID_EMPRESA
-        AND ID_PEDIDO = @ID_PEDIDO
-      ORDER BY ID_PEDIDO_DETALLE;
+      SELECT PD.*, A.CODIGO_ANO, A.CODIGO_TEMPORADA, A.CODIGO_ALTA,
+        ORIGEN.SEXO
+      FROM dbo.PEDIDOS_DETALLE PD
+      LEFT JOIN dbo.ALTAS_PRODUCTOS A
+        ON A.ID_EMPRESA = PD.ID_EMPRESA AND A.ID_ALTA = PD.ID_ALTA
+      OUTER APPLY
+      (
+        SELECT TOP 1 D.SEXO
+        FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+        WHERE D.ID_EMPRESA = PD.ID_EMPRESA
+          AND D.ID_ALTA = PD.ID_ALTA
+          AND D.CODIGO_ALFA = PD.CODIGO_ALFA
+      ) ORIGEN
+      WHERE PD.ID_EMPRESA = @ID_EMPRESA
+        AND PD.ID_PEDIDO = @ID_PEDIDO
+      ORDER BY PD.ID_PEDIDO_DETALLE;
     `);
   return resultado.recordset;
 }
@@ -1221,10 +1374,10 @@ async function obtenerDatosMasterPedido(idPedido, idEmpresa) {
       INNER JOIN dbo.PEDIDOS P
         ON P.ID_EMPRESA = PD.ID_EMPRESA AND P.ID_PEDIDO = PD.ID_PEDIDO
       INNER JOIN dbo.ALTAS_PRODUCTOS A
-        ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = P.ID_ALTA
+        ON A.ID_EMPRESA = PD.ID_EMPRESA AND A.ID_ALTA = COALESCE(PD.ID_ALTA, P.ID_ALTA)
       INNER JOIN dbo.ALTAS_PRODUCTOS_DETALLE D
-        ON D.ID_EMPRESA = P.ID_EMPRESA
-       AND D.ID_ALTA = P.ID_ALTA
+        ON D.ID_EMPRESA = PD.ID_EMPRESA
+       AND D.ID_ALTA = COALESCE(PD.ID_ALTA, P.ID_ALTA)
        AND D.CODIGO_ALFA = PD.CODIGO_ALFA
        AND D.CODIGO_PROVEEDOR = P.CODIGO_PROVEEDOR
       INNER JOIN dbo.PRODUCTOS PR
@@ -1334,10 +1487,14 @@ module.exports = {
   obtenerAltasDisponibles,
   obtenerAltaDisponiblePorId,
   obtenerProveedoresPorAlta,
+  obtenerProveedoresPorAltas,
   obtenerProductosDisponibles,
+  obtenerProductosDisponiblesPorAltas,
+  obtenerResumenModelosAlta,
   buscarPedidoDuplicadoActivo,
   crearPedido,
   obtenerPedidoPorId,
+  obtenerAltasPorPedido,
   buscarProductoEnPedido,
   agregarProductoPedido,
   listarDetallePedido,

@@ -43,9 +43,45 @@ router.get('/altas-disponibles', requerirEmpresa, async (req, res) => {
   }
 });
 
+router.post('/altas/proveedores', requerirEmpresa, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerProveedoresPorAltas(
+      req.body?.idsAltas, req.idEmpresa, req.accesoEmpresa
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.post('/altas/productos', requerirEmpresa, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerProductosDisponiblesPorAltas(
+      req.body?.idsAltas, req.body?.codigoProveedor,
+      req.idEmpresa, req.accesoEmpresa
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.get('/altas/:idAlta/proveedores', requerirAccesoAlta, async (req, res) => {
   try {
     const datos = await pedidosService.obtenerProveedoresPorAlta(
+      req.params.idAlta,
+      req.idEmpresa,
+      req.accesoEmpresa
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.get('/altas/:idAlta/resumen-modelos', requerirAccesoAlta, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerResumenModelosAlta(
       req.params.idAlta,
       req.idEmpresa,
       req.accesoEmpresa

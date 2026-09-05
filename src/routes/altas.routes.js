@@ -70,7 +70,7 @@ router.post('/', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => 
 router.get('/', requerirEmpresa, async (req, res) => {
     try {
         const resultado =
-            await altasService.listarAltas(req.idEmpresa);
+            await altasService.listarAltas(req.idEmpresa, req.accesoEmpresa);
 
         res.json({
             ok: true,

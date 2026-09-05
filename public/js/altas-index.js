@@ -3,6 +3,7 @@ let vistaAltas =
   sessionStorage.getItem('altas.vista') === 'tabla'
     ? 'tabla'
     : 'tarjetas';
+let modalProductosAlta = null;
 
 document.addEventListener('DOMContentLoaded', iniciarPantallaAltas);
 
@@ -35,6 +36,13 @@ async function iniciarPantallaAltas() {
   document
     .getElementById('btnVistaTablaAltas')
     .addEventListener('click', () => aplicarVistaAltas('tabla'));
+
+  document.addEventListener('click', event => {
+    const boton = event.target.closest('[data-ver-productos-alta]');
+    if (!boton) return;
+    event.preventDefault();
+    mostrarProductosAlta(Number(boton.dataset.verProductosAlta));
+  });
 
   mostrarMensajeGuardado();
   aplicarVistaAltas(vistaAltas);
@@ -349,8 +357,11 @@ function pintarTarjetasAltas(filas) {
         ${estado === 'ANULADO' ? `<div class="alta-summary-cancel">${escapar(motivo)}</div>` : ''}
 
         <div class="alta-summary-footer">
-          <span>Creada ${escapar(formatearFecha(alta.FECHA_CREACION))}</span>
-          <div>${botonAccion(id, estado)}</div>
+          <span>Creada ${escapar(formatearFecha(alta.FECHA_CREACION))} · ${escapar(alta.USUARIO_CREACION || 'SISTEMA')}</span>
+          <div class="d-flex justify-content-end flex-wrap gap-1">
+            ${botonVerProductos(id)}
+            ${botonAccion(id, estado)}
+          </div>
         </div>
       </article>
     `;
@@ -529,10 +540,10 @@ function pintarTablaAltas(filas) {
       </td>
 
       <td class="text-end">
-        ${botonAccion(
-          id,
-          estado
-        )}
+        <div class="d-flex justify-content-end flex-wrap gap-1">
+          ${botonVerProductos(id)}
+          ${botonAccion(id, estado)}
+        </div>
       </td>
     `;
 
@@ -688,6 +699,90 @@ function botonAccion(id, estado) {
       Ver
     </a>
   `;
+}
+
+function botonVerProductos(id) {
+  if (!id) return '';
+  return `
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-primary altas-action-btn"
+      data-ver-productos-alta="${escapar(id)}"
+      title="Ver el resumen de productos del Alta"
+    >
+      Ver productos
+    </button>
+  `;
+}
+
+async function mostrarProductosAlta(idAlta) {
+  const alta = altasCargadas.find(item => Number(item.ID_ALTA ?? item.idAlta) === Number(idAlta));
+  if (!alta) return;
+
+  modalProductosAlta ||= new bootstrap.Modal(document.getElementById('modalProductosAlta'));
+  setTexto('tituloProductosAlta', alta.CODIGO_ALTA || `Alta ${idAlta}`);
+  setTexto('cantidadProductosAlta', '');
+  document.getElementById('estadoProductosAlta').classList.remove('d-none');
+  document.getElementById('estadoProductosAlta').textContent = 'Cargando productos...';
+  document.getElementById('contenidoProductosAlta').classList.add('d-none');
+  document.getElementById('tablaProductosAlta').innerHTML = '';
+  modalProductosAlta.show();
+
+  try {
+    const response = await fetch(`/api/altas/${encodeURIComponent(idAlta)}`, {
+      headers: {
+        Accept: 'application/json',
+        'x-id-empresa': String(obtenerEmpresaActivaAltas())
+      }
+    });
+    const data = await response.json();
+    if (!response.ok || data?.ok === false) {
+      throw new Error(data?.mensaje || `Error HTTP ${response.status}.`);
+    }
+
+    const detalle = Array.isArray(data?.resultado?.detalle) ? data.resultado.detalle : [];
+    const principales = detalle.filter(item =>
+      item.GENERADO_AUTOMATICO === false ||
+      item.GENERADO_AUTOMATICO === 0 ||
+      String(item.GENERADO_AUTOMATICO || '').toLowerCase() === 'false'
+    );
+    const filas = principales.length ? principales : detalle;
+
+    if (!filas.length) {
+      document.getElementById('estadoProductosAlta').textContent = 'El Alta todavía no tiene productos.';
+      return;
+    }
+
+    document.getElementById('tablaProductosAlta').innerHTML = filas.map(item => {
+      const tipo = String(item.TIPO_PRODUCTO_DETALLE || alta.TIPO_PRODUCTO || '').trim().toUpperCase();
+      const curvaTalle = tipo === 'MODULO'
+        ? (item.DETALLE_MODULO || item.CODIGO_MODULO || '-')
+        : (item.DETALLE_TALLE || item.CODIGO_TALLE || '-');
+      const cantidad = tipo === 'MODULO'
+        ? `${Number(item.PARES || 0).toLocaleString('es-AR')} pares`
+        : '1 unidad';
+
+      return `
+        <tr>
+          <td><strong>${escapar(item.DETALLE_MODELO || item.CODIGO_MODELO || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_MODELO || '')}</div></td>
+          <td>${escapar(item.DETALLE_COLOR || item.CODIGO_COLOR || '-')}</td>
+          <td>${escapar(curvaTalle)}</td>
+          <td>${escapar(tipo.replaceAll('_', ' ') || '-')}</td>
+          <td>${escapar(item.DETALLE_CLASIFICACION || item.CODIGO_CLASIFICACION || '-')}</td>
+          <td><strong>${escapar(cantidad)}</strong></td>
+        </tr>
+      `;
+    }).join('');
+
+    document.getElementById('estadoProductosAlta').classList.add('d-none');
+    document.getElementById('contenidoProductosAlta').classList.remove('d-none');
+    setTexto(
+      'cantidadProductosAlta',
+      `${filas.length} combinación${filas.length === 1 ? '' : 'es'} principal${filas.length === 1 ? '' : 'es'} · ${detalle.length} registro${detalle.length === 1 ? '' : 's'} total${detalle.length === 1 ? '' : 'es'}`
+    );
+  } catch (error) {
+    document.getElementById('estadoProductosAlta').textContent = error.message;
+  }
 }
 
 function mostrarMensajeGuardado() {

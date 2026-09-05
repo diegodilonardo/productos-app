@@ -254,9 +254,10 @@ async function obtenerAltaPorId(idAlta) {
 
   const resultado = await pool.request().input("ID_ALTA", sql.BigInt, idAlta)
     .query(`
-            SELECT *
-            FROM dbo.ALTAS_PRODUCTOS
-            WHERE ID_ALTA = @ID_ALTA;
+            SELECT A.*, E.CODIGO_EMPRESA, E.RAZON_SOCIAL
+            FROM dbo.ALTAS_PRODUCTOS A
+            INNER JOIN dbo.EMPRESAS E ON E.ID_EMPRESA = A.ID_EMPRESA
+            WHERE A.ID_ALTA = @ID_ALTA;
         `);
 
   return resultado.recordset[0] || null;

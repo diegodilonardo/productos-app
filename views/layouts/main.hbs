@@ -26,7 +26,7 @@
 
     <link
         rel="stylesheet"
-        href="/css/app.css?v=2n"
+        href="/css/app.css?v=2o"
     >
 
     {{#if style}}
@@ -48,6 +48,15 @@
 
     </main>
 
+    <nav id="atajosDesplazamiento" class="app-scroll-shortcuts d-none" aria-label="Atajos de desplazamiento">
+        <button id="atajoIrArriba" class="app-scroll-shortcut" type="button" title="Ir al comienzo" aria-label="Ir al comienzo de la página">
+            <span aria-hidden="true">↑</span>
+        </button>
+        <button id="atajoIrAbajo" class="app-scroll-shortcut" type="button" title="Ir al final" aria-label="Ir al final de la página">
+            <span aria-hidden="true">↓</span>
+        </button>
+    </nav>
+
     <footer class="app-footer">
         <div class="container-fluid">
             PRODUCTOS APP · {{anioActual}}
@@ -61,6 +70,7 @@
     ></script>
 
     <script src="/js/navbar-session.js?v=2i"></script>
+    <script src="/js/scroll-shortcuts.js?v=1"></script>
 
     {{#if script}}
         <script src="{{script}}"></script>

@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/altas-index.css?v=2">
+<link rel="stylesheet" href="/css/altas-index.css?v=3">
 
 <div class="altas-v2">
 
@@ -231,4 +231,40 @@
 
 </div>
 
-<script src="/js/altas-index.js?v=5"></script>
+<div class="modal fade" id="modalProductosAlta" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content altas-products-modal">
+      <div class="modal-header">
+        <div>
+          <div class="altas-kicker">DETALLE DEL ALTA</div>
+          <h2 id="tituloProductosAlta" class="modal-title h5 mb-0">Productos</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="estadoProductosAlta" class="p-4 text-center text-secondary">Cargando productos...</div>
+        <div id="contenidoProductosAlta" class="table-responsive d-none">
+          <table class="table align-middle mb-0 altas-products-table">
+            <thead>
+              <tr>
+                <th>Modelo</th>
+                <th>Color</th>
+                <th>Curva / Talle</th>
+                <th>Tipo</th>
+                <th>Clasificación</th>
+                <th>Pares / Unidades</th>
+              </tr>
+            </thead>
+            <tbody id="tablaProductosAlta"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span id="cantidadProductosAlta" class="me-auto text-secondary small"></span>
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/altas-index.js?v=7"></script>

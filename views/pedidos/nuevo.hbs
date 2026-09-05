@@ -16,7 +16,7 @@
         <div class="nueva-alta-kicker">CREACIÓN DE PEDIDO</div>
         <h1 class="h3 mb-1">Nuevo Pedido</h1>
         <p class="text-secondary mb-0">
-          Definí el Alta confirmada, el proveedor y los datos generales de la orden.
+          Definí una o más Altas confirmadas, el proveedor y los datos generales de la orden.
         </p>
       </div>
     </div>
@@ -97,14 +97,41 @@
               <div class="nueva-alta-block-title">Origen del pedido</div>
 
               <div class="row g-3">
+                <div class="col-12">
+                  <div class="pedido-altas-filtros" aria-label="Filtros de Altas disponibles">
+                    <div>
+                      <label class="form-label" for="filtroTemporadaAlta">Temporada</label>
+                      <select id="filtroTemporadaAlta" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label" for="filtroAnoAlta">Año</label>
+                      <select id="filtroAnoAlta" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label" for="filtroRubroAlta">Rubro</label>
+                      <select id="filtroRubroAlta" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                      </select>
+                    </div>
+                    <button id="limpiarFiltrosAltas" class="btn btn-sm btn-light border" type="button">
+                      Limpiar filtros
+                    </button>
+                  </div>
+                </div>
+
                 <div class="col-12 col-md-6">
-                  <label class="form-label" for="idAlta">Alta asociada</label>
-                  <select id="idAlta" class="form-select" required>
-                    <option value="">Cargando Altas...</option>
-                  </select>
+                  <label class="form-label">Altas asociadas</label>
+                  <div id="altasPedidoSelector" class="pedido-altas-selector" role="group" aria-label="Altas asociadas">
+                    <div class="text-secondary small p-3">Cargando Altas...</div>
+                  </div>
                   <div id="infoAlta" class="nueva-alta-field-help">
                     Solo se muestran Altas confirmadas en ERP.
                   </div>
+                  <div id="infoFiltroAltas" class="nueva-alta-field-help"></div>
                 </div>
 
                 <div class="col-12 col-md-6">
@@ -113,7 +140,7 @@
                     <option value="">Seleccione primero un Alta...</option>
                   </select>
                   <div class="nueva-alta-field-help">
-                    Se listan únicamente los proveedores presentes en el Alta seleccionada.
+                    Se listan los proveedores presentes en cualquiera de las Altas seleccionadas.
                   </div>
                 </div>
               </div>
@@ -200,12 +227,12 @@
           <h2 class="h5 mb-3">Datos seleccionados</h2>
 
           <div class="pedido-summary-empty" id="pedidoResumenVacio">
-            Seleccioná un Alta para comenzar.
+            Seleccioná una o más Altas para comenzar.
           </div>
 
           <div id="pedidoResumenDatos" class="d-none">
             <div class="pedido-summary-row">
-              <span class="pedido-summary-label">Alta</span>
+              <span class="pedido-summary-label">Altas</span>
               <strong id="resumenAlta">-</strong>
             </div>
 
@@ -248,10 +275,37 @@
           <div class="nueva-alta-note pedido-summary-note">
             <strong>Siguiente paso</strong>
             <span>
-              Al crear la cabecera pasarás a la carga manual de productos del Alta y proveedor seleccionados.
+              Al crear la cabecera pasarás a la carga manual de productos de las Altas y proveedor seleccionados.
             </span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalModelosAlta" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="pedidos-kicker">RESUMEN DEL ALTA</div>
+          <h2 id="tituloModelosAlta" class="modal-title h5 mb-0">Modelos</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="estadoModelosAlta" class="p-4 text-center text-secondary">Cargando modelos...</div>
+        <div id="contenidoModelosAlta" class="table-responsive d-none">
+          <table class="table align-middle mb-0 pedidos-table">
+            <thead><tr><th>Modelo</th><th>Color</th><th>Curva / Talle</th><th>Tipo</th><th>Pares / Unidades</th></tr></thead>
+            <tbody id="tablaModelosAlta"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span id="cantidadModelosAlta" class="me-auto text-secondary small"></span>
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>

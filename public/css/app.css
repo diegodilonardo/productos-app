@@ -117,6 +117,60 @@ main {
     }
 }
 
+.app-scroll-shortcuts {
+    position: fixed;
+    right: 18px;
+    bottom: 22px;
+    z-index: 1030;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 5px;
+    border: 1px solid #d9e2ec;
+    border-radius: 13px;
+    background: rgba(255, 255, 255, .94);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .14);
+    backdrop-filter: blur(7px);
+}
+
+.app-scroll-shortcut {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 9px;
+    background: #0d6efd;
+    color: #fff;
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1;
+    transition: transform .15s ease, opacity .15s ease, background-color .15s ease;
+}
+
+.app-scroll-shortcut:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #0b5ed7;
+}
+
+.app-scroll-shortcut:focus-visible {
+    outline: 3px solid rgba(13, 110, 253, .3);
+    outline-offset: 2px;
+}
+
+.app-scroll-shortcut:disabled {
+    opacity: .35;
+    cursor: default;
+}
+
+@media (max-width: 575.98px) {
+    .app-scroll-shortcuts {
+        right: 10px;
+        bottom: 14px;
+    }
+}
+
 .app-card-label {
     color: #6c757d;
     font-size: 0.9rem;

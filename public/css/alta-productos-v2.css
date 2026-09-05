@@ -716,6 +716,21 @@
   outline: none;
 }
 
+.alta-model-item.is-keyboard-active,
+.alta-module-item.is-keyboard-active,
+.alta-master-item.is-keyboard-active,
+.app-color-item.is-keyboard-active {
+  position: relative;
+  z-index: 1;
+  background: #e7f1ff;
+  box-shadow: inset 4px 0 0 #0d6efd;
+  outline: none;
+}
+
+.alta-module-item.is-selected.is-keyboard-active {
+  background: #dcecff;
+}
+
 .alta-master-detail {
   color: #263442;
   font-size: 0.9rem;

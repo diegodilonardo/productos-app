@@ -406,9 +406,9 @@ async function requerirAccesoPedido(req, res, next) {
     const resultado = await pool.request()
       .input('ID_PEDIDO', sql.BigInt, idPedido)
       .query(`
-        SELECT TOP 1
+        SELECT
           P.ID_PEDIDO, P.ID_EMPRESA, P.ID_ALTA, P.CODIGO_PEDIDO, P.ESTADO,
-          A.CODIGO_MARCA, A.CODIGO_RUBRO,
+          A.ID_ALTA AS ID_ALTA_ASOCIADA, A.CODIGO_MARCA, A.CODIGO_RUBRO,
           (
             SELECT TOP 1
               CASE
@@ -421,18 +421,32 @@ async function requerirAccesoPedido(req, res, next) {
             ORDER BY D.ID_DETALLE
           ) AS LICENCIA_ALTA
         FROM dbo.PEDIDOS P
+        CROSS APPLY
+        (
+          SELECT PA.ID_ALTA
+          FROM dbo.PEDIDOS_ALTAS PA
+          WHERE PA.ID_EMPRESA = P.ID_EMPRESA AND PA.ID_PEDIDO = P.ID_PEDIDO
+          UNION
+          SELECT P.ID_ALTA
+          WHERE NOT EXISTS
+          (
+            SELECT 1 FROM dbo.PEDIDOS_ALTAS PA0
+            WHERE PA0.ID_EMPRESA = P.ID_EMPRESA AND PA0.ID_PEDIDO = P.ID_PEDIDO
+          )
+        ) REL
         INNER JOIN dbo.ALTAS_PRODUCTOS A
-          ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = P.ID_ALTA
+          ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = REL.ID_ALTA
         WHERE P.ID_PEDIDO = @ID_PEDIDO;
       `);
 
-    const pedido = resultado.recordset[0];
+    const pedidosAltas = resultado.recordset || [];
+    const pedido = pedidosAltas[0];
     if (!pedido) return res.status(404).json({ ok: false, mensaje: 'Pedido no encontrado.' });
 
     const acceso = obtenerAccesoEmpresa(contexto, pedido.ID_EMPRESA);
     if (!acceso) return res.status(403).json({ ok: false, mensaje: 'No tiene permisos para acceder a este pedido.' });
 
-    if (!accesoPermiteAlta(acceso, pedido)) {
+    if (!pedidosAltas.every(alta => accesoPermiteAlta(acceso, alta))) {
       return res.status(403).json({ ok: false, mensaje: 'No tiene permisos para acceder a este pedido por marca, rubro o licencia.' });
     }
 

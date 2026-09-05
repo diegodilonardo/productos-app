@@ -675,6 +675,35 @@
   transform: translateY(-1px);
 }
 
+.altas-products-modal {
+  overflow: hidden;
+  border: 0;
+  border-radius: 15px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, .18);
+}
+
+.altas-products-modal .modal-header,
+.altas-products-modal .modal-footer {
+  background: #fbfcfd;
+  border-color: #e8edf2;
+}
+
+.altas-products-table thead th {
+  padding: 12px 16px;
+  background: #f5f8fb;
+  color: #58697a;
+  font-size: .7rem;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.altas-products-table tbody td {
+  padding: 13px 16px;
+  color: #344250;
+  font-size: .8rem;
+}
+
 @media (max-width: 767.98px) {
   .altas-hero {
     align-items: stretch;

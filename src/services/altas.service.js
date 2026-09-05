@@ -311,6 +311,30 @@ function validarAlcanceAlta(
     return acceso;
 }
 
+function accesoEmpresaPermiteAlta(acceso, alta) {
+    if (!acceso) return false;
+
+    const marcaPermitida = acceso.todasMarcas ||
+        alcanceContiene(acceso.marcas, ['codigoMarca', 'detalleMarca', 'CODIGO_MARCA', 'DETALLE_MARCA'], alta.CODIGO_MARCA) ||
+        alcanceContiene(acceso.marcas, ['codigoMarca', 'detalleMarca', 'CODIGO_MARCA', 'DETALLE_MARCA'], alta.DETALLE_MARCA);
+    if (!marcaPermitida) return false;
+
+    const rubroPermitido = acceso.todosRubros ||
+        alcanceContiene(acceso.rubros, ['codigoRubro', 'detalleRubro', 'CODIGO_RUBRO', 'DETALLE_RUBRO'], alta.CODIGO_RUBRO) ||
+        alcanceContiene(acceso.rubros, ['codigoRubro', 'detalleRubro', 'CODIGO_RUBRO', 'DETALLE_RUBRO'], alta.DETALLE_RUBRO);
+    if (!rubroPermitido) return false;
+
+    if (!acceso.todasLicencias) {
+        const licenciaAlta = normalizarLicenciaSeguridad(alta.LICENCIA_ALTA);
+        const permitida = (acceso.licencias || []).some(
+            licencia => normalizarLicenciaSeguridad(licencia) === licenciaAlta
+        );
+        if (!permitida) return false;
+    }
+
+    return true;
+}
+
 
 /* ============================================================
    CREAR CABECERA
@@ -552,10 +576,12 @@ async function crearAlta(
    LISTAR ALTAS
    ============================================================ */
 
-async function listarAltas(idEmpresa) {
+async function listarAltas(idEmpresa, accesoEmpresa) {
 
-    return altasRepository
+    const altas = await altasRepository
         .listarAltas(idEmpresa);
+
+    return altas.filter(alta => accesoEmpresaPermiteAlta(accesoEmpresa, alta));
 }
 
 

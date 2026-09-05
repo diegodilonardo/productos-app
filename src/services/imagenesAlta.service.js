@@ -32,8 +32,26 @@ function carpetaImagenes() {
     : path.resolve(process.cwd(), 'storage', 'imagenes-productos');
 }
 
-function buscarImagen(clave) {
-  const carpeta = carpetaImagenes();
+function segmentoCarpeta(valor, respaldo) {
+  const normalizado = texto(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return normalizado || respaldo;
+}
+
+function carpetaOrganizada(alta, producto) {
+  return path.join(
+    carpetaImagenes(),
+    segmentoCarpeta(alta.RAZON_SOCIAL || alta.CODIGO_EMPRESA, `EMPRESA_${alta.ID_EMPRESA}`),
+    segmentoCarpeta(alta.DETALLE_MARCA || alta.CODIGO_MARCA, 'SIN_MARCA'),
+    segmentoCarpeta(alta.DETALLE_RUBRO || alta.CODIGO_RUBRO, 'SIN_RUBRO'),
+    segmentoCarpeta(producto.LICENCIA || 'SIN_LICENCIA', 'SIN_LICENCIA')
+  );
+}
+
+function buscarImagen(clave, carpeta = carpetaImagenes()) {
   if (!fs.existsSync(carpeta)) return null;
 
   for (const extension of EXTENSIONES) {
@@ -96,7 +114,9 @@ async function prepararDescargaImagenesAlta(idAlta) {
     let imagen = archivoPorClave.get(claveNormalizada);
 
     if (!imagen) {
-      const encontrada = buscarImagen(clave);
+      const encontrada =
+        buscarImagen(clave, carpetaOrganizada(alta, producto)) ||
+        buscarImagen(clave);
       if (!encontrada) continue;
 
       imagen = {

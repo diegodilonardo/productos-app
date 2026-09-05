@@ -42,6 +42,38 @@ function asegurarCarpeta() {
     return carpeta;
 }
 
+function segmentoCarpeta(valor, respaldo) {
+    const normalizado = texto(valor)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Za-z0-9._-]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    return normalizado || respaldo;
+}
+
+async function obtenerUbicacionOrganizada(idAlta, datos, altaExistente = null) {
+    const id = Number(idAlta);
+    if (!Number.isInteger(id) || id <= 0) return null;
+
+    const alta = altaExistente || await altasRepository.obtenerAltaPorId(id);
+    if (!alta) return null;
+
+    const detalle = await altasRepository.obtenerDetalleAlta(id);
+    const producto = detalle.find(item =>
+        texto(item.CODIGO_MODELO) === texto(datos.modelo) &&
+        texto(item.CODIGO_COLOR) === texto(datos.color)
+    );
+    const licencia = texto(producto?.LICENCIA) || 'SIN_LICENCIA';
+
+    return path.join(
+        asegurarCarpeta(),
+        segmentoCarpeta(alta.RAZON_SOCIAL || alta.CODIGO_EMPRESA, `EMPRESA_${alta.ID_EMPRESA}`),
+        segmentoCarpeta(alta.DETALLE_MARCA || alta.CODIGO_MARCA, 'SIN_MARCA'),
+        segmentoCarpeta(alta.DETALLE_RUBRO || alta.CODIGO_RUBRO, 'SIN_RUBRO'),
+        segmentoCarpeta(licencia, 'SIN_LICENCIA')
+    );
+}
+
 
 /* ============================================================
    VALIDACIONES
@@ -238,6 +270,16 @@ function buscarArchivoExistente(
     return null;
 }
 
+async function buscarImagenContextual(req, clave) {
+    const raiz = asegurarCarpeta();
+    const organizada = await obtenerUbicacionOrganizada(req.query.idAlta, queryImagen(req));
+    if (organizada) {
+        const encontrada = buscarArchivoExistente(organizada, clave);
+        if (encontrada) return encontrada;
+    }
+    return buscarArchivoExistente(raiz, clave);
+}
+
 
 function eliminarVersionesAnteriores(
     carpeta,
@@ -286,21 +328,15 @@ function queryImagen(req) {
 
 router.get(
     '/estado',
-    (req, res) => {
+    async (req, res) => {
         try {
             const clave =
                 obtenerClave(
                     queryImagen(req)
                 );
 
-            const carpeta =
-                asegurarCarpeta();
-
             const existente =
-                buscarArchivoExistente(
-                    carpeta,
-                    clave
-                );
+                await buscarImagenContextual(req, clave);
 
             res.json({
                 ok: true,
@@ -318,6 +354,8 @@ router.get(
                         ? (
                             '/api/imagenes/archivo?' +
                             new URLSearchParams({
+                                idAlta:
+                                    texto(req.query.idAlta),
                                 ano:
                                     texto(
                                         req.query.ano
@@ -357,21 +395,15 @@ router.get(
 
 router.get(
     '/archivo',
-    (req, res) => {
+    async (req, res) => {
         try {
             const clave =
                 obtenerClave(
                     queryImagen(req)
                 );
 
-            const carpeta =
-                asegurarCarpeta();
-
             const existente =
-                buscarArchivoExistente(
-                    carpeta,
-                    clave
-                );
+                await buscarImagenContextual(req, clave);
 
             if (
                 !existente
@@ -554,7 +586,10 @@ router.post(
                 );
 
             const carpeta =
+                await obtenerUbicacionOrganizada(idAlta, req.body || {}, alta) ||
                 asegurarCarpeta();
+
+            fs.mkdirSync(carpeta, { recursive: true });
 
             /*
               Una sola imagen activa por:
@@ -599,6 +634,8 @@ router.post(
                 url:
                     '/api/imagenes/archivo?' +
                     new URLSearchParams({
+                        idAlta:
+                            texto(idAlta),
                         ano:
                             texto(
                                 req.body.ano

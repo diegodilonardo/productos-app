@@ -933,13 +933,55 @@ function filtrarModelos() {
   );
 }
 
+function opcionesNavegables(selector) {
+  return [...document.querySelectorAll(selector)].filter(elemento =>
+    !elemento.classList.contains('d-none') &&
+    !elemento.disabled &&
+    elemento.getAttribute('aria-disabled') !== 'true'
+  );
+}
+
+function moverOpcionConTeclado(event, selector) {
+  if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return false;
+
+  const opciones = opcionesNavegables(selector);
+  if (!opciones.length) return false;
+
+  event.preventDefault();
+  const actual = opciones.findIndex(item => item.classList.contains('is-keyboard-active'));
+  const siguiente = event.key === 'ArrowDown'
+    ? (actual < 0 ? 0 : Math.min(actual + 1, opciones.length - 1))
+    : (actual < 0 ? opciones.length - 1 : Math.max(actual - 1, 0));
+
+  document.querySelectorAll(`${selector}.is-keyboard-active`).forEach(item => {
+    item.classList.remove('is-keyboard-active');
+    item.removeAttribute('aria-current');
+  });
+
+  opciones[siguiente].classList.add('is-keyboard-active');
+  opciones[siguiente].setAttribute('aria-current', 'true');
+  opciones[siguiente].scrollIntoView({ block: 'nearest' });
+  return true;
+}
+
+function opcionActivaConTeclado(selector) {
+  return opcionesNavegables(selector).find(item => item.classList.contains('is-keyboard-active')) || null;
+}
+
 
 async function seleccionarModeloConEnter(
   event
 ) {
+  if (moverOpcionConTeclado(event, '#listaModelos .alta-model-item')) return;
   if (event.key !== 'Enter') return;
 
   event.preventDefault();
+
+  const activa = opcionActivaConTeclado('#listaModelos .alta-model-item');
+  if (activa) {
+    activa.click();
+    return;
+  }
 
   const input = event.currentTarget;
   const criterio =
@@ -1612,9 +1654,16 @@ function filtrarModulos() {
 
 
 function seleccionarModuloConEnter(event) {
+  if (moverOpcionConTeclado(event, '#listaModulos .alta-module-item')) return;
   if (event.key !== 'Enter') return;
 
   event.preventDefault();
+
+  const activa = opcionActivaConTeclado('#listaModulos .alta-module-item');
+  if (activa) {
+    activa.click();
+    return;
+  }
   filtrarModulos();
 
   if (modulosFiltrados.length !== 1) return;
@@ -2264,9 +2313,17 @@ function seleccionarBuscadorMaestroConEnter(
   event,
   clave
 ) {
+  const selector = `#lista${clave} .alta-master-item`;
+  if (moverOpcionConTeclado(event, selector)) return;
   if (event.key !== 'Enter') return;
 
   event.preventDefault();
+
+  const activa = opcionActivaConTeclado(selector);
+  if (activa) {
+    activa.click();
+    return;
+  }
   filtrarBuscadorMaestro(clave);
 
   const coincidencias =
@@ -2687,9 +2744,22 @@ function actualizarTallesSeleccionados() {
 
 
 function seleccionarTalleConEnter(event) {
+  if (moverOpcionConTeclado(event, '#listaTalles .app-talle-item')) return;
   if (event.key !== 'Enter') return;
 
   event.preventDefault();
+
+  const activa = opcionActivaConTeclado('#listaTalles .app-talle-item');
+  if (activa) {
+    const checkActivo = activa.querySelector('.talle-check');
+    if (checkActivo && !checkActivo.checked) {
+      checkActivo.checked = true;
+      actualizarTallesSeleccionados();
+      filtrarTallesParSuelto();
+    }
+    activa.classList.remove('is-keyboard-active');
+    return;
+  }
   filtrarTallesParSuelto();
 
   const coincidencias = [...document.querySelectorAll('.app-talle-item')]
@@ -2830,9 +2900,23 @@ function filtrarColores() {
 
 
 function seleccionarColorConEnter(event) {
+  if (moverOpcionConTeclado(event, '#listaColores .app-color-item')) return;
   if (event.key !== 'Enter') return;
 
   event.preventDefault();
+
+  const activa = opcionActivaConTeclado('#listaColores .app-color-item');
+  if (activa) {
+    const checkActivo = activa.querySelector('.color-check');
+    if (checkActivo && !checkActivo.checked) {
+      checkActivo.checked = true;
+      actualizarCantidadColores();
+      filtrarColores();
+      actualizarImagenesProducto();
+    }
+    activa.classList.remove('is-keyboard-active');
+    return;
+  }
 
   const texto = normalizarBusqueda(
     event.currentTarget?.value
@@ -3312,6 +3396,8 @@ function urlEstadoImagenFamilia(fila) {
   return (
     '/api/imagenes/estado?' +
     new URLSearchParams({
+      idAlta:
+        p.idAlta,
       ano:
         p.ano,
       temporada:
@@ -3334,6 +3420,8 @@ function urlArchivoImagenFamilia(fila) {
   return (
     '/api/imagenes/archivo?' +
     new URLSearchParams({
+      idAlta:
+        p.idAlta,
       ano:
         p.ano,
       temporada:

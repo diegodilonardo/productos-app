@@ -866,6 +866,45 @@ async function sincronizarEmpresa(
         );
 
 
+        /*
+          Los productos ya confirmados también pueden recibir cambios
+          posteriores desde Presea (por ejemplo, el EAN definitivo de GS1).
+          Refrescamos siempre la copia conciliada para que Seguimiento pueda
+          comparar el EAN de la app con el último maestro recibido.
+        */
+        UPDATE E
+           SET
+               E.CODIGO_ERP =
+                 CONVERT(
+                   VARCHAR(30),
+                   P.CODIGO
+                 ),
+
+               E.EAN_ERP =
+                 CONVERT(
+                   VARCHAR(20),
+                   P.CODIGO_EAN
+                 )
+
+        FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS E
+
+        INNER JOIN dbo.PRODUCTOS P
+                ON P.ID_EMPRESA = E.ID_EMPRESA
+               AND P.CODIGO_ALFA = E.COD_ALFA
+               AND ISNULL(P.ACTIVO, 1) = 1
+
+        WHERE
+          E.ID_EMPRESA = @ID_EMPRESA_CONCILIACION
+          AND E.ESTADO_ERP = 'GENERADO_OK_EN_ERP'
+          AND (
+            ISNULL(E.CODIGO_ERP, '') <>
+              ISNULL(CONVERT(VARCHAR(30), P.CODIGO), '')
+            OR
+            ISNULL(E.EAN_ERP, '') <>
+              ISNULL(CONVERT(VARCHAR(20), P.CODIGO_EAN), '')
+          );
+
+
         UPDATE E
            SET
                E.CODIGO_ERP =

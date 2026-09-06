@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const { obtenerRutaMaestro } = require('../config/masters');
 
@@ -171,38 +172,41 @@ async function cargarStagingBulk(
     const table = new sql.Table(`dbo.${staging}`);
     table.create = false;
 
-    table.columns.add('ID_IMPORTACION', sql.BigInt, {
-        nullable: false,
-    });
+    const columnasConfiguradas = new Map(
+        maestro.columnas.map(columna => [columna.nombre, columna])
+    );
+    const ordenStaging = Array.isArray(maestro.ordenStaging)
+        ? maestro.ordenStaging
+        : ['ID_IMPORTACION', 'ID_EMPRESA', ...maestro.columnas.map(columna => columna.nombre)];
 
-    table.columns.add('ID_EMPRESA', sql.Int, {
-        nullable: false,
-    });
-
-    for (const configColumna of maestro.columnas) {
-        table.columns.add(
-            configColumna.nombre,
-            obtenerTipoSQL(configColumna),
-            {
-                nullable: !configColumna.requerido,
-            }
-        );
+    for (const nombre of ordenStaging) {
+        if (nombre === 'ID_IMPORTACION') {
+            table.columns.add(nombre, sql.BigInt, { nullable: false });
+        } else if (nombre === 'ID_EMPRESA') {
+            table.columns.add(nombre, sql.Int, { nullable: false });
+        } else {
+            const configColumna = columnasConfiguradas.get(nombre);
+            if (!configColumna) throw new Error(`Columna staging no configurada: ${nombre}.`);
+            table.columns.add(nombre, obtenerTipoSQL(configColumna), {
+                nullable: typeof configColumna.nullableStaging === 'boolean'
+                    ? configColumna.nullableStaging
+                    : !configColumna.requerido,
+            });
+        }
     }
 
     for (const registro of registros) {
-        const valores = [
-            idImportacion,
-            idEmpresa
-        ];
-
+        const valoresPorNombre = {
+            ID_IMPORTACION: idImportacion,
+            ID_EMPRESA: idEmpresa,
+        };
         for (const configColumna of maestro.columnas) {
-            valores.push(
-                convertirValor(
-                    registro[configColumna.nombre],
-                    configColumna
-                )
+            valoresPorNombre[configColumna.nombre] = convertirValor(
+                registro[configColumna.nombre],
+                configColumna
             );
         }
+        const valores = ordenStaging.map(nombre => valoresPorNombre[nombre]);
 
         table.rows.add(...valores);
     }
@@ -227,7 +231,13 @@ async function importarMaestroGenerico(
         }
 
         const metadata = await obtenerMetadataArchivo(rutaArchivo);
-        const hash = await calcularHashArchivo(rutaArchivo);
+        const hashArchivo = await calcularHashArchivo(rutaArchivo);
+        const versionImportacion = String(maestro.versionImportacion || '').trim();
+        const hash = versionImportacion
+            ? crypto.createHash('sha256')
+                .update(`${hashArchivo}|${versionImportacion}`)
+                .digest('hex')
+            : hashArchivo;
 
         const ultimoHash = await obtenerUltimoHashOK(
             maestro.nombre,
@@ -273,8 +283,9 @@ async function importarMaestroGenerico(
         });
 
         /*
-         * Todos los archivos tienen CODIGO_EMPRESA como último campo.
-         * Por eso esperamos columnas configuradas + 1.
+         * La mayoría de los archivos tiene CODIGO_EMPRESA al final.
+         * Algunos maestros pueden declarar otra posición mediante
+         * archivoEmpresa, conservando el mismo total de campos.
          */
         const filas = await leerArchivoPipe(
             rutaArchivo,
@@ -333,13 +344,13 @@ async function importarMaestroGenerico(
                 registro[configColumna.nombre] = valor;
             }
 
-            /*
-             * Regla multiempresa:
-             * el último campo del TXT es siempre CODIGO_EMPRESA.
-             */
+            /* Regla multiempresa: posición estándar o configurada. */
+            const indiceEmpresa = Number.isInteger(maestro.archivoEmpresa)
+                ? maestro.archivoEmpresa
+                : maestro.columnas.length;
             const codigoEmpresaArchivo =
                 String(
-                    filas[i][maestro.columnas.length] ?? ''
+                    filas[i][indiceEmpresa] ?? ''
                 ).trim();
 
             if (!codigoEmpresaArchivo) {

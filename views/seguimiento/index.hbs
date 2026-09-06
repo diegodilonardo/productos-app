@@ -115,6 +115,75 @@
   </div>
 </div>
 
+<section class="seguimiento-ean-section" aria-labelledby="tituloSeguimientoEan">
+  <div class="seguimiento-ean-heading">
+    <div>
+      <div class="seguimiento-table-kicker">CÓDIGOS DE BARRAS</div>
+      <h2 id="tituloSeguimientoEan" class="h4 mb-1">Seguimiento EAN / GS1</h2>
+      <p class="text-secondary mb-0">Primeras y módulos confirmados en Presea, con el estado de asignación de su EAN definitivo.</p>
+    </div>
+    <div class="seguimiento-ean-actions">
+      <div class="seguimiento-ean-action-group">
+        <button id="btnDescargarImagenesEan" class="btn btn-primary" type="button" disabled>Descargar imágenes (0)</button>
+        <input id="archivoUrlsTemporalesEan" class="d-none" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <button id="btnImportarUrlsTemporalesEan" class="btn btn-outline-primary" type="button" disabled>Importar URLs GS1</button>
+      </div>
+      <div class="seguimiento-ean-action-group">
+        <button id="btnGenerarArchivoGs1" class="btn btn-success" type="button" disabled>Generar archivo GS1</button>
+        <input id="archivoCodigosEanGs1" class="d-none" type="file" accept=".xlsx,.xls">
+        <button id="btnImportarCodigosEanGs1" class="btn btn-outline-success" type="button" disabled>Importar EAN definitivos</button>
+      </div>
+      <div class="seguimiento-ean-action-group">
+        <button id="btnExportarGtinDbi" class="btn btn-dark" type="button" disabled>Descargar GTIN.DBI</button>
+        <button id="btnEnviarGtinPresea" class="btn btn-primary" type="button" disabled>Enviar GTIN a Presea</button>
+      </div>
+      <div class="seguimiento-ean-action-group">
+        <button id="btnImprimirEtiquetasEan" class="btn btn-outline-dark" type="button" disabled>Imprimir etiquetas (0)</button>
+      <a id="btnExportarPendientesEan" class="btn btn-outline-primary disabled" aria-disabled="true" tabindex="-1" href="/api/seguimiento/ean/pendientes.xlsx">Descargar pendientes GS1</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 seguimiento-metrics seguimiento-ean-metrics">
+    <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-blue">#</span><div><div class="app-info-label">Productos evaluados</div><div id="eanTotal" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Total del circuito</div></div></div></div></div>
+    <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-amber">!</span><div><div class="app-info-label">Gestionar en GS1</div><div id="eanPendientesGs1" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Con código provisorio</div></div></div></div></div>
+    <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-blue">✓</span><div><div class="app-info-label">EAN asignados</div><div id="eanAsignados" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Pendientes de enviar</div></div></div></div></div>
+    <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-amber">⇧</span><div><div class="app-info-label">Pendientes ERP</div><div id="eanPendientesErp" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">GTIN.DBI enviado</div></div></div></div></div>
+    <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-green">✓</span><div><div class="app-info-label">Confirmados ERP</div><div id="eanConfirmadosErp" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">EAN conciliado</div></div></div></div></div>
+    <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-red">×</span><div><div class="app-info-label">Sin EAN</div><div id="eanSinEan" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Requieren revisión</div></div></div></div></div>
+  </div>
+
+  <div id="eanAvisoGs1" class="alert alert-warning d-none seguimiento-ean-alert" role="status"></div>
+  <div id="resultadoUrlsTemporalesEan" class="alert alert-info d-none seguimiento-ean-alert" role="status"></div>
+
+  <div id="listadoProductosEan" class="card shadow-sm seguimiento-list-card seguimiento-ean-product-list">
+    <div class="seguimiento-list-head">
+      <div><div class="seguimiento-table-kicker">GESTIÓN GS1</div><h3 class="h5 mb-0">Productos <span id="cantidadEanVisible" class="seguimiento-result-count"></span></h3></div>
+      <div class="seguimiento-ean-filters">
+        <input id="buscarSeguimientoEan" class="form-control" type="search" placeholder="Buscar Alta, código, modelo o color..." aria-label="Buscar productos por EAN">
+        <select id="filtroEstadoEan" class="form-select" aria-label="Filtrar por estado EAN">
+          <option value="">Todos los estados</option>
+          <option value="PENDIENTE_GS1">Gestionar en GS1</option>
+          <option value="EAN_ASIGNADO">EAN asignado</option>
+          <option value="PENDIENTE_ERP">Enviado · pendiente ERP</option>
+          <option value="CONFIRMADO_ERP">Confirmado en ERP</option>
+          <option value="SIN_EAN">Sin EAN</option>
+        </select>
+        <select id="filtroTemporadaEan" class="form-select" aria-label="Filtrar por temporada"><option value="">Todas las temporadas</option></select>
+        <select id="filtroAnoEan" class="form-select" aria-label="Filtrar por año"><option value="">Todos los años</option></select>
+        <select id="filtroRubroEan" class="form-select" aria-label="Filtrar por rubro"><option value="">Todos los rubros</option></select>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 seguimiento-table seguimiento-ean-table">
+        <thead><tr><th><input id="seleccionarTodosEan" class="form-check-input me-2" type="checkbox" aria-label="Seleccionar todos los productos visibles">Imagen</th><th>Producto</th><th>Modelo / Color</th><th>Talle / Curva</th><th>EAN actual</th><th>Estado</th><th>Alta</th></tr></thead>
+        <tbody id="tablaSeguimientoEan"><tr><td colspan="7" class="text-center py-4 text-secondary">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+    <div id="paginacionSeguimientoEan" class="seguimiento-ean-pagination d-none" aria-label="Paginación de productos EAN"></div>
+  </div>
+</section>
+
 </div>
 
-<script src="/js/seguimiento.js?v=5"></script>
+<script src="/js/seguimiento.js?v=11"></script>

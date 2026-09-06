@@ -579,7 +579,8 @@ async function buscarPais(codigo, idEmpresa) {
     .query(`
             SELECT TOP 1
                 CODIGO_PAIS,
-                DETALLE_PAIS
+                DETALLE_PAIS,
+                PAIS_EAN
             FROM dbo.MAESTRO_PAISES
             WHERE
         ID_EMPRESA = @ID_EMPRESA

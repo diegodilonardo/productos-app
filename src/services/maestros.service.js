@@ -369,7 +369,7 @@ async function obtenerPaises({ idEmpresa }) {
   return simple(
     idEmpresa,
     'MAESTRO_PAISES',
-    ['CODIGO_PAIS', 'DETALLE_PAIS'],
+    ['CODIGO_PAIS', 'DETALLE_PAIS', 'PAIS_EAN'],
     'DETALLE_PAIS'
   );
 }

@@ -169,6 +169,24 @@ async function prepararDescargaImagenesAlta(idAlta) {
   };
 }
 
+async function buscarImagenProducto(idAlta, producto) {
+  const id = Number(idAlta);
+  if (!Number.isInteger(id) || id <= 0) throw new Error('ID_ALTA inválido.');
+  const alta = await altasRepository.obtenerAltaPorId(id);
+  if (!alta) return null;
+  const clave = [
+    alta.CODIGO_ANO,
+    alta.CODIGO_TEMPORADA,
+    producto.CODIGO_MODELO,
+    producto.CODIGO_COLOR
+  ].map(texto).join('');
+  const encontrada =
+    buscarImagen(clave, carpetaOrganizada(alta, producto)) ||
+    buscarImagen(clave);
+  return encontrada ? { ...encontrada, clave } : null;
+}
+
 module.exports = {
-  prepararDescargaImagenesAlta
+  prepararDescargaImagenesAlta,
+  buscarImagenProducto
 };

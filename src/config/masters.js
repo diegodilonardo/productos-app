@@ -388,6 +388,15 @@ const maestros = {
         archivo: 'TBL_PAISES.TXT',
         tabla: 'MAESTRO_PAISES',
         staging: 'STG_MAESTRO_PAISES',
+        versionImportacion: 'PAIS_EAN_V1',
+        archivoEmpresa: 2,
+        ordenStaging: [
+            'ID_IMPORTACION',
+            'CODIGO_PAIS',
+            'DETALLE_PAIS',
+            'ID_EMPRESA',
+            'PAIS_EAN'
+        ],
 
         columnas: [
             {
@@ -403,6 +412,14 @@ const maestros = {
                 tipo: 'VARCHAR',
                 longitud: 30,
                 requerido: true
+            },
+            {
+                archivo: 3,
+                nombre: 'PAIS_EAN',
+                tipo: 'VARCHAR',
+                longitud: 3,
+                requerido: true,
+                nullableStaging: true
             }
         ],
 

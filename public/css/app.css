@@ -1260,6 +1260,141 @@ main .progress {
     overflow: hidden;
 }
 
+.seguimiento-ean-section {
+    margin-top: 2rem;
+}
+
+.seguimiento-ean-product-list {
+    scroll-margin-top: 92px;
+}
+
+.seguimiento-ean-heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.seguimiento-ean-heading > div:first-child {
+    flex: 0 1 390px;
+}
+
+.seguimiento-ean-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(190px, 1fr));
+    gap: .65rem;
+    flex: 1 1 850px;
+}
+
+.seguimiento-ean-action-group {
+    display: grid;
+    gap: .5rem;
+}
+
+.seguimiento-ean-action-group .btn {
+    width: 100%;
+    white-space: nowrap;
+}
+
+.seguimiento-ean-metrics {
+    margin-bottom: 1rem;
+}
+
+.seguimiento-ean-alert {
+    margin-bottom: 1rem;
+    border-color: #efc76a;
+    font-weight: 600;
+}
+
+.seguimiento-ean-filters {
+    display: grid;
+    grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(145px, 1fr));
+    gap: .75rem;
+    flex: 1;
+    justify-content: end;
+}
+
+.seguimiento-ean-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .85rem 1rem;
+    border-top: 1px solid #e4e8ed;
+    background: #fff;
+}
+
+.seguimiento-ean-image {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+    border: 1px solid #dce4ee;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.seguimiento-ean-image-cell {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 92px;
+}
+
+.seguimiento-ean-no-image {
+    color: #7a8798;
+    font-size: .75rem;
+}
+
+.seguimiento-ean-family-summary {
+    margin-top: .3rem;
+    color: #176bc9;
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.seguimiento-ean-child td {
+    background: #f8fbff;
+}
+
+.seguimiento-ean-child-label {
+    color: #176bc9;
+    font-size: .7rem;
+    text-transform: uppercase;
+}
+
+.seguimiento-ean-toggle {
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .seguimiento-ean-heading,
+    .seguimiento-ean-section .seguimiento-list-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .seguimiento-ean-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .seguimiento-ean-actions {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+        flex-basis: auto;
+    }
+}
+
+@media (max-width: 520px) {
+    .seguimiento-ean-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .seguimiento-ean-pagination {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
 .seguimiento-list-head {
     display: flex;
     flex-wrap: wrap;
@@ -2423,6 +2558,70 @@ main .progress {
     height: 34px;
 }
 
+/*
+ * Escritorio compacto: cuando conviven varias marcas, navegación y sesión,
+ * reducimos únicamente espacios y logos para evitar superposiciones.
+ */
+@media (min-width: 1200px) and (max-width: 1999.98px) {
+    .app-navbar-container {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .app-navbar-brand {
+        gap: 10px;
+        margin-right: 12px;
+    }
+
+    .app-navbar-title {
+        font-size: 14px;
+    }
+
+    .app-navbar-brand-context {
+        flex: 0 1 auto;
+        gap: 6px;
+        margin-right: 10px;
+    }
+
+    .app-navbar-company-selector {
+        min-width: 120px;
+        max-width: 150px;
+    }
+
+    .app-navbar-brand-chip.has-logo {
+        min-width: 92px;
+        max-width: 104px;
+    }
+
+    .app-navbar-brand-logo,
+    .app-navbar-brand-chip.marca-montagne .app-navbar-brand-logo,
+    .app-navbar-brand-chip.marca-logo-oscuro .app-navbar-brand-logo,
+    .app-navbar-brand-chip.marca-massimo .app-navbar-brand-logo {
+        width: 92px;
+        height: 31px;
+    }
+
+    .app-navbar-nav {
+        gap: 2px;
+    }
+
+    .app-navbar-link {
+        gap: 6px;
+        padding-right: 10px !important;
+        padding-left: 10px !important;
+        white-space: nowrap;
+    }
+
+    .app-navbar-session {
+        gap: 7px;
+        padding-left: 9px;
+    }
+
+    .app-navbar-right {
+        gap: 8px;
+    }
+}
+
 @media (max-width: 1399.98px) {
     .app-navbar-brand-context {
         flex: 1 1 auto;
@@ -2460,4 +2659,22 @@ main .progress {
         padding-left: 8px;
         font-size: 10px;
     }
+}
+.seguimiento-ean-statuses {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.seguimiento-ean-url-badge {
+  color: #075985;
+  background: #e0f2fe;
+  border: 1px solid #7dd3fc;
+}
+
+.seguimiento-ean-url-pending {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
 }

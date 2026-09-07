@@ -257,7 +257,8 @@ function validarCampos(
 function escribirDBFGenerico(
     rutaArchivo,
     registros,
-    campos
+    campos,
+    opciones = {}
 ) {
 
     validarCampos(
@@ -267,7 +268,10 @@ function escribirDBFGenerico(
 
     if (
         !Array.isArray(registros) ||
-        registros.length === 0
+        (
+            registros.length === 0 &&
+            !opciones.permitirVacio
+        )
     ) {
 
         throw new Error(

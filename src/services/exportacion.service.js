@@ -2510,61 +2510,62 @@ async function exportar(
 
 
     /*
-     * Los dos archivos auxiliares existen solamente cuando
-     * el Alta exporta al menos un producto MODULO.
+     * Presea espera el juego completo. RELFORMU y RELACION se envían
+     * siempre, aun cuando el lote no contenga registros para ellos.
      */
-    if (
-        registrosRELFORMU.length > 0
-    ) {
+    definiciones.push(
+        {
+            clave:
+                'RELFORMU',
 
-        definiciones.push(
-            {
-                clave:
-                    'RELFORMU',
+            nombreBase:
+                `RELFORMU_${codigoAlta}`,
 
-                nombreBase:
-                    `RELFORMU_${codigoAlta}`,
+            registros:
+                registrosRELFORMU,
 
-                registros:
-                    registrosRELFORMU,
+            campos:
+                camposRELFORMU,
 
-                campos:
-                    camposRELFORMU,
+            permitirVacio:
+                true,
 
-                nombreFTP:
-                    exigirNombreFTP(
-                        'FTP_ARCHIVO_RELFORMU',
-                        'RELFORMU'
-                    ),
+            nombreFTP:
+                exigirNombreFTP(
+                    'FTP_ARCHIVO_RELFORMU',
+                    'RELFORMU'
+                ),
 
-                principal:
-                    false
-            },
+            principal:
+                false
+        },
 
-            {
-                clave:
-                    'RELACION',
+        {
+            clave:
+                'RELACION',
 
-                nombreBase:
-                    `RELACION_${codigoAlta}`,
+            nombreBase:
+                `RELACION_${codigoAlta}`,
 
-                registros:
-                    registrosRELACION,
+            registros:
+                registrosRELACION,
 
-                campos:
-                    camposRELACION,
+            campos:
+                camposRELACION,
 
-                nombreFTP:
-                    exigirNombreFTP(
-                        'FTP_ARCHIVO_RELACION',
-                        'RELACION'
-                    ),
+            permitirVacio:
+                true,
 
-                principal:
-                    false
-            }
-        );
-    }
+            nombreFTP:
+                exigirNombreFTP(
+                    'FTP_ARCHIVO_RELACION',
+                    'RELACION'
+                ),
+
+            principal:
+                false
+        }
+    );
 
 
     for (
@@ -2666,7 +2667,13 @@ async function exportar(
                     escribirDBFGenerico(
                         definicion.rutaDBF,
                         definicion.registros,
-                        definicion.campos
+                        definicion.campos,
+                        {
+                            permitirVacio:
+                                Boolean(
+                                    definicion.permitirVacio
+                                )
+                        }
                     );
             }
 
@@ -2690,6 +2697,12 @@ async function exportar(
            - el Alta sigue VALIDADO;
            - los DBI locales quedan para reintento.
            ==================================================== */
+
+        await ftpService
+            .limpiarCarpeta(
+                rutaFTP
+            );
+
 
         for (
             const definicion

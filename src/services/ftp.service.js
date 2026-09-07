@@ -924,6 +924,83 @@ async function subirArchivo(
     }
 }
 
+
+async function limpiarCarpeta(rutaRemota) {
+
+    const config =
+        obtenerConfiguracion();
+
+
+    const carpetaRemota =
+        texto(rutaRemota)
+            .replace(/\\+/g, '/')
+            .replace(/\/+$/g, '');
+
+
+    if (
+        !carpetaRemota ||
+        carpetaRemota === '/' ||
+        carpetaRemota === '.' ||
+        carpetaRemota === '..'
+    ) {
+        throw new Error(
+            'No se puede limpiar una carpeta FTP raíz o vacía.'
+        );
+    }
+
+
+    try {
+        return await ejecutarConCircuitBreaker(
+            config,
+            async () => ejecutarConRetry(
+                `Limpieza ${carpetaRemota}`,
+                async () => {
+                    const cliente =
+                        new ftp.Client(config.timeout);
+
+                    cliente.ftp.verbose =
+                        booleano(process.env.FTP_VERBOSE);
+
+                    try {
+                        await cliente.access({
+                            host: config.host,
+                            port: config.port,
+                            user: config.user,
+                            password: config.password,
+                            secure: config.secure
+                        });
+
+                        await cliente.ensureDir(carpetaRemota);
+                        await cliente.clearWorkingDir();
+
+                        return {
+                            limpiada: true,
+                            host: config.host,
+                            port: config.port,
+                            carpeta: carpetaRemota,
+                            secure: config.secure
+                        };
+                    } finally {
+                        cliente.close();
+                    }
+                }
+            )
+        );
+    } catch (error) {
+        const mensajeOriginal =
+            error && error.message
+                ? error.message
+                : String(error);
+
+        throw new Error(
+            `No se pudo limpiar la carpeta FTP ` +
+            `${config.host}:${config.port}/${carpetaRemota}. ` +
+            `No se enviaron los archivos nuevos. ` +
+            `Detalle: ${mensajeOriginal}`
+        );
+    }
+}
+
 /* =============================================================
    DESCARGAR ARCHIVOS DESDE UNA CARPETA FTP
    ============================================================= */
@@ -1086,5 +1163,6 @@ async function descargarArchivos(
 
 module.exports = {
     subirArchivo,
+    limpiarCarpeta,
     descargarArchivos
 };

@@ -578,6 +578,42 @@ function codigoBarrasSvg(tipo, valor, opciones = {}) {
 }
 
 
+async function imagenEtiquetaProducto(producto, cache) {
+    const clave = [
+        producto.ID_ALTA,
+        producto.CODIGO_MODELO,
+        producto.CODIGO_COLOR,
+    ].map(valor => String(valor ?? '').trim().toUpperCase()).join('|');
+
+    if (cache.has(clave)) return cache.get(clave);
+
+    let imagen = '';
+    try {
+        const encontrada = await imagenesAltaService.buscarImagenProducto(
+            producto.ID_ALTA,
+            producto
+        );
+        if (encontrada) {
+            const buffer = await sharp(encontrada.archivo)
+                .rotate()
+                .resize(180, 180, {
+                    fit: 'contain',
+                    background: { r: 255, g: 255, b: 255, alpha: 1 },
+                })
+                .flatten({ background: '#ffffff' })
+                .jpeg({ quality: 82 })
+                .toBuffer();
+            imagen = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+        }
+    } catch (_) {
+        imagen = '';
+    }
+
+    cache.set(clave, imagen);
+    return imagen;
+}
+
+
 function ordenTalle(valor) {
     const texto = String(valor ?? '').trim();
     const numero = Number(texto.replace(',', '.'));
@@ -682,6 +718,7 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
         throw new Error(`${sinEanConfirmado.length} producto(s) de las familias seleccionadas todavía no tienen el EAN confirmado en Presea.`);
     }
 
+    const cacheImagenes = new Map();
     const modulos = [];
     for (const grupo of modulosSeleccionados) {
         const producto = grupo.principal;
@@ -706,6 +743,7 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
             articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
             talleCurva: producto.TALLE_CURVA || producto.DETALLE_MODULO || '-',
             color: producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-',
+            imagen: await imagenEtiquetaProducto(producto, cacheImagenes),
             composicion,
             totalPares,
             barcodeAlfa: codigoBarrasSvg('code128', producto.COD_ALFA, { height: 7, textsize: 7 }),
@@ -713,15 +751,19 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
         });
     }
 
-    const pares = paresSeleccionados.map(producto => ({
-        codigoAlfa: producto.COD_ALFA,
-        ean: producto.EAN_ERP,
-        articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
-        color: producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-',
-        talle: producto.DETALLE_TALLE || producto.CODIGO_TALLE || '-',
-        barcodeAlfa: codigoBarrasSvg('code128', producto.COD_ALFA, { height: 8, textsize: 7 }),
-        barcodeEan: codigoBarrasSvg('ean13', producto.EAN_ERP, { height: 8, textsize: 7 }),
-    }));
+    const pares = [];
+    for (const producto of paresSeleccionados) {
+        pares.push({
+            codigoAlfa: producto.COD_ALFA,
+            ean: producto.EAN_ERP,
+            articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
+            color: producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-',
+            talle: producto.DETALLE_TALLE || producto.CODIGO_TALLE || '-',
+            imagen: await imagenEtiquetaProducto(producto, cacheImagenes),
+            barcodeAlfa: codigoBarrasSvg('code128', producto.COD_ALFA, { height: 8, textsize: 7 }),
+            barcodeEan: codigoBarrasSvg('ean13', producto.EAN_ERP, { height: 8, textsize: 7 }),
+        });
+    }
 
     if (!modulos.length && !pares.length) {
         throw new Error('La selección no contiene módulos ni pares individuales imprimibles.');

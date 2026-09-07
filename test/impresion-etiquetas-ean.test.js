@@ -8,14 +8,26 @@ test('la impresión compacta módulos y pares individuales en hojas A4', () => {
     path.join(__dirname, '..', 'views', 'seguimiento', 'etiquetas.hbs'),
     'utf8'
   );
-  assert.match(vista, /@page \{ size: A4 portrait/);
-  assert.match(vista, /grid-template-columns: repeat\(2, 1fr\)/);
+  assert.match(vista, /@page \{ size: A4 portrait; margin: 8mm/);
+  assert.match(vista, /\.sheet \{ width: auto; min-height: auto; margin: 0; padding: 0; \}/);
+  assert.match(vista, /grid-template-columns: repeat\(3, 60mm\)/);
   assert.match(vista, /height: 88mm/);
-  assert.match(vista, /height: 43mm/);
+  assert.match(vista, /\.pair-label \{ width: 60mm; height: 30mm/);
   assert.match(vista, /grid-template-columns: 48mm 1fr/);
   assert.match(vista, /font-size: 36pt/);
   assert.match(vista, /\.barcode-value[^}]*font-size: 9\.5pt/);
-  assert.match(vista, /\.pair-label \.barcode-value \{ font-size: 8pt/);
+  assert.match(vista, /\.pair-label \.barcode-value \{ font-size: 6\.5pt/);
+  assert.match(vista, /class="pair-photo"/);
+  assert.match(vista, /<img src="\{\{imagen\}\}"/);
+  assert.match(vista, /class="module-photo"[^>]*>\{\{#if imagen\}\}<img/);
+  assert.match(vista, /\.module-photo \{[^}]*padding: 2mm/);
+  assert.match(vista, /grid-template-columns: 14mm minmax\(0, 1fr\)/);
+  assert.match(vista, /\.pair-heading \{ grid-column: 1 \/ 3;/);
+  assert.match(vista, /\.pair-alpha \{ grid-column: 2; \}/);
+  assert.match(vista, /\.pair-label \.pair-alpha \.barcode-bars \{ padding: 0; \}/);
+  assert.match(vista, /grid-template-rows: 7mm 8\.5mm 10\.5mm/);
+  assert.match(vista, /\.pair-size[^}]*font-size: 15pt/);
+  assert.match(vista, /\.pair-title[^}]*overflow-wrap: anywhere/);
   assert.match(vista, /Imprimir módulos/);
   assert.match(vista, /Imprimir pares individuales/);
   assert.match(vista, /barcode-value/);
@@ -44,5 +56,6 @@ test('Seguimiento ofrece imprimir solamente EAN confirmados en ERP', () => {
   assert.match(servicio, /bwipjs\.toSVG/);
   assert.match(servicio, /includetext: false/);
   assert.match(servicio, /preserveAspectRatio="none"/);
-  assert.doesNotMatch(servicio, /imagen: await imagenProducto/);
+  assert.match(servicio, /imagen: await imagenEtiquetaProducto\(producto, cacheImagenes\)/);
+  assert.match(servicio, /imagenesAltaService\.buscarImagenProducto/);
 });

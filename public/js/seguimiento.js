@@ -12,6 +12,26 @@ let vistaSeguimiento = sessionStorage.getItem('seguimiento.vista') === 'tabla' ?
 let paginaSeguimientoEan = 1;
 const PRODUCTOS_POR_PAGINA_EAN = 50;
 
+function claveSesionSeleccionEan() {
+  return idEmpresaSeguimiento ? `seguimiento.ean.seleccion.${idEmpresaSeguimiento}` : '';
+}
+
+function cargarSeleccionEan() {
+  const clave = claveSesionSeleccionEan();
+  if (!clave) return new Set();
+  try {
+    const guardadas = JSON.parse(sessionStorage.getItem(clave) || '[]');
+    return new Set(Array.isArray(guardadas) ? guardadas.map(String).filter(Boolean) : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function guardarSeleccionEan() {
+  const clave = claveSesionSeleccionEan();
+  if (clave) sessionStorage.setItem(clave, JSON.stringify([...seleccionEan]));
+}
+
 async function iniciarSeguimiento() {
   window.addEventListener(
     'app:empresa-cambiada',
@@ -20,6 +40,7 @@ async function iniciarSeguimiento() {
 
   idEmpresaSeguimiento =
     obtenerEmpresaActivaSeguimiento();
+  seleccionEan = cargarSeleccionEan();
 
   document
     .getElementById('btnActualizarSeguimiento')
@@ -108,7 +129,7 @@ function actualizarEmpresaSeguimiento(event) {
   altasSeguimiento = [];
   productosSeguimientoEan = [];
   gruposSeguimientoEan = [];
-  seleccionEan.clear();
+  seleccionEan = cargarSeleccionEan();
   asociacionesUrlsGs1 = [];
   familiasEanAbiertas.clear();
   paginaSeguimientoEan = 1;
@@ -143,6 +164,10 @@ async function cargarTodo() {
       : productosSeguimientoEan.map((producto, indice) => ({
           tipo: 'PRIMERA', clave: `producto-${indice}`, principal: producto, primeras: []
         }));
+
+    const clavesDisponibles = new Set(productosSeguimientoEan.map(claveProductoEan));
+    seleccionEan = new Set([...seleccionEan].filter(clave => clavesDisponibles.has(clave)));
+    guardarSeleccionEan();
 
     poblarFiltrosSeguimientoEan();
 
@@ -244,11 +269,10 @@ function pintarSeguimientoEan() {
   const totalPaginas = Math.max(1, paginas.length);
   paginaSeguimientoEan = Math.min(Math.max(1, paginaSeguimientoEan), totalPaginas);
   const gruposPagina = paginas[paginaSeguimientoEan - 1] || [];
-  clavesEanVisibles = [...new Set(gruposPagina.flatMap(grupo =>
+  clavesEanVisibles = [...new Set(grupos.flatMap(grupo =>
     grupo.visibles.map(producto => claveProductoEan(producto))
   ))];
-  actualizarSelectorTodosEan();
-  setTexto('cantidadEanVisible', `${grupos.length} familias · ${cantidadProductos} productos`);
+  setTexto('cantidadEanVisible', `${grupos.length} familias · ${cantidadProductos} productos · ${seleccionEan.size} seleccionados`);
   pintarPaginacionSeguimientoEan(paginas, cantidadProductos);
   if (!grupos.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">No hay productos para mostrar.</td></tr>';
@@ -275,6 +299,8 @@ function pintarSeguimientoEan() {
     return pintarFilaEan(principal, { resumenFamilia, boton, clavesSeleccion: clavesFamilia }) +
       primerasVisibles.map(producto => pintarFilaEan(producto, { claseFila: `${clave} ${familiaAbierta ? '' : 'd-none'} seguimiento-ean-child`, prefijo: '↳ Primera' })).join('');
   }).join('');
+  actualizarChecksSeleccionEan();
+  actualizarSelectorTodosEan();
 }
 
 function normalizarFiltroEan(valor) {
@@ -408,6 +434,7 @@ function cambiarSeleccionEan(event) {
     if (checkbox.checked) seleccionEan.add(clave);
     else seleccionEan.delete(clave);
   });
+  guardarSeleccionEan();
   pintarSeguimientoEan();
   actualizarBotonImagenesEan();
 }
@@ -417,8 +444,18 @@ function seleccionarTodosEan(event) {
     if (event.target.checked) seleccionEan.add(clave);
     else seleccionEan.delete(clave);
   });
+  guardarSeleccionEan();
   pintarSeguimientoEan();
   actualizarBotonImagenesEan();
+}
+
+function actualizarChecksSeleccionEan() {
+  document.querySelectorAll('[data-ean-selection]').forEach(checkbox => {
+    const claves = String(checkbox.dataset.eanSelection || '').split(';;').filter(Boolean);
+    const seleccionadas = claves.filter(clave => seleccionEan.has(clave)).length;
+    checkbox.checked = claves.length > 0 && seleccionadas === claves.length;
+    checkbox.indeterminate = seleccionadas > 0 && seleccionadas < claves.length;
+  });
 }
 
 function actualizarSelectorTodosEan() {

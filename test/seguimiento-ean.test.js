@@ -158,6 +158,12 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1'\)/);
   assert.match(frontend, /productosSeleccionadosEan\('EAN_ASIGNADO'\)/);
   assert.match(frontend, /productosSeleccionadosEan\('CONFIRMADO_ERP'\)/);
+  assert.match(frontend, /seguimiento\.ean\.seleccion\.\$\{idEmpresaSeguimiento\}/);
+  assert.match(frontend, /guardarSeleccionEan\(\)/);
+  assert.match(frontend, /checkbox\.indeterminate = seleccionadas > 0/);
+  assert.match(frontend, /seleccionEan\.size\} seleccionados/);
+  assert.match(frontend, /clavesEanVisibles = \[\.\.\.new Set\(grupos\.flatMap/);
+  assert.doesNotMatch(frontend, /clavesEanVisibles = \[\.\.\.new Set\(gruposPagina\.flatMap/);
   assert.match(frontend, /clavesProducto: clavesConfirmadas/);
 });
 

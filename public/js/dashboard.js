@@ -22,6 +22,7 @@ document.addEventListener(
             'app:empresa-cambiada',
             actualizarEmpresaDashboard
         );
+        window.addEventListener('app:datos-actualizar', cargarDashboard);
 
         const btnActualizar =
             document.getElementById(

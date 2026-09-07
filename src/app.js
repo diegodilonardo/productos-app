@@ -45,6 +45,21 @@ app.use(
   })
 );
 
+/*
+ * La información operativa cambia por sincronizaciones que pueden ejecutarse
+ * mientras el usuario mantiene la aplicación abierta. Evitamos que el
+ * navegador reutilice respuestas anteriores de la API o páginas completas.
+ */
+app.use((req, res, next) => {
+  const solicitaHtml = String(req.headers.accept || '').includes('text/html');
+  if (req.path.startsWith('/api/') || solicitaHtml) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
 
 /* ============================================================
    HANDLEBARS

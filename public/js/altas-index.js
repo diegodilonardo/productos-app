@@ -12,6 +12,7 @@ async function iniciarPantallaAltas() {
     'app:empresa-cambiada',
     actualizarEmpresaAltas
   );
+  window.addEventListener('app:datos-actualizar', cargarAltas);
 
   document
     .getElementById('btnActualizarAltas')

@@ -164,7 +164,11 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /seleccionEan\.size\} seleccionados/);
   assert.match(frontend, /clavesEanVisibles = \[\.\.\.new Set\(grupos\.flatMap/);
   assert.doesNotMatch(frontend, /clavesEanVisibles = \[\.\.\.new Set\(gruposPagina\.flatMap/);
+  assert.match(frontend, /gruposSeguimientoEan\.flatMap\(grupo => \[grupo\.principal, \.\.\.\(grupo\.primeras \|\| \[\]\)\]\)/);
+  assert.match(frontend, /producto\.URL_IMAGEN_GS1 = asociacion\.urlImagen;[\s\S]*?pintarSeguimientoEan\(\);/);
   assert.match(frontend, /clavesProducto: clavesConfirmadas/);
+  assert.match(frontend, /mostrarToastSeguimiento\(`GTIN\.DBI enviado correctamente a Presea/);
+  assert.match(frontend, /await cargarTodo\(\);/);
 });
 
 test('la fila GS1 repite la marca como submarca y aplica la matriz comercial', () => {

@@ -11,9 +11,10 @@ test('la impresión compacta módulos y pares individuales en hojas A4', () => {
   assert.match(vista, /@page \{ size: A4 portrait; margin: 8mm/);
   assert.match(vista, /\.sheet \{ width: auto; min-height: auto; margin: 0; padding: 0; \}/);
   assert.match(vista, /grid-template-columns: repeat\(3, 60mm\)/);
-  assert.match(vista, /height: 88mm/);
+  assert.match(vista, /\.module-label \{ width: 200mm; height: 100mm/);
   assert.match(vista, /\.pair-label \{ width: 60mm; height: 30mm/);
   assert.match(vista, /grid-template-columns: 48mm 1fr/);
+  assert.match(vista, /@page moduleLabels \{ size: A4 portrait; margin: 5mm/);
   assert.match(vista, /font-size: 36pt/);
   assert.match(vista, /\.barcode-value[^}]*font-size: 9\.5pt/);
   assert.match(vista, /\.pair-label \.barcode-value \{ font-size: 6\.5pt/);

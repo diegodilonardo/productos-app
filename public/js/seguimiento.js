@@ -10,6 +10,7 @@ let asociacionesUrlsGs1 = [];
 let idEmpresaSeguimiento = null;
 let vistaSeguimiento = sessionStorage.getItem('seguimiento.vista') === 'tabla' ? 'tabla' : 'tarjetas';
 let paginaSeguimientoEan = 1;
+let temporizadorToastSeguimiento = null;
 const PRODUCTOS_POR_PAGINA_EAN = 50;
 
 function claveSesionSeleccionEan() {
@@ -37,6 +38,7 @@ async function iniciarSeguimiento() {
     'app:empresa-cambiada',
     actualizarEmpresaSeguimiento
   );
+  window.addEventListener('app:datos-actualizar', cargarTodo);
 
   idEmpresaSeguimiento =
     obtenerEmpresaActivaSeguimiento();
@@ -560,13 +562,18 @@ async function importarUrlsTemporalesEan(event) {
     const resumen = data.resultado?.resumen || {};
     asociacionesUrlsGs1 = Array.isArray(data.resultado?.asociados) ? data.resultado.asociados : [];
     const asociadasPorClave = new Map(asociacionesUrlsGs1.map(item => [item.claveProducto, item]));
-    productosSeguimientoEan.forEach(producto => {
+    const productosEnPantalla = [
+      ...productosSeguimientoEan,
+      ...gruposSeguimientoEan.flatMap(grupo => [grupo.principal, ...(grupo.primeras || [])])
+    ];
+    productosEnPantalla.forEach(producto => {
       const asociacion = asociadasPorClave.get(`${producto.ID_ALTA}|${producto.COD_ALFA}`);
       if (asociacion) {
         producto.NOMBRE_IMAGEN_GS1 = asociacion.nombreImagen;
         producto.URL_IMAGEN_GS1 = asociacion.urlImagen;
       }
     });
+    pintarSeguimientoEan();
     const generar = document.getElementById('btnGenerarArchivoGs1');
     if (generar) generar.disabled = asociacionesUrlsGs1.length === 0;
     if (resultado) {
@@ -658,8 +665,13 @@ async function enviarGtinPresea() {
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clavesProducto:clavesAsignadas})
     });
     const data=await respuesta.json(); if(!respuesta.ok||!data.ok) throw new Error(data.mensaje||`Error HTTP ${respuesta.status}.`);
-    mostrarAlerta(`GTIN.DBI enviado correctamente a Presea con ${numero(data.resultado.registros)} registros.`,'success');
-  } catch(error){mostrarAlerta(error.message,'danger')} finally {actualizarBotonImagenesEan(false)}
+    const registros = numero(data.resultado?.registros || clavesAsignadas.length);
+    mostrarToastSeguimiento(`GTIN.DBI enviado correctamente a Presea con ${registros} registros.`, 'success');
+    await cargarTodo();
+  } catch(error){
+    mostrarToastSeguimiento(error.message, 'danger');
+    mostrarAlerta(error.message,'danger');
+  } finally {actualizarBotonImagenesEan(false)}
 }
 
 async function imprimirEtiquetasEan() {
@@ -1108,6 +1120,40 @@ function ocultarAlerta() {
   const el = document.getElementById('alertaSeguimiento');
   el.className = 'alert d-none';
   el.textContent = '';
+}
+
+function mostrarToastSeguimiento(mensaje, tipo = 'success') {
+  let contenedor = document.getElementById('toastSeguimientoContainer');
+  if (!contenedor) {
+    contenedor = document.createElement('div');
+    contenedor.id = 'toastSeguimientoContainer';
+    contenedor.className = 'seguimiento-toast-container';
+    document.body.appendChild(contenedor);
+  }
+
+  const icono = tipo === 'success' ? '✓' : tipo === 'danger' ? '×' : '!';
+  contenedor.innerHTML = `
+    <div class="seguimiento-toast seguimiento-toast-${tipo}" role="status" aria-live="polite" aria-atomic="true">
+      <span class="seguimiento-toast-icon" aria-hidden="true">${icono}</span>
+      <span class="seguimiento-toast-message">${escapar(mensaje)}</span>
+      <button class="seguimiento-toast-close" type="button" aria-label="Cerrar notificación">×</button>
+    </div>`;
+
+  const toast = contenedor.firstElementChild;
+  requestAnimationFrame(() => toast.classList.add('is-visible'));
+  toast.querySelector('.seguimiento-toast-close').addEventListener('click', () => ocultarToastSeguimiento());
+
+  clearTimeout(temporizadorToastSeguimiento);
+  temporizadorToastSeguimiento = setTimeout(ocultarToastSeguimiento, 6000);
+}
+
+function ocultarToastSeguimiento() {
+  const contenedor = document.getElementById('toastSeguimientoContainer');
+  const toast = contenedor?.firstElementChild;
+  if (!toast) return;
+  clearTimeout(temporizadorToastSeguimiento);
+  toast.classList.remove('is-visible');
+  setTimeout(() => contenedor.remove(), 220);
 }
 
 function escapar(valor) {

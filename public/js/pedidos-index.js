@@ -10,6 +10,7 @@ async function iniciarPedidos() {
     'app:empresa-cambiada',
     actualizarEmpresaPedidos
   );
+  window.addEventListener('app:datos-actualizar', cargarPedidos);
 
   document.getElementById('btnActualizarPedidos')?.addEventListener('click', cargarPedidos);
   document.getElementById('buscarPedido')?.addEventListener('input', pintarPedidosFiltrados);

@@ -6,6 +6,24 @@ document.addEventListener(
 let navbarContextoUsuario = null;
 let navbarEmpresas = [];
 let navbarAccesoActivo = null;
+let ultimaSolicitudActualizacionApp = Date.now();
+
+function solicitarActualizacionDatosApp(forzar = false) {
+  const ahora = Date.now();
+  if (!forzar && ahora - ultimaSolicitudActualizacionApp < 15000) return;
+  ultimaSolicitudActualizacionApp = ahora;
+  window.dispatchEvent(new CustomEvent('app:datos-actualizar'));
+}
+
+window.addEventListener('pageshow', event => {
+  if (event.persisted) solicitarActualizacionDatosApp(true);
+});
+
+window.addEventListener('focus', () => solicitarActualizacionDatosApp());
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') solicitarActualizacionDatosApp();
+});
 
 async function iniciarNavbarSesion() {
   const contenedor =

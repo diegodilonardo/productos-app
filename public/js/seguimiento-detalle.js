@@ -10,6 +10,8 @@ let estadoAltaSeguimiento = '';
 document.addEventListener('DOMContentLoaded', iniciarDetalleSeguimiento);
 
 async function iniciarDetalleSeguimiento() {
+  window.addEventListener('app:datos-actualizar', cargarDetalleSeguimiento);
+
   document
     .getElementById('btnActualizarDetalleSeguimiento')
     .addEventListener('click', cargarDetalleSeguimiento);

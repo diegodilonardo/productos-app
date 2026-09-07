@@ -42,6 +42,17 @@ test('la composición impresa respeta las cantidades informadas por cada curva',
   assert.deepEqual(servicio.extraerCantidadesCurva('44/45 X 12 PARES', 1), [12]);
 });
 
+test('VICBOR omite imágenes de indumentaria y accesorios en las etiquetas', () => {
+  const servicio = require('../src/services/seguimiento.service');
+  const vicbor = { acceso: { empresa: 'VICBOR' } };
+  const otraEmpresa = { acceso: { empresa: 'INDUSTRIAS GYD' } };
+
+  assert.equal(servicio.debeMostrarImagenEtiqueta({ DETALLE_RUBRO: 'INDUMENTARIA' }, vicbor), false);
+  assert.equal(servicio.debeMostrarImagenEtiqueta({ DETALLE_RUBRO: 'ACCESORIOS' }, vicbor), false);
+  assert.equal(servicio.debeMostrarImagenEtiqueta({ DETALLE_RUBRO: 'CALZADO' }, vicbor), true);
+  assert.equal(servicio.debeMostrarImagenEtiqueta({ DETALLE_RUBRO: 'INDUMENTARIA' }, otraEmpresa), true);
+});
+
 test('Seguimiento ofrece imprimir solamente EAN confirmados en ERP', () => {
   const js = fs.readFileSync(
     path.join(__dirname, '..', 'public', 'js', 'seguimiento.js'),
@@ -57,6 +68,6 @@ test('Seguimiento ofrece imprimir solamente EAN confirmados en ERP', () => {
   assert.match(servicio, /bwipjs\.toSVG/);
   assert.match(servicio, /includetext: false/);
   assert.match(servicio, /preserveAspectRatio="none"/);
-  assert.match(servicio, /imagen: await imagenEtiquetaProducto\(producto, cacheImagenes\)/);
+  assert.match(servicio, /debeMostrarImagenEtiqueta\(producto, contexto\)/);
   assert.match(servicio, /imagenesAltaService\.buscarImagenProducto/);
 });

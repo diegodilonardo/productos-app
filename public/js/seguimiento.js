@@ -476,12 +476,18 @@ function actualizarBotonImagenesEan(cargando = false) {
   boton.disabled = cargando || pendientesGs1.length === 0;
   boton.textContent = cargando ? 'Preparando imágenes...' : `Descargar imágenes (${pendientesGs1.length})`;
   const importar = document.getElementById('btnImportarUrlsTemporalesEan');
-  if (importar) importar.disabled = cargando || pendientesGs1.length === 0;
+  const pendientesUrl = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO')
+    .filter(producto => !String(producto.URL_IMAGEN_GS1 || '').trim());
+  if (importar) importar.disabled = cargando || pendientesUrl.length === 0;
   sincronizarAsociacionesRegistradas();
   const generar = document.getElementById('btnGenerarArchivoGs1');
   if (generar) generar.disabled = cargando || asociacionesUrlsGs1.length === 0;
   const importarEan = document.getElementById('btnImportarCodigosEanGs1');
-  if (importarEan) importarEan.disabled = cargando || pendientesGs1.length === 0;
+  const importablesEan = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO');
+  if (importarEan) {
+    importarEan.disabled = cargando || importablesEan.length === 0;
+    importarEan.textContent = `Importar EAN definitivos (${importablesEan.length})`;
+  }
   const exportarDbi = document.getElementById('btnExportarGtinDbi');
   const asignados = productosSeleccionadosEan('EAN_ASIGNADO')
     .filter(producto => producto.EAN_GS1 && producto.CODIGO_ERP);
@@ -537,7 +543,9 @@ function sincronizarAsociacionesRegistradas() {
 
 async function importarUrlsTemporalesEan(event) {
   const archivo = event.target.files?.[0];
-  const clavesPendientes = productosSeleccionadosEan('PENDIENTE_GS1').map(claveProductoEan);
+  const clavesPendientes = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO')
+    .filter(producto => !String(producto.URL_IMAGEN_GS1 || '').trim())
+    .map(claveProductoEan);
   if (!archivo || !idEmpresaSeguimiento || !clavesPendientes.length) return;
   const boton = document.getElementById('btnImportarUrlsTemporalesEan');
   const resultado = document.getElementById('resultadoUrlsTemporalesEan');
@@ -625,20 +633,26 @@ async function generarArchivoGs1() {
 
 async function importarCodigosEanGs1(event) {
   const archivo = event.target.files?.[0]; if (!archivo || !idEmpresaSeguimiento) return;
+  const clavesImportables = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO').map(claveProductoEan);
+  if (!clavesImportables.length) {
+    mostrarAlerta('Seleccione productos por gestionar o con EAN asignado que todavía no hayan sido enviados a Presea.', 'warning');
+    event.target.value = '';
+    return;
+  }
   const boton = document.getElementById('btnImportarCodigosEanGs1'); boton.disabled = true; boton.textContent = 'Importando EAN...';
   try {
     const bytes = new Uint8Array(await archivo.arrayBuffer()); let binario = '';
     for (let i=0;i<bytes.length;i+=32768) binario += String.fromCharCode(...bytes.subarray(i,i+32768));
     const respuesta = await fetch(`/api/seguimiento/ean/importar-codigos?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({archivoBase64:btoa(binario),nombreArchivo:archivo.name})
+      body:JSON.stringify({archivoBase64:btoa(binario),nombreArchivo:archivo.name,clavesProducto:clavesImportables})
     });
     const data=await respuesta.json(); if(!respuesta.ok||!data.ok) throw new Error(data.mensaje||`Error HTTP ${respuesta.status}.`);
     const r=data.resultado.resumen;
-    mostrarAlerta(`EAN importados: ${numero(r.validos)}. Nuevos: ${numero(r.insertados)}. Actualizados: ${numero(r.actualizados)}. Rechazados: ${numero(r.rechazados)}.`, r.rechazados ? 'warning':'success');
+    mostrarAlerta(`EAN importados: ${numero(r.validos)}. Nuevos: ${numero(r.insertados)}. Actualizados: ${numero(r.actualizados)}. Ignorados: ${numero(r.ignorados)} (${numero(r.ignoradosYaActualizados)} ya actualizados y ${numero(r.ignoradosFueraSeleccion)} fuera de la selección). Rechazados: ${numero(r.rechazados)}.`, r.rechazados ? 'warning':'success');
     await cargarTodo();
   } catch(error) { mostrarAlerta(error.message,'danger'); }
-  finally { event.target.value=''; boton.textContent='Importar EAN definitivos'; actualizarBotonImagenesEan(false); }
+  finally { event.target.value=''; actualizarBotonImagenesEan(false); }
 }
 
 async function exportarGtinDbi() {

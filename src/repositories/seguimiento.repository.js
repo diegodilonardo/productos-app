@@ -505,9 +505,24 @@ async function guardarCodigosEanGs1({ idEmpresa, productos, usuario, archivoOrig
                         VALUES (@ID_EMPRESA,@ID_ALTA,@COD_ALFA,@EAN_GS1,@ARCHIVO,@USUARIO)
                     OUTPUT $action ACCION;
                     IF @URL IS NOT NULL
-                    UPDATE dbo.GS1_PRODUCTOS_URLS SET URL_IMAGEN=@URL,
-                        USUARIO_ACTUALIZACION=@USUARIO, FECHA_ACTUALIZACION=SYSDATETIME()
-                    WHERE ID_EMPRESA=@ID_EMPRESA AND ID_ALTA=@ID_ALTA AND COD_ALFA=@COD_ALFA;
+                    BEGIN
+                        MERGE dbo.GS1_PRODUCTOS_URLS WITH (HOLDLOCK) AS U
+                        USING (
+                            SELECT @ID_EMPRESA ID_EMPRESA, @ID_ALTA ID_ALTA, @COD_ALFA COD_ALFA
+                        ) O
+                           ON U.ID_EMPRESA=O.ID_EMPRESA
+                          AND U.ID_ALTA=O.ID_ALTA
+                          AND U.COD_ALFA=O.COD_ALFA
+                        WHEN MATCHED THEN UPDATE SET
+                            NOMBRE_IMAGEN=@NOMBRE_IMAGEN,
+                            URL_IMAGEN=@URL,
+                            USUARIO_ACTUALIZACION=@USUARIO,
+                            FECHA_ACTUALIZACION=SYSDATETIME()
+                        WHEN NOT MATCHED THEN INSERT
+                            (ID_EMPRESA,ID_ALTA,COD_ALFA,NOMBRE_IMAGEN,URL_IMAGEN,USUARIO_CREACION)
+                            VALUES
+                            (@ID_EMPRESA,@ID_ALTA,@COD_ALFA,@NOMBRE_IMAGEN,@URL,@USUARIO);
+                    END
                 `);
             const accion = String(resultado.recordsets?.[0]?.[0]?.ACCION || resultado.recordset?.[0]?.ACCION || '').toUpperCase();
             if (accion === 'INSERT') insertados += 1; else actualizados += 1;

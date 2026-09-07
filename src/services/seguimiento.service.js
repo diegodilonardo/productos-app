@@ -614,6 +614,20 @@ async function imagenEtiquetaProducto(producto, cache) {
 }
 
 
+function debeMostrarImagenEtiqueta(producto, contexto) {
+    const acceso = contexto?.acceso || {};
+    const empresa = normalizarTexto(
+        acceso.empresa || acceso.razonSocial || acceso.RAZON_SOCIAL || acceso.codigoEmpresa
+    );
+    const rubro = normalizarTexto(producto?.DETALLE_RUBRO || producto?.CODIGO_RUBRO);
+
+    return !(
+        empresa === 'VICBOR' &&
+        ['INDUMENTARIA', 'ACCESORIOS'].includes(rubro)
+    );
+}
+
+
 function ordenTalle(valor) {
     const texto = String(valor ?? '').trim();
     const numero = Number(texto.replace(',', '.'));
@@ -743,7 +757,9 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
             articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
             talleCurva: producto.TALLE_CURVA || producto.DETALLE_MODULO || '-',
             color: producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-',
-            imagen: await imagenEtiquetaProducto(producto, cacheImagenes),
+            imagen: debeMostrarImagenEtiqueta(producto, contexto)
+                ? await imagenEtiquetaProducto(producto, cacheImagenes)
+                : '',
             composicion,
             totalPares,
             barcodeAlfa: codigoBarrasSvg('code128', producto.COD_ALFA, { height: 7, textsize: 7 }),
@@ -759,7 +775,9 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
             articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
             color: producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-',
             talle: producto.DETALLE_TALLE || producto.CODIGO_TALLE || '-',
-            imagen: await imagenEtiquetaProducto(producto, cacheImagenes),
+            imagen: debeMostrarImagenEtiqueta(producto, contexto)
+                ? await imagenEtiquetaProducto(producto, cacheImagenes)
+                : '',
             barcodeAlfa: codigoBarrasSvg('code128', producto.COD_ALFA, { height: 8, textsize: 7 }),
             barcodeEan: codigoBarrasSvg('ean13', producto.EAN_ERP, { height: 8, textsize: 7 }),
         });
@@ -895,9 +913,10 @@ async function asociarUrlsTemporalesEan(bufferArchivo, clavesEntrada, contexto) 
     if (seleccionados.length !== claves.length) {
         throw new Error('Hay productos seleccionados fuera del alcance disponible.');
     }
-    const noPendientes = seleccionados.filter(producto => producto.ESTADO_EAN !== 'PENDIENTE_GS1');
-    if (noPendientes.length) {
-        throw new Error('Las URLs de GS1 solo pueden asociarse a productos pendientes de gestión en GS1.');
+    const estadosPermitidos = new Set(['PENDIENTE_GS1', 'EAN_ASIGNADO']);
+    const noImportables = seleccionados.filter(producto => !estadosPermitidos.has(producto.ESTADO_EAN));
+    if (noImportables.length) {
+        throw new Error('Las URLs de GS1 solo pueden asociarse antes de enviar los productos a Presea.');
     }
     const asociados = [];
     const productosSinUrl = [];
@@ -1097,7 +1116,15 @@ function ean13Valido(valor) {
     return (10 - (suma % 10)) % 10 === Number(ean[12]);
 }
 
-async function importarCodigosEanGs1(buffer, nombreArchivo, contexto) {
+async function importarCodigosEanGs1(buffer, nombreArchivo, clavesEntrada, contexto) {
+    const clavesSeleccionadas = new Set(
+        (Array.isArray(clavesEntrada) ? clavesEntrada : [])
+            .map(valor => String(valor || '').trim())
+            .filter(Boolean)
+    );
+    if (!clavesSeleccionadas.size) {
+        throw new Error('Seleccione los productos pendientes que desea cruzar con el archivo de GS1.');
+    }
     let workbook;
     try { workbook = XLSX.read(buffer, { type: 'buffer', raw: false }); }
     catch (_) { throw new Error('El archivo devuelto por GS1 no es un Excel válido.'); }
@@ -1107,19 +1134,42 @@ async function importarCodigosEanGs1(buffer, nombreArchivo, contexto) {
         throw new Error('No se encontraron las columnas GTIN y CodigoInterno.');
     }
     const seguimiento = await listarSeguimientoEan(contexto);
-    const porCodigo = new Map(seguimiento.productos.map(p => [normalizarTexto(p.COD_ALFA), p]));
+    const productosSeleccionados = seguimiento.productos.filter(producto =>
+        clavesSeleccionadas.has(`${producto.ID_ALTA}|${producto.COD_ALFA}`)
+    );
+    const estadosImportables = new Set(['PENDIENTE_GS1', 'EAN_ASIGNADO']);
+    const seleccionNoImportable = productosSeleccionados.filter(
+        producto => !estadosImportables.has(producto.ESTADO_EAN)
+    );
+    if (seleccionNoImportable.length) {
+        throw new Error('La selección contiene productos ya enviados o confirmados en Presea. Solo se pueden importar o corregir EAN que todavía no fueron enviados.');
+    }
+    const porCodigoSeleccionado = new Map(
+        productosSeleccionados.map(producto => [normalizarTexto(producto.COD_ALFA), producto])
+    );
+    const porCodigoGeneral = new Map(
+        seguimiento.productos.map(producto => [normalizarTexto(producto.COD_ALFA), producto])
+    );
     const vistosEan = new Set(), vistosCodigo = new Set(), validos = [], rechazados = [];
+    let ignoradosYaActualizados = 0;
+    let ignoradosFueraSeleccion = 0;
     for (const fila of filas) {
         const codigoAlfa = String(fila.CodigoInterno || '').trim();
         const ean = String(fila.GTIN || '').trim();
-        const producto = porCodigo.get(normalizarTexto(codigoAlfa));
+        const codigoNormalizado = normalizarTexto(codigoAlfa);
+        const producto = porCodigoSeleccionado.get(codigoNormalizado);
+        const productoGeneral = porCodigoGeneral.get(codigoNormalizado);
+        if (!producto) {
+            if (productoGeneral && !estadosImportables.has(productoGeneral.ESTADO_EAN)) ignoradosYaActualizados += 1;
+            else ignoradosFueraSeleccion += 1;
+            continue;
+        }
         let motivo = '';
-        if (!producto) motivo = 'Código interno no encontrado o fuera del alcance del usuario.';
-        else if (!ean13Valido(ean)) motivo = 'GTIN/EAN inválido.';
-        else if (vistosCodigo.has(normalizarTexto(codigoAlfa))) motivo = 'Código interno duplicado en el archivo.';
+        if (!ean13Valido(ean)) motivo = 'GTIN/EAN inválido.';
+        else if (vistosCodigo.has(codigoNormalizado)) motivo = 'Código interno duplicado en el archivo.';
         else if (vistosEan.has(ean)) motivo = 'GTIN/EAN duplicado en el archivo.';
         if (motivo) { rechazados.push({ codigoAlfa, ean, motivo }); continue; }
-        vistosCodigo.add(normalizarTexto(codigoAlfa)); vistosEan.add(ean);
+        vistosCodigo.add(codigoNormalizado); vistosEan.add(ean);
         validos.push({ idAlta: producto.ID_ALTA, codigoAlfa, ean,
             urlImagen: String(fila.Url_Imagen || '').trim(), nombreImagen: producto.NOMBRE_IMAGEN_GS1 });
     }
@@ -1128,7 +1178,18 @@ async function importarCodigosEanGs1(buffer, nombreArchivo, contexto) {
         idEmpresa: contexto.idEmpresa, productos: validos,
         usuario: String(contexto.usuario || 'SISTEMA'), archivoOrigen: String(nombreArchivo || 'GS1.xlsx').slice(0, 260),
     });
-    return { resumen: { leidos: filas.length, validos: validos.length, rechazados: rechazados.length, ...guardado }, rechazados };
+    return {
+        resumen: {
+            leidos: filas.length,
+            validos: validos.length,
+            rechazados: rechazados.length,
+            ignorados: ignoradosYaActualizados + ignoradosFueraSeleccion,
+            ignoradosYaActualizados,
+            ignoradosFueraSeleccion,
+            ...guardado,
+        },
+        rechazados,
+    };
 }
 
 async function exportarGtinDbi(clavesEntrada, contexto) {
@@ -1213,4 +1274,5 @@ module.exports = {
     enviarGtinDbiAPresea,
     estadoSeguimientoEan,
     extraerCantidadesCurva,
+    debeMostrarImagenEtiqueta,
 };

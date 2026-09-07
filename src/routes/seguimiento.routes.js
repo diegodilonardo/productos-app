@@ -252,6 +252,7 @@ router.post('/ean/importar-codigos', requerirEmpresa, requerirEscrituraEmpresa, 
         if (!base64 || base64.length > 14_000_000) throw new Error('Seleccione un Excel de hasta 10 MB.');
         const resultado = await seguimientoService.importarCodigosEanGs1(
             Buffer.from(base64, 'base64'), req.body?.nombreArchivo,
+            req.body?.clavesProducto,
             { idEmpresa: req.idEmpresa, acceso: req.accesoEmpresa, usuario: usuarioAuditoria(req) }
         );
         return res.json({ ok: true, resultado });

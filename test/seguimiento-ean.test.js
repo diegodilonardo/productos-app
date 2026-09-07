@@ -115,6 +115,28 @@ test('la migración registra una URL única por empresa, Alta y producto', () =>
   assert.match(sql, /FECHA_ACTUALIZACION/);
 });
 
+test('la importación final crea la URL de GS1 aunque el producto no tuviera una asociación previa', () => {
+  const fuente = fs.readFileSync(
+    path.join(__dirname, '../src/repositories/seguimiento.repository.js'),
+    'utf8'
+  );
+  assert.match(fuente, /MERGE dbo\.GS1_PRODUCTOS_URLS WITH \(HOLDLOCK\)/);
+  assert.match(fuente, /WHEN NOT MATCHED THEN INSERT[\s\S]*NOMBRE_IMAGEN,URL_IMAGEN/);
+});
+
+test('las URLs temporales pueden asociarse mientras el EAN todavía no fue enviado a Presea', () => {
+  const servicio = fs.readFileSync(
+    path.join(__dirname, '../src/services/seguimiento.service.js'),
+    'utf8'
+  );
+  const frontend = fs.readFileSync(
+    path.join(__dirname, '../public/js/seguimiento.js'),
+    'utf8'
+  );
+  assert.match(servicio, /new Set\(\['PENDIENTE_GS1', 'EAN_ASIGNADO'\]\)/);
+  assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1', 'EAN_ASIGNADO'\)[\s\S]*?URL_IMAGEN_GS1/);
+});
+
 test('la migración EAN incorpora el seguimiento del envío a Presea', () => {
   const sql = fs.readFileSync(path.join(__dirname, '../sql/17_registrar_codigos_ean_gs1.sql'), 'utf8');
   assert.match(sql, /FECHA_ENVIO_PRESEA/);
@@ -167,8 +189,54 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /gruposSeguimientoEan\.flatMap\(grupo => \[grupo\.principal, \.\.\.\(grupo\.primeras \|\| \[\]\)\]\)/);
   assert.match(frontend, /producto\.URL_IMAGEN_GS1 = asociacion\.urlImagen;[\s\S]*?pintarSeguimientoEan\(\);/);
   assert.match(frontend, /clavesProducto: clavesConfirmadas/);
+  assert.match(frontend, /clavesProducto:clavesImportables/);
+  assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1', 'EAN_ASIGNADO'\)/);
+  assert.match(frontend, /ignoradosYaActualizados/);
   assert.match(frontend, /mostrarToastSeguimiento\(`GTIN\.DBI enviado correctamente a Presea/);
   assert.match(frontend, /await cargarTodo\(\);/);
+});
+
+test('la importación EAN cruza solo la selección pendiente e ignora registros históricos del día', async () => {
+  const listarOriginal = seguimientoRepository.listarProductosSeguimientoEan;
+  const guardarOriginal = seguimientoRepository.guardarCodigosEanGs1;
+  seguimientoRepository.listarProductosSeguimientoEan = async () => [
+    { ID_ALTA: 10, COD_ALFA: 'PEND-1', EAN_ERP: '7792800015157', TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA' },
+    { ID_ALTA: 10, COD_ALFA: 'PEND-2', EAN_ERP: '7792800015157', TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA' },
+    { ID_ALTA: 10, COD_ALFA: 'REIMPORTAR', EAN_ERP: '7792800015157', EAN_GS1: '7792800716641', TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA' },
+    { ID_ALTA: 9, COD_ALFA: 'ANTERIOR', EAN_ERP: '7792800716276', EAN_GS1: '7792800716276', FECHA_ENVIO_PRESEA: '2026-09-06', TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA' },
+    { ID_ALTA: 11, COD_ALFA: 'NO-SELECCIONADO', EAN_ERP: '7792800015157', TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA' },
+  ];
+  let guardados = [];
+  seguimientoRepository.guardarCodigosEanGs1 = async datos => {
+    guardados = datos.productos;
+    return { insertados: datos.productos.length, actualizados: 0 };
+  };
+  const XLSX = require('xlsx');
+  const libro = XLSX.utils.book_new();
+  const hoja = XLSX.utils.json_to_sheet([
+    { GTIN: '7792800716689', CodigoInterno: 'PEND-1' },
+    { GTIN: '7792800716672', CodigoInterno: 'PEND-2' },
+    { GTIN: '7792800716658', CodigoInterno: 'REIMPORTAR' },
+    { GTIN: '7792800716276', CodigoInterno: 'ANTERIOR' },
+    { GTIN: '7792800716665', CodigoInterno: 'NO-SELECCIONADO' },
+  ]);
+  XLSX.utils.book_append_sheet(libro, hoja, 'Datos_Productos');
+
+  try {
+    const resultado = await seguimientoService.importarCodigosEanGs1(
+      XLSX.write(libro, { type: 'buffer', bookType: 'xlsx' }),
+      'Datos.xlsx',
+      ['10|PEND-1', '10|PEND-2', '10|REIMPORTAR'],
+      { idEmpresa: 1, acceso: accesoTotal }
+    );
+    assert.deepEqual(guardados.map(item => item.codigoAlfa), ['PEND-1', 'PEND-2', 'REIMPORTAR']);
+    assert.equal(resultado.resumen.validos, 3);
+    assert.equal(resultado.resumen.ignoradosYaActualizados, 1);
+    assert.equal(resultado.resumen.ignoradosFueraSeleccion, 1);
+  } finally {
+    seguimientoRepository.listarProductosSeguimientoEan = listarOriginal;
+    seguimientoRepository.guardarCodigosEanGs1 = guardarOriginal;
+  }
 });
 
 test('la fila GS1 repite la marca como submarca y aplica la matriz comercial', () => {

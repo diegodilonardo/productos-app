@@ -107,3 +107,69 @@ test('informa cuando el Alta no tiene imágenes cargadas', async () => {
     fs.rmSync(carpeta, { recursive: true, force: true });
   }
 });
+
+test('detecta cada familia sin foto antes de validar el Alta', async () => {
+  const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), 'imagenes-validacion-alta-'));
+  const rutaAnterior = process.env.IMAGENES_PRODUCTOS_PATH;
+
+  try {
+    process.env.IMAGENES_PRODUCTOS_PATH = carpeta;
+    fs.writeFileSync(path.join(carpeta, '27VE10000101.jpg'), Buffer.from([0xff, 0xd8, 0xff]));
+
+    const listarOriginal = require('../src/repositories/imagenesAlta.repository').listarImagenesAlta;
+    const guardarOriginal = require('../src/repositories/imagenesAlta.repository').guardarImagenFamilia;
+    require('../src/repositories/imagenesAlta.repository').listarImagenesAlta = async () => [];
+    require('../src/repositories/imagenesAlta.repository').guardarImagenFamilia = async datos => datos;
+    const faltantes = await imagenesAltaService.listarFamiliasSinImagen(
+      {
+        ID_EMPRESA: 1,
+        CODIGO_ANO: '27',
+        CODIGO_TEMPORADA: 'VE',
+      },
+      [
+        { CODIGO_MODELO: '100001', CODIGO_COLOR: '01', GENERADO_AUTOMATICO: false },
+        { CODIGO_MODELO: '100001', CODIGO_COLOR: '01', GENERADO_AUTOMATICO: true },
+        {
+          CODIGO_MODELO: '100002', CODIGO_COLOR: '02',
+          DETALLE_MODELO: 'MODELO DOS', DETALLE_COLOR: 'ROJO',
+          GENERADO_AUTOMATICO: false,
+        },
+        { CODIGO_MODELO: '100002', CODIGO_COLOR: '02', GENERADO_AUTOMATICO: false },
+      ]
+    );
+
+    assert.deepEqual(faltantes, [{
+      codigoModelo: '100002',
+      detalleModelo: 'MODELO DOS',
+      codigoColor: '02',
+      detalleColor: 'ROJO',
+    }]);
+    require('../src/repositories/imagenesAlta.repository').listarImagenesAlta = listarOriginal;
+    require('../src/repositories/imagenesAlta.repository').guardarImagenFamilia = guardarOriginal;
+  } finally {
+    if (rutaAnterior === undefined) delete process.env.IMAGENES_PRODUCTOS_PATH;
+    else process.env.IMAGENES_PRODUCTOS_PATH = rutaAnterior;
+    fs.rmSync(carpeta, { recursive: true, force: true });
+  }
+});
+
+test('la migración registra una imagen única por familia del Alta', () => {
+  const sql = fs.readFileSync(
+    path.resolve(__dirname, '../sql/19_registrar_imagenes_altas.sql'),
+    'utf8'
+  );
+  assert.match(sql, /ALTAS_PRODUCTOS_IMAGENES/);
+  assert.match(sql, /UNIQUE \(ID_EMPRESA, ID_ALTA, CODIGO_MODELO, CODIGO_COLOR\)/);
+  assert.match(sql, /NOMBRE_ARCHIVO VARCHAR\(260\) NOT NULL/);
+  assert.match(sql, /NOMBRE_ORIGINAL VARCHAR\(260\) NULL/);
+});
+
+test('la validación del Alta bloquea familias sin imágenes', () => {
+  const fuente = fs.readFileSync(
+    path.resolve(__dirname, '../src/services/altas.service.js'),
+    'utf8'
+  );
+
+  assert.match(fuente, /imagenesAltaService\.listarFamiliasSinImagen/);
+  assert.match(fuente, /No se puede validar el Alta\. Faltan fotos/);
+});

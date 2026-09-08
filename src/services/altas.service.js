@@ -2,6 +2,8 @@ const crypto = require('crypto');
 
 const altasRepository =
     require('../repositories/altas.repository');
+const imagenesAltaService =
+    require('./imagenesAlta.service');
 
 
 /* ============================================================
@@ -2611,6 +2613,31 @@ async function validarAlta(
     if (!detalles || detalles.length === 0) {
         throw new Error(
             'El alta no contiene productos para validar.'
+        );
+    }
+
+    const familiasSinImagen =
+        await imagenesAltaService.listarFamiliasSinImagen(
+            alta,
+            detalles,
+            { usuario }
+        );
+
+    if (familiasSinImagen.length > 0) {
+        const muestra = familiasSinImagen
+            .slice(0, 8)
+            .map(item =>
+                `${item.detalleModelo || item.codigoModelo || 'Modelo sin detalle'} / ` +
+                `${item.detalleColor || item.codigoColor || 'Color sin detalle'}`
+            )
+            .join(', ');
+        const restantes = familiasSinImagen.length > 8
+            ? ` y ${familiasSinImagen.length - 8} más`
+            : '';
+
+        throw new Error(
+            `No se puede validar el Alta. Faltan fotos en ` +
+            `${familiasSinImagen.length} familia(s): ${muestra}${restantes}.`
         );
     }
 

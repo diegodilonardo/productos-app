@@ -4010,6 +4010,7 @@ async function guardarImagenFamilia(
               ...parametrosImagenFamilia(
                 fila
               ),
+              nombreOriginal: archivo.name,
               contenidoBase64
             })
         }

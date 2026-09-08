@@ -4,6 +4,8 @@ const path = require('path');
 
 const altasRepository =
     require('../repositories/altas.repository');
+const imagenesAltaService =
+    require('../services/imagenesAlta.service');
 
 const router = express.Router();
 
@@ -616,6 +618,28 @@ router.post(
             fs.writeFileSync(
                 archivo,
                 buffer
+            );
+
+            const productoFamilia =
+                (await altasRepository.obtenerDetalleAlta(idAlta))
+                    .find(item =>
+                        texto(item.CODIGO_MODELO) === texto(req.body?.modelo) &&
+                        texto(item.CODIGO_COLOR) === texto(req.body?.color) &&
+                        !item.GENERADO_AUTOMATICO
+                    );
+
+            if (!productoFamilia) {
+                throw new Error('No se encontró la familia de productos para registrar la imagen.');
+            }
+
+            await imagenesAltaService.registrarImagenFamilia(
+                alta,
+                productoFamilia,
+                { nombre, archivo, extension: tipo.extension },
+                {
+                    nombreOriginal: path.basename(texto(req.body?.nombreOriginal)).slice(0, 260),
+                    usuario: texto(req.usuario?.usuario || req.session?.usuario?.usuario) || 'SISTEMA'
+                }
             );
 
             res.json({

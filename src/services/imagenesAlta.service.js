@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const altasRepository = require('../repositories/altas.repository');
+const imagenesAltaRepository = require('../repositories/imagenesAlta.repository');
 
 const EXTENSIONES = ['.jpg', '.jpeg', '.png'];
 const ESTADOS_HABILITADOS = new Set([
@@ -186,7 +187,70 @@ async function buscarImagenProducto(idAlta, producto) {
   return encontrada ? { ...encontrada, clave } : null;
 }
 
+async function registrarImagenFamilia(alta, producto, imagen, datos = {}) {
+  return imagenesAltaRepository.guardarImagenFamilia({
+    idEmpresa: Number(alta.ID_EMPRESA),
+    idAlta: Number(alta.ID_ALTA),
+    codigoModelo: texto(producto.CODIGO_MODELO),
+    codigoColor: texto(producto.CODIGO_COLOR),
+    nombreArchivo: imagen.nombre,
+    nombreOriginal: texto(datos.nombreOriginal).slice(0, 260) || null,
+    extension: imagen.extension,
+    rutaRelativa: path.relative(carpetaImagenes(), imagen.archivo).replaceAll('\\', '/'),
+    usuario: texto(datos.usuario) || 'SISTEMA',
+  });
+}
+
+async function listarFamiliasSinImagen(alta, detalle, datos = {}) {
+  const familias = new Map();
+
+  for (const producto of Array.isArray(detalle) ? detalle : []) {
+    if (esVerdadero(producto.GENERADO_AUTOMATICO)) continue;
+    const modelo = texto(producto.CODIGO_MODELO);
+    const color = texto(producto.CODIGO_COLOR);
+    const claveFamilia = `${modelo}|${color}`.toUpperCase();
+    if (!familias.has(claveFamilia)) familias.set(claveFamilia, producto);
+  }
+
+  const registros = await imagenesAltaRepository.listarImagenesAlta(
+    Number(alta.ID_EMPRESA),
+    Number(alta.ID_ALTA)
+  );
+  const registrosPorFamilia = new Map(registros.map(item => [
+    `${texto(item.CODIGO_MODELO)}|${texto(item.CODIGO_COLOR)}`.toUpperCase(),
+    item,
+  ]));
+  const faltantes = [];
+  for (const producto of familias.values()) {
+    const clave = [
+      alta.CODIGO_ANO,
+      alta.CODIGO_TEMPORADA,
+      producto.CODIGO_MODELO,
+      producto.CODIGO_COLOR
+    ].map(texto).join('');
+    const encontrada =
+      buscarImagen(clave, carpetaOrganizada(alta, producto)) ||
+      buscarImagen(clave);
+    if (!encontrada) {
+      faltantes.push({
+        codigoModelo: texto(producto.CODIGO_MODELO),
+        detalleModelo: texto(producto.DETALLE_MODELO),
+        codigoColor: texto(producto.CODIGO_COLOR),
+        detalleColor: texto(producto.DETALLE_COLOR),
+      });
+    } else if (!registrosPorFamilia.has(
+      `${texto(producto.CODIGO_MODELO)}|${texto(producto.CODIGO_COLOR)}`.toUpperCase()
+    )) {
+      await registrarImagenFamilia(alta, producto, encontrada, datos);
+    }
+  }
+
+  return faltantes;
+}
+
 module.exports = {
   prepararDescargaImagenesAlta,
-  buscarImagenProducto
+  buscarImagenProducto,
+  listarFamiliasSinImagen,
+  registrarImagenFamilia
 };

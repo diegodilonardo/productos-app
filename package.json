@@ -10,7 +10,9 @@
     "importar-maestros-multiempresa": "node src/jobs/importarMaestrosMultiempresaManual.js",
     "sincronizar-productos-erp": "node src/jobs/productosErpSync.job.js",
     "sync": "node src/jobs/syncAll.js",
-    "organizar-imagenes": "node scripts/organizar-imagenes-productos.js"
+    "organizar-imagenes": "node scripts/organizar-imagenes-productos.js",
+    "registrar-imagenes-existentes": "node scripts/registrar-imagenes-altas-existentes.js",
+    "registrar-imagenes-existentes:aplicar": "node scripts/registrar-imagenes-altas-existentes.js --apply"
   },
   "keywords": [],
   "author": "",

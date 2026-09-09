@@ -1108,7 +1108,7 @@ function claseEstado(estado) {
     case 'EXPORTADO': return 'text-bg-primary';
     case 'PARCIAL_ERP': return 'text-bg-warning';
     case 'GENERADO_OK_EN_ERP': return 'text-bg-success';
-    case 'SIN_NOVEDADES_ERP': return 'text-bg-info';
+    case 'SIN_NOVEDADES_ERP': return 'badge-sin-novedades-erp';
     case 'ERROR_ERP': return 'text-bg-danger';
     case 'ANULADO': return 'text-bg-danger';
     default: return 'text-bg-secondary';

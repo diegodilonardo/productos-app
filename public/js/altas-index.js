@@ -842,6 +842,9 @@ function claseEstado(estado) {
     case 'GENERADO_OK_EN_ERP':
       return 'text-bg-success';
 
+    case 'SIN_NOVEDADES_ERP':
+      return 'badge-sin-novedades-erp';
+
     case 'ANULADO':
       return 'text-bg-danger';
 

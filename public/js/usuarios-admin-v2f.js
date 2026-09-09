@@ -35,16 +35,38 @@ async function iniciarUsuariosAdmin() {
 
   await Promise.all([
     cargarCatalogos(),
-    cargarUsuarios()
+    cargarUsuarios(),
+    cargarUsuariosConectados()
   ]);
+  if (document.getElementById('panelUsuariosConectados')) setInterval(cargarUsuariosConectados, 30000);
 }
 
 
 async function refrescarPantalla() {
   await Promise.all([
     cargarCatalogos(),
-    cargarUsuarios()
+    cargarUsuarios(),
+    cargarUsuariosConectados()
   ]);
+}
+
+function fechaSesion(valor) {
+  return valor ? new Date(valor).toLocaleString('es-AR') : '-';
+}
+
+async function cargarUsuariosConectados() {
+  const tabla = document.getElementById('tablaUsuariosConectados');
+  if (!tabla) return;
+  try {
+    const response = await fetch('/api/usuarios/conectados', { headers: { Accept: 'application/json' } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.mensaje || 'No se pudieron consultar las conexiones.');
+    const sesiones = Array.isArray(data.sesiones) ? data.sesiones : [];
+    document.getElementById('cantidadUsuariosConectados').textContent = String(sesiones.length);
+    tabla.innerHTML = sesiones.length ? sesiones.map(sesion => `<tr><td><strong>${textoSeguro(sesion.nombre || sesion.usuario)}</strong><div class="small text-secondary">${textoSeguro(sesion.usuario)}${sesion.superAdmin ? ' · SUPER_ADMIN' : ''}</div></td><td>${textoSeguro(sesion.empresa || 'Sin empresa seleccionada')}</td><td>${fechaSesion(sesion.fechaInicio)}</td><td>${fechaSesion(sesion.ultimaActividad)}</td></tr>`).join('') : '<tr><td colspan="4" class="text-center py-4 text-secondary">No hay usuarios con actividad reciente.</td></tr>';
+  } catch (error) {
+    tabla.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${textoSeguro(error.message)}</td></tr>`;
+  }
 }
 
 

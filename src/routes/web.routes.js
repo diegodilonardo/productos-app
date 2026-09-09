@@ -233,6 +233,14 @@ router.get('/seguimiento/:id', (req, res) => {
   });
 });
 
+router.get('/altas-maestros', (req, res) => {
+  res.render('altas-maestros/index', {
+    title: 'Altas de Maestros',
+    pagina: 'altas-maestros',
+    script: '/js/altas-maestros.js?v=7'
+  });
+});
+
 
 /* ============================================================
    MI PERFIL
@@ -257,7 +265,8 @@ router.get(
     res.render('usuarios/index', {
       title: 'Usuarios y Permisos',
       pagina: 'usuarios',
-      script: '/js/usuarios-admin-v2f.js?v=3'
+      script: '/js/usuarios-admin-v2f.js?v=4',
+      esSuperAdmin: Boolean(req.session?.usuario?.superAdmin)
     });
   }
 );

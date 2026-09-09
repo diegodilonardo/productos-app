@@ -177,6 +177,7 @@ function aplicarClaseEstadoAlta(elemento, estado) {
     EXPORTADO: 'text-bg-primary',
     PARCIAL_ERP: 'text-bg-warning',
     GENERADO_OK_EN_ERP: 'text-bg-success',
+    SIN_NOVEDADES_ERP: 'badge-sin-novedades-erp',
     ANULADO: 'text-bg-danger'
   };
 
@@ -5233,7 +5234,7 @@ function claseEstado(estado) {
     case 'EXPORTADO': return 'text-bg-primary';
     case 'PARCIAL_ERP': return 'text-bg-warning';
     case 'GENERADO_OK_EN_ERP': return 'text-bg-success';
-    case 'SIN_NOVEDADES_ERP': return 'text-bg-info';
+    case 'SIN_NOVEDADES_ERP': return 'badge-sin-novedades-erp';
     case 'ANULADO': return 'text-bg-danger';
     default: return 'text-bg-secondary';
   }

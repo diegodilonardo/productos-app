@@ -1,5 +1,12 @@
 const { getConnection, sql } = require('../config/database');
 
+const columnasCantidadesModulo = [
+    'T01','T02','T03','T04','T05','T06','T07','T08','T10','T12','T14','T15','T16','T17','T18','T19',
+    'T20','T21','T22','T23','T24','T25','T26','T27','T28','T29','T30','T31','T32','T33','T34','T35',
+    'T36','T37','T38','T385','T39','T395','T40','T405','T41','T415','T42','T425','T43','T435','T44','T445',
+    'T45','T455','T46','T47','T48','T49','T50','T_XS','T_S','T_L','T_M','T_XL','T_2XL','T_3XL'
+];
+
 
 /* ============================================================
    LISTADO BASE DE ALTAS PARA DASHBOARD / SEGUIMIENTO
@@ -296,6 +303,8 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 D.CODIGO_TALLE,
                 D.DETALLE_TALLE,
                 D.PARES,
+                TM.PARES AS PARES_MAESTRO,
+                ${columnasCantidadesModulo.map(columna => `TM.${columna} AS TM_${columna}`).join(',\n                ')},
                 D.DETALLE_PRODUCTO,
                 D.DETALLE_EDAD,
                 D.SEXO,
@@ -411,6 +420,11 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                     CASE WHEN ISNULL(X.GENERADO_AUTOMATICO, 0) = 0 THEN 0 ELSE 1 END,
                     X.ID_DETALLE
             ) D
+            LEFT JOIN dbo.MAESTRO_TALLES_MODULOS TM
+                ON TM.ID_EMPRESA = E.ID_EMPRESA
+               AND TM.CODIGO_MODULO = D.CODIGO_MODULO
+               AND ISNULL(TM.ACTIVO, 1) = 1
+               AND ISNULL(TM.ES_CONSISTENTE, 0) = 1
             WHERE E.ID_EMPRESA = @ID_EMPRESA
               AND E.ESTADO_ERP IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
               AND ISNULL(A.ESTADO, '') <> 'ANULADO'

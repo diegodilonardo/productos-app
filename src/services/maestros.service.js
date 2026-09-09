@@ -1,5 +1,6 @@
 const repository =
   require('../repositories/maestros.repository');
+const XLSX = require('xlsx');
 
 
 function codigoPermitido(lista, campo, codigo) {
@@ -597,7 +598,8 @@ async function buscarModelos({
   marca,
   rubro,
   texto,
-  licencia
+  licencia,
+  sinLimite = false
 }) {
 
   validarMarca(
@@ -618,7 +620,8 @@ async function buscarModelos({
       marca,
       rubro,
       texto,
-      licencia
+      licencia,
+      sinLimite
     });
 
   return datos.filter(
@@ -670,6 +673,10 @@ async function buscarModelos({
       );
     }
   );
+}
+
+async function consultarModelos({ idEmpresa, acceso }) {
+  return buscarModelos({ idEmpresa, acceso, marca: null, rubro: null, texto: null, licencia: null, sinLimite: true });
 }
 
 
@@ -790,6 +797,30 @@ async function obtenerTallesModulos({ idEmpresa }) {
   );
 }
 
+async function obtenerTallesModulosConsulta({ idEmpresa }) {
+  const registros = await repository.obtenerTallesModulosConsulta(idEmpresa);
+  return registros.map(modulo => ({ ...modulo, DESCRIPCION_CURVA: generarDescripcionCurva(modulo) }));
+}
+
+function exportarConsultaMaestros(tipoEntrada, filasEntrada) {
+  const tipo = String(tipoEntrada || '').trim().toUpperCase();
+  const campos = {
+    MODELOS: ['CODIGO_MODELO','DETALLE_MODELO','MARCA_MODELO','RUBRO_MODELO','LICENCIA'],
+    COLORES: ['CODIGO_COLOR','DETALLE_COLOR'],
+    MODULOS: ['CODIGO_MODULO','DETALLE_MODULO','DESCRIPCION_CURVA','PARES','ES_CONSISTENTE','OBSERVACION'],
+    DISCIPLINAS: ['CODIGO_DEPORTE','DETALLE_DEPORTE']
+  }[tipo];
+  if (!campos) throw Object.assign(new Error('Tipo de maestro inválido.'), { status: 400 });
+  const origen = Array.isArray(filasEntrada) ? filasEntrada.slice(0, 10000) : [];
+  if (!origen.length) throw Object.assign(new Error('No hay registros para exportar.'), { status: 400 });
+  const filas = origen.map(item => Object.fromEntries(campos.map(campo => [campo, item?.[campo] ?? ''])));
+  const hoja = XLSX.utils.json_to_sheet(filas, { header: campos });
+  hoja['!cols'] = campos.map(campo => ({ wch: campo.includes('DESCRIP') ? 48 : 20 }));
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, tipo.slice(0, 31));
+  return XLSX.write(libro, { type: 'buffer', bookType: 'xlsx' });
+}
+
 
 module.exports = {
   obtenerAnos,
@@ -809,7 +840,10 @@ module.exports = {
   obtenerProveedores,
   obtenerTalles,
   obtenerTallesModulos,
+  obtenerTallesModulosConsulta,
+  exportarConsultaMaestros,
   buscarModelos,
+  consultarModelos,
   obtenerLicenciasModelos,
   validarMarca,
   validarRubro,

@@ -7,8 +7,10 @@ const usuariosService =
 
 const {
   requerirAutenticacion,
-  requerirAdminUsuarios
+  requerirAdminUsuarios,
+  requerirSuperAdmin
 } = require('../middlewares/auth.middleware');
+const sesionesActivasService = require('../services/sesionesActivas.service');
 
 
 router.use(
@@ -57,6 +59,11 @@ router.get('/', requerirAdminUsuarios, async (req, res) => {
         'No se pudieron obtener los usuarios.'
     });
   }
+});
+
+router.get('/conectados', requerirSuperAdmin, (req, res) => {
+  const sesiones = sesionesActivasService.listar();
+  return res.json({ ok: true, sesiones, cantidad: sesiones.length, ventanaMinutos: 5 });
 });
 
 

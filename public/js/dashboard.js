@@ -1041,7 +1041,7 @@ function badgeEstado(estado) {
             'text-bg-success',
 
         SIN_NOVEDADES_ERP:
-            'text-bg-info',
+            'badge-sin-novedades-erp',
 
         ANULADO:
             'text-bg-dark',

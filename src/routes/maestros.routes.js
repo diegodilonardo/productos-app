@@ -191,6 +191,29 @@ router.get(
   )
 );
 
+router.get(
+  "/consulta/talles-modulos",
+  ...crearRutaSimple(
+    maestrosService.obtenerTallesModulosConsulta
+  )
+);
+
+router.get(
+  "/consulta/modelos",
+  ...crearRutaSimple(
+    maestrosService.consultarModelos
+  )
+);
+
+router.post('/consulta/exportar', requerirEmpresa, (req, res) => {
+  try {
+    const archivo = maestrosService.exportarConsultaMaestros(req.body?.tipo, req.body?.filas);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="MAESTRO_${String(req.body?.tipo || 'CONSULTA').toUpperCase()}.xlsx"`);
+    res.send(archivo);
+  } catch (error) { responderError(res, error); }
+});
+
 
 /* ============================================================
    PROVEEDORES

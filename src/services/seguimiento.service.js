@@ -658,11 +658,13 @@ function extraerCantidadesCurva(detalle, cantidadTalles, totalFallback = 0) {
     if (parentesis) candidatos.push(parentesis[1]);
     const despuesPares = texto.match(/PARES?\s+([\d\s,;|]+)$/i);
     if (despuesPares) candidatos.push(despuesPares[1]);
+    const despuesTotal = texto.match(/X\s*\d+\s+(?:PARES?\s+)?((?:\d+[\s,;|]+)+\d+)\s*$/i);
+    if (despuesTotal) candidatos.push(despuesTotal[1]);
     const antesTotal = texto.match(/((?:\d+\s*[,;|]\s*)+\d+)\s*X\s*\d+/i);
     if (antesTotal) candidatos.push(antesTotal[1]);
 
     for (const candidato of candidatos) {
-        const cantidades = candidato.split(/[,;|]/)
+        const cantidades = candidato.split(/[\s,;|]+/)
             .map(valor => Number(String(valor).trim()))
             .filter(valor => Number.isFinite(valor) && valor > 0);
         if (cantidades.length === cantidadTalles) return cantidades;
@@ -674,6 +676,28 @@ function extraerCantidadesCurva(detalle, cantidadTalles, totalFallback = 0) {
         if (total > 0) return [total];
     }
     return [];
+}
+
+function columnaMaestroParaTalle(talle) {
+    const valor = normalizarTexto(talle).replace(',', '.');
+    if (/^\d+(?:\.5)?$/.test(valor)) {
+        const [entero, decimal] = valor.split('.');
+        return `TM_T${String(Number(entero)).padStart(2, '0')}${decimal === '5' ? '5' : ''}`;
+    }
+    const alfa = valor.replace(/[^A-Z0-9]/g, '');
+    return alfa ? `TM_T_${alfa}` : '';
+}
+
+function cantidadesCurvaDesdeMaestro(producto, primeras) {
+    if (!producto || !Array.isArray(primeras) || !primeras.length) return [];
+    const cantidades = primeras.map(primera => {
+        const columna = columnaMaestroParaTalle(primera.DETALLE_TALLE || primera.CODIGO_TALLE);
+        return Number(producto[columna]);
+    });
+    if (cantidades.some(cantidad => !Number.isInteger(cantidad) || cantidad <= 0)) return [];
+    const total = cantidades.reduce((suma, cantidad) => suma + cantidad, 0);
+    const totalMaestro = Number(producto.PARES_MAESTRO || 0);
+    return totalMaestro > 0 && total === totalMaestro ? cantidades : [];
 }
 
 
@@ -737,11 +761,12 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
     for (const grupo of modulosSeleccionados) {
         const producto = grupo.principal;
         const primerasOrdenadas = [...(grupo.primeras || [])].sort(compararTalles);
-        const cantidadesCurva = extraerCantidadesCurva(
+        const cantidadesCurva = cantidadesCurvaDesdeMaestro(producto, primerasOrdenadas);
+        if (!cantidadesCurva.length) cantidadesCurva.push(...extraerCantidadesCurva(
             producto.TALLE_CURVA || producto.DETALLE_MODULO,
             primerasOrdenadas.length,
             producto.PARES
-        );
+        ));
         const composicion = primerasOrdenadas.map((primera, indice) => ({
                 talle: primera.DETALLE_TALLE || primera.CODIGO_TALLE || '-',
                 pares: cantidadesCurva[indice] || Number(primera.PARES || 0) || '-',
@@ -1274,5 +1299,6 @@ module.exports = {
     enviarGtinDbiAPresea,
     estadoSeguimientoEan,
     extraerCantidadesCurva,
+    cantidadesCurvaDesdeMaestro,
     debeMostrarImagenEtiqueta,
 };

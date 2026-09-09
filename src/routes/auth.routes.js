@@ -8,6 +8,7 @@ const authService =
 
 const passwordResetService =
   require('../services/password-reset.service');
+const sesionesActivasService = require('../services/sesionesActivas.service');
 
 
 const intentosRecuperacion = new Map();
@@ -88,6 +89,8 @@ router.post(
                 'No se pudo iniciar la sesión.'
             });
           }
+
+          sesionesActivasService.registrar(req);
 
 
           return res.json({
@@ -223,6 +226,7 @@ router.post(
     }
 
 
+    sesionesActivasService.eliminar(req.sessionID);
     req.session.destroy(
       error => {
 

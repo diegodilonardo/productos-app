@@ -38,8 +38,19 @@ test('la composición impresa respeta las cantidades informadas por cada curva',
   const servicio = require('../src/services/seguimiento.service');
   assert.deepEqual(servicio.extraerCantidadesCurva('38 AL 43 X 15 (3,3,3,3,2,1)', 6), [3,3,3,3,2,1]);
   assert.deepEqual(servicio.extraerCantidadesCurva('33 AL 37 X 12 PARES 2,2,2,3,3', 5), [2,2,2,3,3]);
+  assert.deepEqual(servicio.extraerCantidadesCurva('35 AL 40 X 12 PARES 1 2 3 3 2 1', 6), [1,2,3,3,2,1]);
+  assert.deepEqual(servicio.extraerCantidadesCurva('22 AL 28 X12 1,1,2,2,2,2,2', 7), [1,1,2,2,2,2,2]);
+  assert.deepEqual(servicio.extraerCantidadesCurva('22 AL 28 X12 1 1 2 2 2 2 2', 7), [1,1,2,2,2,2,2]);
   assert.deepEqual(servicio.extraerCantidadesCurva('27 AL 32 1,1,2,2,2,2 X10', 6), [1,1,2,2,2,2]);
   assert.deepEqual(servicio.extraerCantidadesCurva('44/45 X 12 PARES', 1), [12]);
+});
+
+test('la etiqueta toma las cantidades estructuradas del maestro de módulos', () => {
+  const servicio = require('../src/services/seguimiento.service');
+  const producto = { TM_T22: 1, TM_T23: 1, TM_T24: 2, TM_T25: 2, TM_T26: 2, TM_T27: 2, TM_T28: 2, PARES_MAESTRO: 12 };
+  const primeras = ['22', '23', '24', '25', '26', '27', '28'].map(DETALLE_TALLE => ({ DETALLE_TALLE }));
+  assert.deepEqual(servicio.cantidadesCurvaDesdeMaestro(producto, primeras), [1,1,2,2,2,2,2]);
+  assert.deepEqual(servicio.cantidadesCurvaDesdeMaestro({ ...producto, PARES_MAESTRO: 13 }, primeras), []);
 });
 
 test('VICBOR omite imágenes de indumentaria y accesorios en las etiquetas', () => {

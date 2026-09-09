@@ -22,8 +22,9 @@
 @media(max-width:767.98px){.pedido-detail-summary .pedido-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pedido-detail-summary .pedido-info-grid>div{padding:8px 10px}.pedido-export-card .d-flex>.d-flex{width:100%}.pedido-export-card .d-flex>.d-flex .btn{flex:1 1 160px}}
 
 /* PRODUCTOS DEL DETALLE: TARJETAS + LISTA */
-.pedido-detail-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;width:min(680px,100%)}
+.pedido-detail-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;width:min(850px,100%)}
 .pedido-detail-toolbar .pedido-busqueda-producto{flex:1 1 360px;max-width:none}
+.pedido-productos-table{min-width:1450px}.pedido-productos-table .pedido-img-lista{width:54px;height:54px}.pedido-lista-numero{min-width:105px}.pedido-lista-observaciones{min-width:170px}.pedido-productos-table tr.pedido-lista-seleccionado{background:#f5f9ff}.pedido-productos-table tr.pedido-lista-invalido{background:#fff4f4}.pedido-lista-error{max-width:230px;line-height:1.2}
 .pedido-product-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px;background:#f7f9fb}
 .pedido-product-card{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden;border:1px solid #dfe6ed;border-radius:13px;background:#fff;box-shadow:0 2px 7px rgba(24,39,55,.045);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
 .pedido-product-card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#377bc4}

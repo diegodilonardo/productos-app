@@ -92,7 +92,8 @@ async function buscarModelos({
   rubro,
   texto,
   licencia,
-  idEmpresa
+  idEmpresa,
+  sinLimite = false
 }) {
 
   const pool =
@@ -183,7 +184,7 @@ async function buscarModelos({
 
   const resultado =
     await request.query(`
-      SELECT TOP 200
+      SELECT ${sinLimite ? '' : 'TOP 200'}
         CODIGO_MODELO,
         RUBRO_MODELO,
         DETALLE_MODELO,
@@ -334,11 +335,23 @@ async function obtenerTallesModulos(idEmpresa) {
   return resultado.recordset;
 }
 
+async function obtenerTallesModulosConsulta(idEmpresa) {
+  const pool = await getConnection();
+  const resultado = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+    SELECT *
+    FROM dbo.MAESTRO_TALLES_MODULOS
+    WHERE ID_EMPRESA = @ID_EMPRESA AND ACTIVO = 1
+    ORDER BY CODIGO_MODULO;
+  `);
+  return resultado.recordset;
+}
+
 
 module.exports = {
   obtenerMaestroSimple,
   buscarProveedores,
   buscarModelos,
   buscarLicenciasModelos,
-  obtenerTallesModulos
+  obtenerTallesModulos,
+  obtenerTallesModulosConsulta
 };

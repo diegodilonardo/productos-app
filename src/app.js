@@ -12,6 +12,8 @@ const pedidosWebRoutes = require('./routes/pedidos.web.routes');
 const authRoutes = require("./routes/auth.routes");
 const usuariosRoutes = require("./routes/usuarios.routes");
 const perfilRoutes = require("./routes/perfil.routes");
+const altasMaestrosRoutes = require('./routes/altasMaestros.routes');
+const sesionesActivasService = require('./services/sesionesActivas.service');
 
 const { configurarHandlebars } = require("./config/handlebars");
 
@@ -44,6 +46,11 @@ app.use(
     }
   })
 );
+
+app.use((req, res, next) => {
+  sesionesActivasService.registrar(req);
+  next();
+});
 
 /*
  * La información operativa cambia por sincronizaciones que pueden ejecutarse
@@ -121,6 +128,7 @@ app.use("/api/seguimiento", seguimientoRoutes);
    ============================================================ */
 
 app.use("/api/maestros", maestrosRoutes);
+app.use('/api/altas-maestros', altasMaestrosRoutes);
 
 /* ============================================================
    ALTAS PRODUCTOS

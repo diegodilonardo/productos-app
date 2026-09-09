@@ -30,8 +30,8 @@ test('la exportación limpia el destino y siempre incluye RELFORMU y RELACION', 
     path.join(__dirname, '../src/services/ftp.service.js'),
     'utf8'
   );
-  assert.match(exportacion, /clave:\s*'RELFORMU'[\s\S]*?permitirVacio:\s*true/);
-  assert.match(exportacion, /clave:\s*'RELACION'[\s\S]*?permitirVacio:\s*true/);
+  assert.match(exportacion, /clave:\s*["']RELFORMU["'][\s\S]*?permitirVacio:\s*true/);
+  assert.match(exportacion, /clave:\s*["']RELACION["'][\s\S]*?permitirVacio:\s*true/);
   assert.ok(exportacion.indexOf('.limpiarCarpeta(') < exportacion.indexOf('.subirArchivo('));
   assert.match(ftp, /async function limpiarCarpeta/);
   assert.match(ftp, /await cliente\.clearWorkingDir\(\)/);

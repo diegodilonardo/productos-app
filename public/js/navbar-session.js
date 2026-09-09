@@ -186,6 +186,20 @@ function cambiarEmpresaNavbar(event) {
   }
 
   /*
+   * Un recurso puntual pertenece a la empresa con la que fue abierto.
+   * Al cambiar el contexto nunca conservamos ese detalle en pantalla:
+   * volvemos al listado equivalente, que se cargará con la empresa nueva.
+   */
+  const destinoSeguro = obtenerDestinoSeguroCambioEmpresa(
+    window.location.pathname
+  );
+
+  if (destinoSeguro) {
+    window.location.assign(destinoSeguro);
+    return;
+  }
+
+  /*
    * Las pantallas migradas actualizan únicamente
    * sus datos y conservan el navbar montado.
    * Las pantallas todavía no migradas mantienen
@@ -210,6 +224,16 @@ function cambiarEmpresaNavbar(event) {
   if (!actualizarSinRecarga) {
     window.location.reload();
   }
+}
+
+function obtenerDestinoSeguroCambioEmpresa(rutaEntrada) {
+  const ruta = String(rutaEntrada || '').replace(/\/+$/, '') || '/';
+
+  if (/^\/altas\/(?:nueva|\d+)(?:\/|$)/i.test(ruta)) return '/altas';
+  if (/^\/pedidos\/(?:nuevo|\d+)(?:\/|$)/i.test(ruta)) return '/pedidos';
+  if (/^\/seguimiento\/\d+(?:\/|$)/i.test(ruta)) return '/seguimiento';
+
+  return null;
 }
 
 function guardarEmpresaActiva(
@@ -312,7 +336,6 @@ function actualizarPermisosNavbar(
       'd-none',
       !puedeEscribir
     );
-
 
   const puedeAdministrarUsuarios =
     Boolean(usuario?.superAdmin) ||

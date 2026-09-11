@@ -14,7 +14,7 @@ test('el alta de BAGUNZA conserva empresa, marca y rutas confirmadas', () => {
   assert.match(script, /@RAZON_SOCIAL VARCHAR\(150\) = 'BAGUNZA'/);
   assert.match(script, /'160',\s*'BAGUNZA'/);
   assert.match(script, /'\/PRODUCTOS\/MAESTRO_BAGUNZA'/);
-  assert.match(script, /'ALTAS_PRODUCTOS\\BAGUNZA'/);
+  assert.match(script, /'\/ALTAS_PRODUCTOS\/BAGUNZA'/);
   assert.match(script, /'PEDIDOS\\BAGUNZA'/);
 });
 

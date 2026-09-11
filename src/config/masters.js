@@ -305,6 +305,7 @@ const maestros = {
         archivo: 'TBL_MODELOS.TXT',
         tabla: 'MAESTRO_MODELOS',
         staging: 'STG_MAESTRO_MODELOS',
+        versionImportacion: '2-proveedor-posicion-6',
 
         columnas: [
             {
@@ -341,6 +342,13 @@ const maestros = {
                 tipo: 'VARCHAR',
                 longitud: 20,
                 requerido: true
+            },
+            {
+                archivo: 5,
+                nombre: 'C_PROVEEDO',
+                tipo: 'VARCHAR',
+                longitud: 20,
+                requerido: false
             }
         ],
 

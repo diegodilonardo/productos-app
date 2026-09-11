@@ -185,12 +185,33 @@ async function buscarModelos({
   const resultado =
     await request.query(`
       SELECT ${sinLimite ? '' : 'TOP 200'}
-        CODIGO_MODELO,
-        RUBRO_MODELO,
-        DETALLE_MODELO,
-        LICENCIA,
-        MARCA_MODELO
-      FROM dbo.MAESTRO_MODELOS
+        M.CODIGO_MODELO,
+        M.RUBRO_MODELO,
+        M.DETALLE_MODELO,
+        COALESCE(
+          NULLIF(LTRIM(RTRIM(M.C_PROVEEDO)), ''),
+          AM.C_PROVEEDO
+        ) AS C_PROVEEDO,
+        M.LICENCIA,
+        M.MARCA_MODELO
+      FROM dbo.MAESTRO_MODELOS AS M
+      OUTER APPLY (
+        SELECT TOP 1
+          NULLIF(LTRIM(RTRIM(A.C_PROVEEDO)), '') AS C_PROVEEDO
+        FROM dbo.ALTAS_MAESTROS AS A
+        WHERE A.ID_EMPRESA = M.ID_EMPRESA
+          AND A.TIPO = 'MODELO'
+          AND A.CODIGO = M.CODIGO_MODELO
+          AND A.ESTADO <> 'ANULADO'
+          AND NULLIF(LTRIM(RTRIM(A.C_PROVEEDO)), '') IS NOT NULL
+        ORDER BY
+          CASE A.ESTADO
+            WHEN 'CONFIRMADO_ERP' THEN 0
+            WHEN 'ENVIADO_PRESEA' THEN 1
+            ELSE 2
+          END,
+          A.ID_ALTA_MAESTRO DESC
+      ) AS AM
       ${where}
       ORDER BY
         DETALLE_MODELO,

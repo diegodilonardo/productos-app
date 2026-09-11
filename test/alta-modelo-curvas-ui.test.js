@@ -9,6 +9,42 @@ const fuente = fs.readFileSync(
   'utf8'
 );
 
+test('el modelo selecciona por defecto su proveedor PBXXXX', () => {
+  assert.match(fuente, /\['C_PROVEEDO', 'cProveedo', 'CODIGO_PROVEEDOR', 'codigoProveedor'\]/);
+  assert.match(fuente, /seleccionarProveedorDelModelo\(modelo\.codigoProveedor\)/);
+  assert.match(fuente, /seleccionarBuscadorMaestro\(\s*'Proveedor',\s*proveedor\s*\)/);
+});
+
+test('un modelo sin proveedor deja el campo de proveedor vacío', () => {
+  const inicio = fuente.indexOf('function seleccionarProveedorDelModelo');
+  const fin = fuente.indexOf('function limpiarModeloSeleccionado', inicio);
+  const funcion = fuente.slice(inicio, fin);
+
+  assert.match(funcion, /limpiarBuscadorMaestro\('Proveedor'\)/);
+  assert.match(funcion, /if \(!codigo\) return/);
+  assert.ok(
+    funcion.indexOf("limpiarBuscadorMaestro('Proveedor')") <
+    funcion.indexOf('if (!codigo) return')
+  );
+});
+
+test('el proveedor del modelo usa el maestro y el Alta de maestros como respaldo', () => {
+  const repository = fs.readFileSync(
+    path.resolve(__dirname, '../src/repositories/maestros.repository.js'),
+    'utf8'
+  );
+
+  assert.match(repository, /COALESCE\([\s\S]*?M\.C_PROVEEDO[\s\S]*?AM\.C_PROVEEDO[\s\S]*?AS C_PROVEEDO/);
+  assert.match(repository, /OUTER APPLY \([\s\S]*?dbo\.ALTAS_MAESTROS AS A/);
+  assert.match(repository, /A\.CODIGO = M\.CODIGO_MODELO/);
+  assert.match(repository, /A\.ESTADO <> 'ANULADO'/);
+});
+
+test('el proveedor del modelo también cruza el código Presea con su PBXXXX', () => {
+  assert.match(fuente, /\['PRESEA', 'presea', 'CODIGO_PRESEA', 'codigoPresea'\]/);
+  assert.match(fuente, /\.includes\(codigo\)/);
+});
+
 function cargarFormateadorComposicion() {
   const inicio = fuente.indexOf(
     'function composicionModuloParaMostrar('

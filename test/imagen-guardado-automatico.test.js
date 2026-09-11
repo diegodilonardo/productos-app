@@ -49,3 +49,18 @@ test('un Alta cerrada en ERP permite reponer imágenes sin reabrir sus productos
   }
   assert.match(backend, /if \(estadoAlta !== 'BORRADOR'\)/);
 });
+
+test('reemplazar una imagen no exige permiso para eliminar la versión vigente', () => {
+  const backend = fs.readFileSync(
+    path.resolve(__dirname, '../src/routes/imagenes.routes.js'),
+    'utf8'
+  );
+
+  const escritura = backend.indexOf('fs.writeFileSync(');
+  const limpieza = backend.lastIndexOf('eliminarVersionesAnteriores(');
+
+  assert.ok(escritura >= 0 && limpieza > escritura);
+  assert.match(backend, /extension === extensionConservada/);
+  assert.match(backend, /\['EPERM', 'EACCES'\]\.includes\(error\?\.code\)/);
+  assert.match(backend, /b\.modificado - a\.modificado/);
+});

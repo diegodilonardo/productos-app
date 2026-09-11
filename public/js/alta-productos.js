@@ -435,10 +435,17 @@ function formatearModelo(fila) {
       ['LICENCIA', 'licencia']
     ) ?? '';
 
+  const codigoProveedor =
+    obtenerCampo(
+      fila,
+      ['C_PROVEEDO', 'cProveedo', 'CODIGO_PROVEEDOR', 'codigoProveedor']
+    ) ?? '';
+
   return {
     codigo: String(codigo).trim(),
     detalle: String(detalle).trim(),
-    licencia: String(licencia).trim()
+    licencia: String(licencia).trim(),
+    codigoProveedor: String(codigoProveedor).trim()
   };
 }
 
@@ -1047,7 +1054,44 @@ function seleccionarModelo(fila) {
   lista.classList.add('d-none');
   buscador.classList.add('d-none');
 
+  seleccionarProveedorDelModelo(modelo.codigoProveedor);
+
   actualizarImagenesProducto();
+}
+
+function seleccionarProveedorDelModelo(codigoProveedor) {
+  /* Cada modelo define nuevamente el valor por defecto. Así evitamos que
+   * quede el proveedor del modelo anterior cuando el nuevo no posee uno. */
+  limpiarBuscadorMaestro('Proveedor');
+
+  const codigo =
+    String(codigoProveedor || '')
+      .trim()
+      .toUpperCase();
+
+  if (!codigo) return;
+
+  const proveedor =
+    buscadoresMaestro.Proveedor
+      ?.filas
+      ?.find(item =>
+        [
+          item.codigo,
+          obtenerCampo(
+            item.original,
+            ['PRESEA', 'presea', 'CODIGO_PRESEA', 'codigoPresea']
+          )
+        ]
+          .map(valor => String(valor || '').trim().toUpperCase())
+          .includes(codigo)
+      );
+
+  if (proveedor) {
+    seleccionarBuscadorMaestro(
+      'Proveedor',
+      proveedor
+    );
+  }
 }
 
 function limpiarModeloSeleccionado() {

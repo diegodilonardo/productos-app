@@ -243,10 +243,9 @@ function buscarArchivoExistente(
     carpeta,
     clave
 ) {
-    for (
-        const extension
-        of EXTENSIONES
-    ) {
+    const existentes = [];
+
+    for (const extension of EXTENSIONES) {
         const nombre =
             clave + extension;
 
@@ -256,20 +255,23 @@ function buscarArchivoExistente(
                 nombre
             );
 
-        if (
-            fs.existsSync(
-                archivo
-            )
-        ) {
-            return {
+        if (fs.existsSync(archivo)) {
+            existentes.push({
                 nombre,
                 archivo,
-                extension
-            };
+                extension,
+                modificado:
+                    fs.statSync(archivo).mtimeMs
+            });
         }
     }
 
-    return null;
+    existentes.sort(
+        (a, b) =>
+            b.modificado - a.modificado
+    );
+
+    return existentes[0] || null;
 }
 
 async function buscarImagenContextual(req, clave) {
@@ -285,12 +287,17 @@ async function buscarImagenContextual(req, clave) {
 
 function eliminarVersionesAnteriores(
     carpeta,
-    clave
+    clave,
+    extensionConservada
 ) {
     for (
         const extension
         of EXTENSIONES
     ) {
+        if (extension === extensionConservada) {
+            continue;
+        }
+
         const archivo =
             path.join(
                 carpeta,
@@ -302,9 +309,16 @@ function eliminarVersionesAnteriores(
                 archivo
             )
         ) {
-            fs.unlinkSync(
-                archivo
-            );
+            try {
+                fs.unlinkSync(archivo);
+            } catch (error) {
+                /* Algunos recursos compartidos permiten sobrescribir pero no
+                 * eliminar. La nueva versión ya quedó guardada y es la que se
+                 * seleccionará por fecha de modificación. */
+                if (!['EPERM', 'EACCES'].includes(error?.code)) {
+                    throw error;
+                }
+            }
         }
     }
 }
@@ -594,18 +608,6 @@ router.post(
 
             fs.mkdirSync(carpeta, { recursive: true });
 
-            /*
-              Una sola imagen activa por:
-              AÑO + TEMPORADA + MODELO + COLOR.
-
-              Si antes había JPG y ahora llega PNG
-              (o viceversa), eliminamos la versión anterior.
-            */
-            eliminarVersionesAnteriores(
-                carpeta,
-                clave
-            );
-
             const nombre =
                 clave +
                 tipo.extension;
@@ -619,6 +621,14 @@ router.post(
             fs.writeFileSync(
                 archivo,
                 buffer
+            );
+
+            /* La imagen nueva se escribe primero para poder reemplazarla en
+             * servidores que permiten modificar archivos, pero no borrarlos. */
+            eliminarVersionesAnteriores(
+                carpeta,
+                clave,
+                tipo.extension
             );
 
             const productoFamilia =

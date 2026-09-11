@@ -59,11 +59,16 @@ function obtenerTalleERP(tipoProducto, detalle) {
    ============================================================ */
 
 function obtenerDetalleTalleERP(tipoProducto, detalle) {
-  if (tipoProducto === "MODULO") {
-    return texto(detalle.DETALLE_MODULO);
-  }
+  const descripcion = tipoProducto === "MODULO"
+    ? texto(detalle.DETALLE_MODULO)
+    : texto(detalle.DETALLE_TALLE);
 
-  return texto(detalle.DETALLE_TALLE);
+  /* Presea limita DTALLC a 40 caracteres. Esta compactación
+   * conserva talles, distribución y pares: "X 12" pasa a "X12". */
+  return descripcion
+    .replace(/\s+[Xx]\s+(?=\d)/g, " X")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /* ============================================================

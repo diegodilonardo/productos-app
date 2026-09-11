@@ -175,6 +175,32 @@ async function buscarImagenProducto(idAlta, producto) {
   if (!Number.isInteger(id) || id <= 0) throw new Error('ID_ALTA inválido.');
   const alta = await altasRepository.obtenerAltaPorId(id);
   if (!alta) return null;
+
+  /* La tabla conserva la ubicación elegida al subir la foto. Esa ruta es
+   * la fuente principal, especialmente cuando la app corre en el servidor
+   * con un almacenamiento compartido configurado. */
+  const registros = await imagenesAltaRepository.listarImagenesAlta(
+    Number(alta.ID_EMPRESA),
+    id
+  );
+  const registro = registros.find(item =>
+    texto(item.CODIGO_MODELO).toUpperCase() === texto(producto.CODIGO_MODELO).toUpperCase() &&
+    texto(item.CODIGO_COLOR).toUpperCase() === texto(producto.CODIGO_COLOR).toUpperCase()
+  );
+  if (registro?.RUTA_RELATIVA) {
+    const raiz = path.resolve(carpetaImagenes());
+    const archivoRegistrado = path.resolve(raiz, texto(registro.RUTA_RELATIVA));
+    const dentroDeRaiz = archivoRegistrado === raiz || archivoRegistrado.startsWith(`${raiz}${path.sep}`);
+    if (dentroDeRaiz && fs.existsSync(archivoRegistrado)) {
+      return {
+        archivo: archivoRegistrado,
+        nombre: path.basename(archivoRegistrado),
+        extension: path.extname(archivoRegistrado).toLowerCase(),
+        clave: path.parse(archivoRegistrado).name
+      };
+    }
+  }
+
   const clave = [
     alta.CODIGO_ANO,
     alta.CODIGO_TEMPORADA,

@@ -679,6 +679,32 @@ async function consultarModelos({ idEmpresa, acceso }) {
   return buscarModelos({ idEmpresa, acceso, marca: null, rubro: null, texto: null, licencia: null, sinLimite: true });
 }
 
+async function consultarProductos({ idEmpresa, acceso }) {
+  const datos = await repository.consultarProductos(idEmpresa);
+  const permitidos = datos.filter(item => {
+    const marcaPermitida = acceso.todasMarcas ||
+      alcancePermiteValor(acceso.marcas || [], ['codigoMarca', 'detalleMarca', 'CODIGO_MARCA', 'DETALLE_MARCA'], item.CODIGO_MARCA) ||
+      alcancePermiteValor(acceso.marcas || [], ['codigoMarca', 'detalleMarca', 'CODIGO_MARCA', 'DETALLE_MARCA'], item.DETALLE_MARCA);
+    const rubroPermitido = acceso.todosRubros ||
+      alcancePermiteValor(acceso.rubros || [], ['codigoRubro', 'detalleRubro', 'CODIGO_RUBRO', 'DETALLE_RUBRO'], item.CODIGO_RUBRO) ||
+      alcancePermiteValor(acceso.rubros || [], ['codigoRubro', 'detalleRubro', 'CODIGO_RUBRO', 'DETALLE_RUBRO'], item.DETALLE_RUBRO);
+    return marcaPermitida && rubroPermitido && licenciaPermitida(acceso, item.LICENCIA);
+  });
+
+  return permitidos.map(item => {
+    const tieneImagen = item.ID_ALTA && item.CODIGO_ANO && item.CODIGO_TEMPORADA && item.CODIGO_MODELO && item.CODIGO_COLOR;
+    if (!tieneImagen) return { ...item, URL_IMAGEN: null };
+    const parametros = new URLSearchParams({
+      idAlta: String(item.ID_ALTA),
+      ano: String(item.CODIGO_ANO),
+      temporada: String(item.CODIGO_TEMPORADA),
+      modelo: String(item.CODIGO_MODELO),
+      color: String(item.CODIGO_COLOR)
+    });
+    return { ...item, URL_IMAGEN: `/api/imagenes/archivo?${parametros.toString()}` };
+  });
+}
+
 
 async function obtenerLicenciasModelos({
   idEmpresa,
@@ -808,10 +834,11 @@ function exportarConsultaMaestros(tipoEntrada, filasEntrada) {
     MODELOS: ['CODIGO_MODELO','DETALLE_MODELO','MARCA_MODELO','RUBRO_MODELO','LICENCIA'],
     COLORES: ['CODIGO_COLOR','DETALLE_COLOR'],
     MODULOS: ['CODIGO_MODULO','DETALLE_MODULO','DESCRIPCION_CURVA','PARES','ES_CONSISTENTE','OBSERVACION'],
-    DISCIPLINAS: ['CODIGO_DEPORTE','DETALLE_DEPORTE']
+    DISCIPLINAS: ['CODIGO_DEPORTE','DETALLE_DEPORTE'],
+    PRODUCTOS: ['CODIGO_ALFA','CODIGO_ERP','CODIGO_EAN','TIPO_PRODUCTO','TIPO_PRODUCTO_DETALLE','GENERADO_AUTOMATICO','DETALLE_PRODUCTO','CODIGO_MODELO','DETALLE_MODELO','CODIGO_COLOR','DETALLE_COLOR','TALLE_MODULO','DETALLE_MARCA','DETALLE_RUBRO','LICENCIA','CODIGO_ALTA','ESTADO_ALTA','FECHA_CARGA','FECHA_ACTUALIZACION','FECHA_ULTIMA_SYNC']
   }[tipo];
   if (!campos) throw Object.assign(new Error('Tipo de maestro inválido.'), { status: 400 });
-  const origen = Array.isArray(filasEntrada) ? filasEntrada.slice(0, 10000) : [];
+  const origen = Array.isArray(filasEntrada) ? filasEntrada.slice(0, 50000) : [];
   if (!origen.length) throw Object.assign(new Error('No hay registros para exportar.'), { status: 400 });
   const filas = origen.map(item => Object.fromEntries(campos.map(campo => [campo, item?.[campo] ?? ''])));
   const hoja = XLSX.utils.json_to_sheet(filas, { header: campos });
@@ -844,6 +871,7 @@ module.exports = {
   exportarConsultaMaestros,
   buscarModelos,
   consultarModelos,
+  consultarProductos,
   obtenerLicenciasModelos,
   validarMarca,
   validarRubro,

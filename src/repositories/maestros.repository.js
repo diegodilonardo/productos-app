@@ -346,6 +346,60 @@ async function obtenerTallesModulosConsulta(idEmpresa) {
   return resultado.recordset;
 }
 
+async function consultarProductos(idEmpresa) {
+  const pool = await getConnection();
+  const resultado = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+    WITH DETALLE_PRODUCTO AS
+    (
+      SELECT D.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY D.ID_EMPRESA, D.CODIGO_ALFA
+          ORDER BY D.ID_DETALLE DESC
+        ) AS ORDEN_PRODUCTO
+      FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+      WHERE D.ID_EMPRESA = @ID_EMPRESA
+    )
+    SELECT
+      P.CODIGO_ALFA,
+      CONVERT(VARCHAR(30), P.CODIGO_ERP) AS CODIGO_ERP,
+      COALESCE(CONVERT(VARCHAR(20), P.CODIGO_EAN), CONVERT(VARCHAR(20), P.EAN)) AS CODIGO_EAN,
+      COALESCE(D.TIPO_PRODUCTO_DETALLE, A.TIPO_PRODUCTO, P.TIPO_PRODUCTO) AS TIPO_PRODUCTO,
+      P.TIPO_PRODUCTO AS TIPO_PRODUCTO_DETALLE,
+      D.GENERADO_AUTOMATICO,
+      P.FECHA_CARGA,
+      P.FECHA_ACTUALIZACION,
+      P.FECHA_ULTIMA_SYNC,
+      D.DETALLE_PRODUCTO,
+      D.CODIGO_MODELO,
+      D.DETALLE_MODELO,
+      D.CODIGO_COLOR,
+      D.DETALLE_COLOR,
+      COALESCE(NULLIF(D.DETALLE_MODULO, ''), NULLIF(D.DETALLE_TALLE, '')) AS TALLE_MODULO,
+      D.LICENCIA,
+      A.CODIGO_MARCA,
+      A.DETALLE_MARCA,
+      COALESCE(A.CODIGO_RUBRO, P.RUBRO) AS CODIGO_RUBRO,
+      COALESCE(A.DETALLE_RUBRO, P.RUBRO) AS DETALLE_RUBRO,
+      A.ID_ALTA,
+      A.CODIGO_ALTA,
+      A.CODIGO_ANO,
+      A.CODIGO_TEMPORADA,
+      A.ESTADO AS ESTADO_ALTA
+    FROM dbo.PRODUCTOS P
+    LEFT JOIN DETALLE_PRODUCTO D
+      ON D.ID_EMPRESA = P.ID_EMPRESA
+     AND D.CODIGO_ALFA = P.CODIGO_ALFA
+     AND D.ORDEN_PRODUCTO = 1
+    LEFT JOIN dbo.ALTAS_PRODUCTOS A
+      ON A.ID_EMPRESA = D.ID_EMPRESA
+     AND A.ID_ALTA = D.ID_ALTA
+    WHERE P.ID_EMPRESA = @ID_EMPRESA
+      AND ISNULL(P.ACTIVO, 1) = 1
+    ORDER BY D.DETALLE_MODELO, D.DETALLE_COLOR, P.CODIGO_ALFA;
+  `);
+  return resultado.recordset;
+}
+
 
 module.exports = {
   obtenerMaestroSimple,
@@ -353,5 +407,6 @@ module.exports = {
   buscarModelos,
   buscarLicenciasModelos,
   obtenerTallesModulos,
-  obtenerTallesModulosConsulta
+  obtenerTallesModulosConsulta,
+  consultarProductos
 };

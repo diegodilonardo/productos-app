@@ -39,6 +39,32 @@ function validarCodigoProveedor(valor) {
 }
 function codigoBase36(n, largo) { return n.toString(36).toUpperCase().padStart(largo, '0'); }
 
+function sugerirPorMarcaYRubro(modelos, ocupados, marca, rubro) {
+  const referencias = modelos
+    .filter(x => normalizar(x.MARCA) === marca && normalizar(x.RUBRO) === rubro)
+    .map(x => normalizar(x.CODIGO))
+    .map(codigo => ({ codigo, partes: codigo.match(/^([A-Z]*)(\d+)$/) }))
+    .filter(x => x.partes && x.codigo.length <= largos.MODELO);
+  if (!referencias.length) throw Object.assign(new Error('No hay una numeración existente para esa marca y rubro.'), { status: 409 });
+
+  const grupos = new Map();
+  for (const referencia of referencias) {
+    const prefijo = referencia.partes[1];
+    const sufijo = referencia.partes[2];
+    const grupo = grupos.get(prefijo) || { prefijo, cantidad: 0, mayor: -1, ancho: sufijo.length };
+    grupo.cantidad += 1;
+    grupo.mayor = Math.max(grupo.mayor, Number(sufijo));
+    grupo.ancho = Math.max(grupo.ancho, sufijo.length);
+    grupos.set(prefijo, grupo);
+  }
+  const serie = [...grupos.values()].sort((a, b) => b.cantidad - a.cantidad || b.mayor - a.mayor)[0];
+  for (let numero = serie.mayor + 1; numero < 10 ** serie.ancho; numero += 1) {
+    const codigo = serie.prefijo + String(numero).padStart(serie.ancho, '0');
+    if (codigo.length <= largos.MODELO && !ocupados.has(codigo)) return codigo;
+  }
+  throw Object.assign(new Error('No quedan códigos disponibles para esa marca y rubro.'), { status: 409 });
+}
+
 async function sugerirCodigo(idEmpresa, tipoEntrada) {
   const tipo = normalizar(tipoEntrada);
   const largo = largos[tipo];
@@ -68,6 +94,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   if (!marca || !rubro || !licencia || !disciplina) throw Object.assign(new Error('Seleccione marca, rubro, licencia y disciplina antes de sugerir el modelo.'), { status: 400 });
   const modelos = await repository.listarModelosParaSugerencia(idEmpresa);
   const ocupados = new Set([...modelos.map(x => normalizar(x.CODIGO)), ...(filtros.ocupadosAdicionales || []).map(normalizar)]);
+  if (marca !== 'ATOMIK') return sugerirPorMarcaYRubro(modelos, ocupados, marca, rubro);
   let prefijo;
   let largoCorrelativo = 4;
   let ultimoConfirmado = -1;
@@ -134,8 +161,9 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
   const disciplinaModelo = licenciaModelo === 'SIN LICENCIA' ? normalizarDisciplina(cuerpo.disciplina) : 'SIN DISCIPLINA';
   const codigo = normalizar(cuerpo.codigo) || await sugerirCodigo(idEmpresa, tipo);
   if (!largos[tipo] || !nombre) throw Object.assign(new Error('Debe indicar tipo y nombre.'), { status: 400 });
-  if (!/^[A-Z0-9]+$/.test(codigo) || codigo.length !== largos[tipo]) {
-    throw Object.assign(new Error(`El código de ${tipo} debe tener ${largos[tipo]} caracteres alfanuméricos.`), { status: 400 });
+  const largoValido = tipo === 'MODELO' ? codigo.length >= 1 && codigo.length <= largos[tipo] : codigo.length === largos[tipo];
+  if (!/^[A-Z0-9]+$/.test(codigo) || !largoValido) {
+    throw Object.assign(new Error(`El código de ${tipo} debe tener hasta ${largos[tipo]} caracteres alfanuméricos.`), { status: 400 });
   }
   if (tipo === 'MODELO' && (!normalizar(cuerpo.marca) || !normalizar(cuerpo.rubro) || !licenciaModelo || !disciplinaModelo || !normalizar(cuerpo.cProveedor))) {
     throw Object.assign(new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.'), { status: 400 });
@@ -325,4 +353,4 @@ async function enviarPresea({ idEmpresa, usuario }) {
   return { archivos, registros: datos.registros.length, rutaDestino };
 }
 
-module.exports = { listar, sugerirCodigo, sugerirCodigoModelo, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros };
+module.exports = { listar, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros };

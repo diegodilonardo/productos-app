@@ -67,12 +67,31 @@ test('sugiere modelo dentro de la numeración de empresa, marca, rubro y licenci
   finally { repository.listarModelosParaSugerencia = original; }
 });
 
+test('otras marcas continúan el máximo de la serie correspondiente a marca y rubro', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  repository.listarModelosParaSugerencia = async () => [
+    { CODIGO: '470510', MARCA: '47 STREET', RUBRO: 'ACCESORIO', LICENCIA: null },
+    { CODIGO: '470517', MARCA: '47 STREET', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: 'KV103', MARCA: 'KEVINGSTON', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: 'MT0471', MARCA: 'MONTAGNE', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: 'MTOO7', MARCA: 'MONTAGNE', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: 'MC1275', MARCA: 'MASSIMO', RUBRO: 'ACCESORIOS', LICENCIA: null }
+  ];
+  try {
+    assert.equal(await service.sugerirCodigoModelo(2, { marca: '47 STREET', rubro: 'ACCESORIO', licencia: 'SIN LICENCIA' }), '470511');
+    assert.equal(await service.sugerirCodigoModelo(2, { marca: '47 STREET', rubro: 'CALZADO', licencia: 'SIN LICENCIA' }), '470518');
+    assert.equal(await service.sugerirCodigoModelo(2, { marca: 'KEVINGSTON', rubro: 'CALZADO', licencia: 'SIN LICENCIA' }), 'KV104');
+    assert.equal(await service.sugerirCodigoModelo(2, { marca: 'MONTAGNE', rubro: 'CALZADO', licencia: 'SIN LICENCIA' }), 'MT0472');
+    assert.equal(await service.sugerirCodigoModelo(3, { marca: 'MASSIMO', rubro: 'ACCESORIOS', licencia: 'SIN LICENCIA' }), 'MC1276');
+  } finally { repository.listarModelosParaSugerencia = original; }
+});
+
 test('una licencia nueva exige dos caracteres todavía no utilizados', async () => {
   const original = repository.listarModelosParaSugerencia;
-  repository.listarModelosParaSugerencia = async () => [{ CODIGO: 'AB0000', MARCA: 'AT', RUBRO: '01', LICENCIA: 'MARVEL' }];
+  repository.listarModelosParaSugerencia = async () => [{ CODIGO: 'AB0000', MARCA: 'ATOMIK', RUBRO: '01', LICENCIA: 'MARVEL' }];
   try {
-    await assert.rejects(() => service.sugerirCodigoModelo(1, { marca: 'AT', rubro: '01', licencia: 'NUEVA', nuevaLicencia: true, prefijo: 'AB' }), /ya están utilizados/);
-    assert.equal(await service.sugerirCodigoModelo(1, { marca: 'AT', rubro: '01', licencia: 'NUEVA', nuevaLicencia: true, prefijo: 'XY' }), 'XY0000');
+    await assert.rejects(() => service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: '01', licencia: 'NUEVA', nuevaLicencia: true, prefijo: 'AB' }), /ya están utilizados/);
+    assert.equal(await service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: '01', licencia: 'NUEVA', nuevaLicencia: true, prefijo: 'XY' }), 'XY0000');
   } finally { repository.listarModelosParaSugerencia = original; }
 });
 

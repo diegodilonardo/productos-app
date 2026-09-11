@@ -4,9 +4,9 @@ let vistaPreviaModelos = [];
 let consultaMaestros = [];
 let paginaConsultaMaestros = 1;
 const filasPorPaginaConsulta = 25;
-function idEmpresa() { return Number(sessionStorage.getItem('app.idEmpresa') || sessionStorage.getItem('pedidos.idEmpresa')); }
+function idEmpresa() { return Number(sessionStorage.getItem('app.idEmpresa') || sessionStorage.getItem('pedidos.idEmpresa') || document.getElementById('navbarEmpresaSelector')?.value); }
 function empresaValida() { const id = idEmpresa(); return Number.isInteger(id) && id > 0 ? id : null; }
-async function esperarEmpresaActiva(maximoMs = 4000) {
+async function esperarEmpresaActiva(maximoMs = 15000) {
   const inicio = Date.now();
   while (!empresaValida() && Date.now() - inicio < maximoMs) {
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -15,6 +15,7 @@ async function esperarEmpresaActiva(maximoMs = 4000) {
 }
 async function api(url, opciones = {}) { const empresa = empresaValida(); if (!empresa) throw new Error('Debe seleccionar una empresa desde la barra superior.'); const r = await fetch(url, { ...opciones, headers: { 'Content-Type': 'application/json', 'x-id-empresa': String(empresa), ...(opciones.headers || {}) } }); const d = await r.json(); if (!r.ok) throw new Error(d.mensaje || 'No se pudo completar la operación.'); return d; }
 function alerta(m, tipo = 'success') { const e = $('alertaAltasMaestros'); e.textContent = m; e.className = `alert alert-${tipo}`; }
+function limpiarAvisoEmpresa() { const e = $('alertaAltasMaestros'); if (e.textContent.includes('seleccionar una empresa')) { e.textContent = ''; e.className = 'alert d-none'; } }
 function textoSeguro(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function esLicenciaNueva() { return $('licenciaModelo').value === '__NUEVA__'; }
 function ajustarLicenciaNueva() { $('datosLicenciaNueva').classList.toggle('d-none', !esLicenciaNueva()); $('codigoMaestro').value = ''; }
@@ -43,14 +44,16 @@ function filasConsultaFiltradas() {
   const marca = $('filtroMarcaModelos').value;
   const rubro = $('filtroRubroModelos').value;
   const licencia = $('filtroLicenciaModelos').value;
+  const tipoProducto = $('filtroTipoProductos').value;
   return consultaMaestros.filter(item => {
     if (texto && !Object.values(item).some(valor => String(valor ?? '').toUpperCase().includes(texto))) return false;
-    if (tipo === 'MODELOS') {
-      if (marca && String(item.MARCA_MODELO || '').trim().toUpperCase() !== marca) return false;
-      if (rubro && String(item.RUBRO_MODELO || '').trim().toUpperCase() !== rubro) return false;
+    if (tipo === 'MODELOS' || tipo === 'PRODUCTOS') {
+      if (marca && String(item.MARCA_MODELO || item.DETALLE_MARCA || item.CODIGO_MARCA || '').trim().toUpperCase() !== marca) return false;
+      if (rubro && String(item.RUBRO_MODELO || item.DETALLE_RUBRO || item.CODIGO_RUBRO || '').trim().toUpperCase() !== rubro) return false;
       const licenciaItem = String(item.LICENCIA || '').trim().toUpperCase() || '__SIN_LICENCIA__';
       if (licencia && licenciaItem !== licencia) return false;
     }
+    if (tipo === 'PRODUCTOS' && tipoProducto !== 'TODOS' && String(item.TIPO_PRODUCTO || '').trim().toUpperCase() !== tipoProducto) return false;
     if (tipo === 'MODULOS' && estado !== 'TODOS') {
       const consistente = Boolean(Number(item.ES_CONSISTENTE));
       if (estado === 'CONSISTENTES' && !consistente) return false;
@@ -66,8 +69,9 @@ function cargarOpcionesFiltroModelos() {
     selector.innerHTML = `<option value="">${etiquetaTodos}</option>` + valores.map(valor => `<option value="${textoSeguro(valor)}">${valor === '__SIN_LICENCIA__' ? 'Sin licencia' : textoSeguro(valor)}</option>`).join('');
     if (valores.includes(anterior)) selector.value = anterior;
   };
-  crear('filtroMarcaModelos', 'MARCA_MODELO', 'Todas las marcas', valor => String(valor || '').trim().toUpperCase());
-  crear('filtroRubroModelos', 'RUBRO_MODELO', 'Todos los rubros', valor => String(valor || '').trim().toUpperCase());
+  const productos = $('tipoConsultaMaestros').value === 'PRODUCTOS';
+  crear('filtroMarcaModelos', productos ? 'DETALLE_MARCA' : 'MARCA_MODELO', 'Todas las marcas', valor => String(valor || '').trim().toUpperCase());
+  crear('filtroRubroModelos', productos ? 'DETALLE_RUBRO' : 'RUBRO_MODELO', 'Todos los rubros', valor => String(valor || '').trim().toUpperCase());
   crear('filtroLicenciaModelos', 'LICENCIA', 'Todas las licencias', valor => String(valor || '').trim().toUpperCase() || '__SIN_LICENCIA__');
 }
 function renderConsultaMaestros() {
@@ -79,6 +83,9 @@ function renderConsultaMaestros() {
   if (tipo === 'MODELOS') {
     encabezado = '<tr><th>Código</th><th>Descripción</th><th>Marca</th><th>Rubro</th><th>Licencia</th></tr>';
     cuerpo = pagina.map(x => `<tr><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO_MODELO)}</td><td>${textoSeguro(x.DETALLE_MODELO)}</td><td>${textoSeguro(x.MARCA_MODELO || '-')}</td><td>${textoSeguro(x.RUBRO_MODELO || '-')}</td><td>${textoSeguro(x.LICENCIA || 'Sin licencia')}</td></tr>`).join('');
+  } else if (tipo === 'PRODUCTOS') {
+    encabezado = '<tr><th>Imagen</th><th>Código alfa / ERP</th><th>EAN</th><th>Tipo</th><th>Producto</th><th>Modelo / color</th><th>Talle / módulo</th><th>Marca / rubro</th><th>Alta / estado</th></tr>';
+    cuerpo = pagina.map(x => { const tipoProducto = String(x.TIPO_PRODUCTO || '').toUpperCase(), modulo = tipoProducto === 'MODULO', suelto = tipoProducto === 'PAR_SUELTO', etiquetaTipo = modulo ? 'MÓDULO' : suelto ? 'PAR SUELTO' : 'SIN CLASIFICAR'; const imagen = x.URL_IMAGEN ? `<a href="${textoSeguro(x.URL_IMAGEN)}" target="_blank" rel="noopener"><img src="${textoSeguro(x.URL_IMAGEN)}" alt="${textoSeguro(x.DETALLE_PRODUCTO || 'Producto')}" loading="lazy" style="width:58px;height:58px;object-fit:contain;border:1px solid #dbe3ec;border-radius:8px;background:#fff" onerror="this.parentElement.outerHTML='<span class=&quot;small text-secondary&quot;>Sin foto</span>'"></a>` : '<span class="small text-secondary">Sin foto</span>'; return `<tr><td>${imagen}</td><td><div class="font-monospace fw-bold">${textoSeguro(x.CODIGO_ALFA)}</div><div class="small text-secondary">ERP ${textoSeguro(x.CODIGO_ERP || '-')}</div></td><td class="font-monospace">${textoSeguro(x.CODIGO_EAN || '-')}</td><td><span class="badge ${modulo ? 'text-bg-primary' : suelto ? 'text-bg-info' : 'text-bg-secondary'}">${etiquetaTipo}</span></td><td>${textoSeguro(x.DETALLE_PRODUCTO || '-')}</td><td><div>${textoSeguro(x.DETALLE_MODELO || x.CODIGO_MODELO || '-')}</div><div class="small text-secondary">${textoSeguro(x.DETALLE_COLOR || x.CODIGO_COLOR || '-')}</div></td><td>${textoSeguro(x.TALLE_MODULO || '-')}</td><td><div>${textoSeguro(x.DETALLE_MARCA || x.CODIGO_MARCA || '-')}</div><div class="small text-secondary">${textoSeguro(x.DETALLE_RUBRO || x.CODIGO_RUBRO || '-')} · ${textoSeguro(x.LICENCIA || 'Sin licencia')}</div></td><td><div>${textoSeguro(x.CODIGO_ALTA || '-')}</div><span class="badge text-bg-secondary">${textoSeguro(String(x.ESTADO_ALTA || '-').replaceAll('_', ' '))}</span></td></tr>`; }).join('');
   } else if (tipo === 'COLORES') {
     encabezado = '<tr><th>Código</th><th>Descripción</th></tr>';
     cuerpo = pagina.map(x => `<tr><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO_COLOR)}</td><td>${textoSeguro(x.DETALLE_COLOR)}</td></tr>`).join('');
@@ -100,13 +107,14 @@ function renderConsultaMaestros() {
 async function cargarConsultaMaestros() {
   const tipo = $('tipoConsultaMaestros').value;
   $('estadoConsultaModulos').classList.toggle('d-none', tipo !== 'MODULOS');
-  $('filtrosModelosConsulta').classList.toggle('d-none', tipo !== 'MODELOS');
+  $('filtroTipoProductos').classList.toggle('d-none', tipo !== 'PRODUCTOS');
+  $('filtrosModelosConsulta').classList.toggle('d-none', !['MODELOS', 'PRODUCTOS'].includes(tipo));
   $('tablaConsultaMaestros').innerHTML = '<tr><td colspan="6" class="text-center py-5 text-secondary">Cargando...</td></tr>';
   try {
-    const endpoint = tipo === 'MODELOS' ? '/api/maestros/consulta/modelos' : tipo === 'COLORES' ? '/api/maestros/colores' : tipo === 'MODULOS' ? '/api/maestros/consulta/talles-modulos' : '/api/maestros/deportes';
+    const endpoint = tipo === 'MODELOS' ? '/api/maestros/consulta/modelos' : tipo === 'PRODUCTOS' ? '/api/maestros/consulta/productos' : tipo === 'COLORES' ? '/api/maestros/colores' : tipo === 'MODULOS' ? '/api/maestros/consulta/talles-modulos' : '/api/maestros/deportes';
     const datos = await api(endpoint);
     consultaMaestros = Array.isArray(datos.datos) ? datos.datos : [];
-    if (tipo === 'MODELOS') cargarOpcionesFiltroModelos();
+    if (tipo === 'MODELOS' || tipo === 'PRODUCTOS') cargarOpcionesFiltroModelos();
     paginaConsultaMaestros = 1; renderConsultaMaestros();
   } catch (e) { alerta(e.message, 'danger'); }
 }
@@ -115,7 +123,8 @@ async function exportarConsultaMaestros() {
   if (!filas.length) return;
   const tipo = $('tipoConsultaMaestros').value, empresa = empresaValida();
   try {
-    const respuesta = await fetch('/api/maestros/consulta/exportar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-id-empresa': String(empresa) }, body: JSON.stringify({ tipo, filas }) });
+    const productosCompletos = tipo === 'PRODUCTOS' && filas.length === consultaMaestros.length;
+    const respuesta = await fetch(productosCompletos ? '/api/maestros/consulta/productos/exportar' : '/api/maestros/consulta/exportar', productosCompletos ? { headers: { 'x-id-empresa': String(empresa) } } : { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-id-empresa': String(empresa) }, body: JSON.stringify({ tipo, filas }) });
     if (!respuesta.ok) { const error = await respuesta.json(); throw new Error(error.mensaje || 'No se pudo exportar la consulta.'); }
     const enlace = document.createElement('a'); enlace.href = URL.createObjectURL(await respuesta.blob()); enlace.download = `MAESTRO_${tipo}.xlsx`; document.body.appendChild(enlace); enlace.click(); enlace.remove(); URL.revokeObjectURL(enlace.href);
   } catch (e) { alerta(e.message, 'danger'); }
@@ -215,7 +224,7 @@ async function previsualizarModelosMasivos() {
   const disciplina = $('disciplinaModelosMasivos').value;
   const prefijoDisciplina = $('prefijoDisciplinaMasiva').value.trim();
   if (!marca || !rubro || !licencia) { alerta('Seleccione marca, rubro y licencia.', 'warning'); return; }
-  if (esLicenciaNuevaMasiva() && (!/^[A-Za-z0-9]{2}$/.test(prefijo) || !licencia)) { alerta('Para una licencia nueva indique su nombre y dos caracteres.', 'warning'); return; }
+  if (marca.toUpperCase() === 'ATOMIK' && esLicenciaNuevaMasiva() && (!/^[A-Za-z0-9]{2}$/.test(prefijo) || !licencia)) { alerta('Para una licencia nueva indique su nombre y dos caracteres.', 'warning'); return; }
   const btn = $('btnPrevisualizarModelos'), original = btn.textContent;
   try {
     btn.disabled = true; btn.textContent = 'Procesando...';
@@ -274,6 +283,7 @@ async function iniciar() {
   $('tipoConsultaMaestros').addEventListener('change', cargarConsultaMaestros);
   $('buscarConsultaMaestros').addEventListener('input', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   $('estadoConsultaModulos').addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
+  $('filtroTipoProductos').addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   for (const id of ['filtroMarcaModelos', 'filtroRubroModelos', 'filtroLicenciaModelos']) $(id).addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   $('btnAnteriorConsultaMaestros').addEventListener('click', () => { paginaConsultaMaestros -= 1; renderConsultaMaestros(); });
   $('btnSiguienteConsultaMaestros').addEventListener('click', () => { paginaConsultaMaestros += 1; renderConsultaMaestros(); });
@@ -298,6 +308,7 @@ async function iniciar() {
   $('formAltaMaestro').addEventListener('submit', guardar);
   window.addEventListener('app:empresa-cambiada', event => {
     event.preventDefault();
+    limpiarAvisoEmpresa();
     vistaPreviaModelos = [];
     consultaMaestros = [];
     paginaConsultaMaestros = 1;
@@ -315,6 +326,7 @@ async function iniciar() {
   ajustarCampos();
   await aplicarPermisosPantallaMaestros();
   if (await esperarEmpresaActiva()) {
+    limpiarAvisoEmpresa();
     await cargarCatalogosModelo();
     await cargar();
     if (!$('panelConsultaMaestros').classList.contains('d-none')) await cargarConsultaMaestros();

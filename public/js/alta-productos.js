@@ -3324,7 +3324,11 @@ async function actualizarImagenesProducto() {
 function puedeModificarImagenes() {
   return [
     'BORRADOR',
-    'VALIDADO'
+    'VALIDADO',
+    'EXPORTADO',
+    'PARCIAL_ERP',
+    'GENERADO_OK_EN_ERP',
+    'SIN_NOVEDADES_ERP'
   ].includes(
     estadoAlta()
   );
@@ -3939,7 +3943,7 @@ async function guardarImagenFamilia(
     !puedeModificarImagenes()
   ) {
     mostrarAlerta(
-      'Las imágenes solamente se pueden modificar en BORRADOR o VALIDADO.',
+      'Las imágenes solamente se pueden modificar mientras el Alta permanezca activa.',
       'warning'
     );
     return;

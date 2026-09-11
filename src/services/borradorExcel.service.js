@@ -1,8 +1,14 @@
 const ExcelJS =
     require('exceljs');
 
+const fs =
+    require('fs/promises');
+
 const altasRepository =
     require('../repositories/altas.repository');
+
+const imagenesAltaService =
+    require('./imagenesAlta.service');
 
 
 function texto(valor) {
@@ -60,91 +66,32 @@ async function cargarImagenModulo(
     alta,
     detalle
 ) {
-
-    const parametros =
-        new URLSearchParams({
-            ano:
-                texto(
-                    alta.CODIGO_ANO
-                ),
-
-            temporada:
-                texto(
-                    alta.CODIGO_TEMPORADA
-                ),
-
-            modelo:
-                texto(
-                    detalle.CODIGO_MODELO
-                ),
-
-            color:
-                texto(
-                    detalle.CODIGO_COLOR
-                )
-        });
-
-
-    const url =
-        `${baseUrl}/api/imagenes/archivo?${parametros.toString()}`;
+    void baseUrl;
 
 
     try {
 
-        const respuesta =
-            await fetch(
-                url,
-                {
-                    headers: {
-                        Accept:
-                            'image/jpeg,image/png'
-                    }
-                }
-            );
+        const encontrada =
+            await imagenesAltaService
+                .buscarImagenProducto(
+                    alta.ID_ALTA,
+                    detalle
+                );
 
-
-        if (
-            !respuesta.ok
-        ) {
+        if (!encontrada) {
             return null;
         }
-
-
-        const contentType =
-            texto(
-                respuesta.headers
-                    .get(
-                        'content-type'
-                    )
-            ).toLowerCase();
-
-
-        if (
-            !contentType.includes(
-                'image/jpeg'
-            ) &&
-            !contentType.includes(
-                'image/png'
-            )
-        ) {
-            return null;
-        }
-
-
-        const arrayBuffer =
-            await respuesta.arrayBuffer();
 
 
         return {
             buffer:
-                Buffer.from(
-                    arrayBuffer
+                await fs.readFile(
+                    encontrada.archivo
                 ),
 
             extension:
-                contentType.includes(
-                    'png'
-                )
+                texto(encontrada.extension)
+                    .toLowerCase() === '.png'
                     ? 'png'
                     : 'jpeg'
         };

@@ -492,14 +492,18 @@ router.post(
             if (
                 ![
                     'BORRADOR',
-                    'VALIDADO'
+                    'VALIDADO',
+                    'EXPORTADO',
+                    'PARCIAL_ERP',
+                    'GENERADO_OK_EN_ERP',
+                    'SIN_NOVEDADES_ERP'
                 ].includes(
                     estadoAlta
                 )
             ) {
                 throw new Error(
                     `Las imágenes solamente se pueden modificar ` +
-                    `cuando el alta está en BORRADOR o VALIDADO. ` +
+                    `mientras el alta permanezca activa. ` +
                     `Estado actual: ${alta.ESTADO}.`
                 );
             }
@@ -536,10 +540,7 @@ router.post(
               del Alta. En BORRADOR permitimos cargar la foto antes
               de agregar el producto.
             */
-            if (
-                estadoAlta ===
-                'VALIDADO'
-            ) {
+            if (estadoAlta !== 'BORRADOR') {
                 const detalle =
                     await altasRepository
                         .obtenerDetalleAlta(

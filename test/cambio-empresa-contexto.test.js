@@ -12,3 +12,11 @@ test('cambiar empresa abandona detalles pertenecientes al contexto anterior', ()
   assert.match(js, /return '\/seguimiento'/);
   assert.match(js, /window\.location\.assign\(destinoSeguro\)/);
 });
+
+test('Maestros acepta la empresa visible y limpia el aviso de selección tardía', () => {
+  const maestros = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
+  assert.match(maestros, /navbarEmpresaSelector/);
+  assert.match(maestros, /maximoMs = 15000/);
+  assert.match(maestros, /function limpiarAvisoEmpresa/);
+  assert.match(maestros, /limpiarAvisoEmpresa\(\)/);
+});

@@ -42,3 +42,26 @@ test('la consulta filtrada se exporta como un Excel válido', () => {
   const filas = XLSX.utils.sheet_to_json(libro.Sheets.COLORES);
   assert.deepEqual(filas, [{ CODIGO_COLOR: '01', DETALLE_COLOR: 'NEGRO' }]);
 });
+
+test('Maestros incorpora productos como consulta de solo lectura por empresa', () => {
+  const vista = fs.readFileSync(path.join(process.cwd(), 'views/altas-maestros/index.hbs'), 'utf8');
+  const js = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
+  const repository = fs.readFileSync(path.join(process.cwd(), 'src/repositories/maestros.repository.js'), 'utf8');
+  const rutas = fs.readFileSync(path.join(process.cwd(), 'src/routes/maestros.routes.js'), 'utf8');
+
+  assert.match(vista, /value="PRODUCTOS">Productos/);
+  assert.match(js, /\/api\/maestros\/consulta\/productos/);
+  assert.match(js, /Código alfa \/ ERP/);
+  assert.match(vista, /id="filtroTipoProductos"/);
+  assert.match(vista, /value="MODULO">Módulos/);
+  assert.match(vista, /value="PAR_SUELTO">Pares sueltos/);
+  assert.match(js, /item\.TIPO_PRODUCTO/);
+  assert.match(js, /loading="lazy"/);
+  assert.match(js, /Sin foto/);
+  assert.match(repository, /A\.CODIGO_TEMPORADA/);
+  assert.match(repository, /FROM dbo\.PRODUCTOS P/);
+  assert.match(repository, /P\.ID_EMPRESA = @ID_EMPRESA/);
+  assert.match(repository, /COALESCE\(D\.TIPO_PRODUCTO_DETALLE, A\.TIPO_PRODUCTO, P\.TIPO_PRODUCTO\) AS TIPO_PRODUCTO/);
+  assert.match(rutas, /"\/consulta\/productos"/);
+  assert.doesNotMatch(vista, /editarProductoMaestro|eliminarProductoMaestro/);
+});

@@ -1,8 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const ExcelJS = require('exceljs');
+const fsPromises = require('fs/promises');
 
 const altasRepository = require('../src/repositories/altas.repository');
+const imagenesAltaService = require('../src/services/imagenesAlta.service');
 const borradorExcelService = require('../src/services/borradorExcel.service');
 
 const encabezadosEsperados = [
@@ -120,7 +122,8 @@ test('el Excel de un Alta BORRADOR PAR SUELTO incorpora el producto y su imagen'
     obtenerAltaPorId: altasRepository.obtenerAltaPorId,
     obtenerDetalleAlta: altasRepository.obtenerDetalleAlta,
     buscarAno: altasRepository.buscarAno,
-    fetch: global.fetch,
+    buscarImagenProducto: imagenesAltaService.buscarImagenProducto,
+    readFile: fsPromises.readFile,
   };
 
   altasRepository.obtenerAltaPorId = async () => ({
@@ -149,11 +152,11 @@ test('el Excel de un Alta BORRADOR PAR SUELTO incorpora el producto y su imagen'
     'base64'
   );
 
-  global.fetch = async () => ({
-    ok: true,
-    headers: { get: () => 'image/png' },
-    arrayBuffer: async () => png,
+  imagenesAltaService.buscarImagenProducto = async () => ({
+    archivo: 'imagen-prueba.png',
+    extension: '.png',
   });
+  fsPromises.readFile = async () => png;
 
   try {
     const resultado = await borradorExcelService.generarBorradorExcel(
@@ -173,6 +176,7 @@ test('el Excel de un Alta BORRADOR PAR SUELTO incorpora el producto y su imagen'
     altasRepository.obtenerAltaPorId = originales.obtenerAltaPorId;
     altasRepository.obtenerDetalleAlta = originales.obtenerDetalleAlta;
     altasRepository.buscarAno = originales.buscarAno;
-    global.fetch = originales.fetch;
+    imagenesAltaService.buscarImagenProducto = originales.buscarImagenProducto;
+    fsPromises.readFile = originales.readFile;
   }
 });

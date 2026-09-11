@@ -32,3 +32,20 @@ test('el recuadro permite arrastrar una imagen y reutiliza el guardado automáti
   );
   assert.match(fuente, /data-imagen-editable="\$\{editable \? 'true' : 'false'\}"/);
 });
+
+test('un Alta cerrada en ERP permite reponer imágenes sin reabrir sus productos', () => {
+  const frontend = fs.readFileSync(
+    path.resolve(__dirname, '../public/js/alta-productos.js'),
+    'utf8'
+  );
+  const backend = fs.readFileSync(
+    path.resolve(__dirname, '../src/routes/imagenes.routes.js'),
+    'utf8'
+  );
+
+  for (const estado of ['GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP']) {
+    assert.match(frontend, new RegExp(`'${estado}'`));
+    assert.match(backend, new RegExp(`'${estado}'`));
+  }
+  assert.match(backend, /if \(estadoAlta !== 'BORRADOR'\)/);
+});

@@ -205,6 +205,26 @@ router.get(
   )
 );
 
+router.get(
+  "/consulta/productos",
+  ...crearRutaSimple(
+    maestrosService.consultarProductos
+  )
+);
+
+router.get('/consulta/productos/exportar', requerirEmpresa, async (req, res) => {
+  try {
+    const filas = await maestrosService.consultarProductos({
+      idEmpresa: req.idEmpresa,
+      acceso: req.accesoEmpresa
+    });
+    const archivo = maestrosService.exportarConsultaMaestros('PRODUCTOS', filas);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="MAESTRO_PRODUCTOS.xlsx"');
+    res.send(archivo);
+  } catch (error) { responderError(res, error); }
+});
+
 router.post('/consulta/exportar', requerirEmpresa, (req, res) => {
   try {
     const archivo = maestrosService.exportarConsultaMaestros(req.body?.tipo, req.body?.filas);

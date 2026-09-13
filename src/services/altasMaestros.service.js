@@ -422,6 +422,19 @@ async function enviarPresea({ idEmpresa, usuario }) {
   return { archivos, registros: datos.registros.length, rutaDestino };
 }
 
+async function listarReglasEan(idEmpresa) { return repository.listarReglasEan(idEmpresa); }
+async function guardarReglaEan({ idEmpresa, usuario, cuerpo }) {
+  const marca = normalizar(cuerpo.marca), rubro = normalizar(cuerpo.rubro);
+  const licencia = normalizarLicencia(cuerpo.licencia) === 'SIN LICENCIA' ? '' : normalizar(cuerpo.licencia);
+  if (!marca || !rubro) throw new Error('Debe seleccionar marca y rubro.');
+  return repository.guardarReglaEan({ idEmpresa, marca, rubro, licencia, requiereEan: cuerpo.requiereEan !== false, usuario: usuario || 'SISTEMA' });
+}
+async function eliminarReglaEan({ idEmpresa, idRegla, usuario }) {
+  const registro = await repository.eliminarReglaEan(idEmpresa, Number(idRegla), usuario || 'SISTEMA');
+  if (!registro) throw new Error('La regla no existe o ya fue eliminada.');
+  return registro;
+}
+
 function etiquetasTallesModuloExport(campo) { return etiquetasTallesModulo[campo] || campo; }
 
-module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport };
+module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarReglaEan, eliminarReglaEan };

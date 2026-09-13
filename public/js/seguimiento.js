@@ -403,11 +403,13 @@ function pintarFilaEan(producto, { resumenFamilia = '', boton = '', claseFila = 
     const etiqueta = estadoEan === 'PENDIENTE_GS1' ? 'GESTIONAR EN GS1'
       : estadoEan === 'EAN_ASIGNADO' ? 'EAN ASIGNADO'
       : estadoEan === 'PENDIENTE_ERP' ? 'ENVIADO · PENDIENTE ERP'
-      : estadoEan === 'CONFIRMADO_ERP' ? 'CONFIRMADO EN ERP' : 'SIN EAN';
+      : estadoEan === 'CONFIRMADO_ERP' ? 'CONFIRMADO EN ERP'
+      : estadoEan === 'NO_REQUERIDO' ? 'EAN NO REQUERIDO' : 'SIN EAN';
     const clase = estadoEan === 'PENDIENTE_GS1' ? 'text-bg-warning'
       : estadoEan === 'EAN_ASIGNADO' ? 'text-bg-info'
       : estadoEan === 'PENDIENTE_ERP' ? 'text-bg-warning'
-      : estadoEan === 'CONFIRMADO_ERP' ? 'text-bg-success' : 'text-bg-danger';
+      : estadoEan === 'CONFIRMADO_ERP' ? 'text-bg-success'
+      : estadoEan === 'NO_REQUERIDO' ? 'text-bg-secondary' : 'text-bg-danger';
     const estadoUrl = producto.URL_IMAGEN_GS1
       ? '<span class="badge seguimiento-ean-url-badge">URL GS1 ASOCIADA</span>'
       : '<span class="badge seguimiento-ean-url-pending">URL PENDIENTE</span>';
@@ -415,7 +417,7 @@ function pintarFilaEan(producto, { resumenFamilia = '', boton = '', claseFila = 
     const claves = clavesSeleccion || [claveProductoEan(producto)];
     const checked = claves.every(clave => seleccionEan.has(clave));
     return `<tr class="${claseFila}">
-      <td><div class="seguimiento-ean-image-cell"><input class="form-check-input seguimiento-ean-check" type="checkbox" data-ean-selection="${escapar(claves.join(';;'))}" ${checked ? 'checked' : ''} aria-label="Seleccionar ${escapar(producto.COD_ALFA)}"><img class="seguimiento-ean-image" src="${escapar(producto.URL_IMAGEN)}" alt="" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')"><span class="seguimiento-ean-no-image d-none">Sin foto</span></div></td>
+      <td><div class="seguimiento-ean-image-cell"><input class="form-check-input seguimiento-ean-check" type="checkbox" data-ean-selection="${escapar(claves.join(';;'))}" ${checked ? 'checked' : ''} ${estadoEan === 'NO_REQUERIDO' ? 'disabled' : ''} aria-label="Seleccionar ${escapar(producto.COD_ALFA)}"><img class="seguimiento-ean-image" src="${escapar(producto.URL_IMAGEN)}" alt="" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')"><span class="seguimiento-ean-no-image d-none">Sin foto</span></div></td>
       <td><strong>${prefijo ? `<span class="seguimiento-ean-child-label">${prefijo}</span> ` : ''}${escapar(producto.COD_ALFA || '-')}</strong><div class="small text-secondary">ERP ${escapar(producto.CODIGO_ERP || '-')}</div>${resumenFamilia}</td>
       <td><strong>${escapar(producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-')}</strong><div class="small text-secondary">${escapar(producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-')}</div></td>
       <td>${escapar(producto.TALLE_CURVA || '-')}</td>

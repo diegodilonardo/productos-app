@@ -402,7 +402,7 @@ async function listarSeguimientoEan({ idEmpresa, acceso }) {
                 ...fila,
                 LICENCIA_ALTA: normalizarLicencia(fila.LICENCIA_ALTA),
                 EAN_MOSTRADO: fila.EAN_GS1 || fila.EAN_ERP,
-                ESTADO_EAN: fila.EAN_GS1
+                ESTADO_EAN: (fila.REQUIERE_EAN === false || fila.REQUIERE_EAN === 0) ? 'NO_REQUERIDO' : fila.EAN_GS1
                     ? (String(fila.EAN_ERP || '').trim() === String(fila.EAN_GS1).trim()
                         ? 'CONFIRMADO_ERP'
                         : (fila.FECHA_ENVIO_PRESEA ? 'PENDIENTE_ERP' : 'EAN_ASIGNADO'))

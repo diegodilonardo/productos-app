@@ -128,4 +128,40 @@ async function marcarEnviados(idEmpresa, ids, archivos, usuario) {
     SELECT TRY_CONVERT(INT,value),'PENDIENTE_ENVIO','ENVIADO_PRESEA','DBI enviado a la carpeta configurada',@USUARIO FROM STRING_SPLIT(@IDS,',');`);
 }
 
-module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados };
+async function listarReglasEan(idEmpresa) {
+  const pool = await getConnection();
+  const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+    SELECT ID_REGLA_EAN, MARCA, RUBRO, LICENCIA, REQUIERE_EAN, USUARIO_ACTUALIZACION, FECHA_ACTUALIZACION
+    FROM dbo.REGLAS_REQUERIMIENTO_EAN WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
+    ORDER BY MARCA,RUBRO,LICENCIA;`);
+  return r.recordset;
+}
+
+async function guardarReglaEan(datos) {
+  const pool = await getConnection();
+  const r = await pool.request()
+    .input('ID_EMPRESA', sql.Int, datos.idEmpresa)
+    .input('MARCA', sql.VarChar(50), datos.marca)
+    .input('RUBRO', sql.VarChar(50), datos.rubro)
+    .input('LICENCIA', sql.VarChar(50), datos.licencia)
+    .input('REQUIERE_EAN', sql.Bit, datos.requiereEan)
+    .input('USUARIO', sql.VarChar(100), datos.usuario).query(`
+      MERGE dbo.REGLAS_REQUERIMIENTO_EAN AS T
+      USING (SELECT @ID_EMPRESA ID_EMPRESA,@MARCA MARCA,@RUBRO RUBRO,@LICENCIA LICENCIA) AS S
+      ON T.ID_EMPRESA=S.ID_EMPRESA AND T.MARCA=S.MARCA AND T.RUBRO=S.RUBRO AND T.LICENCIA=S.LICENCIA
+      WHEN MATCHED THEN UPDATE SET REQUIERE_EAN=@REQUIERE_EAN,ACTIVO=1,USUARIO_ACTUALIZACION=@USUARIO,FECHA_ACTUALIZACION=SYSDATETIME()
+      WHEN NOT MATCHED THEN INSERT(ID_EMPRESA,MARCA,RUBRO,LICENCIA,REQUIERE_EAN,USUARIO_ACTUALIZACION)
+        VALUES(@ID_EMPRESA,@MARCA,@RUBRO,@LICENCIA,@REQUIERE_EAN,@USUARIO)
+      OUTPUT INSERTED.*;`);
+  return r.recordset[0];
+}
+
+async function eliminarReglaEan(idEmpresa, idRegla, usuario) {
+  const pool = await getConnection();
+  const r = await pool.request().input('ID_EMPRESA',sql.Int,idEmpresa).input('ID',sql.Int,idRegla).input('USUARIO',sql.VarChar(100),usuario).query(`
+    UPDATE dbo.REGLAS_REQUERIMIENTO_EAN SET ACTIVO=0,USUARIO_ACTUALIZACION=@USUARIO,FECHA_ACTUALIZACION=SYSDATETIME()
+    OUTPUT INSERTED.* WHERE ID_EMPRESA=@ID_EMPRESA AND ID_REGLA_EAN=@ID AND ACTIVO=1;`);
+  return r.recordset[0] || null;
+}
+
+module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, guardarReglaEan, eliminarReglaEan };

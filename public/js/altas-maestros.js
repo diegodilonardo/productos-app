@@ -4,6 +4,7 @@ let vistaPreviaModelos = [];
 let consultaMaestros = [];
 let paginaConsultaMaestros = 1;
 let solicitudMaestroPorConfirmar = null;
+let puedeAdministrarEan = false;
 const filasPorPaginaConsulta = 25;
 function idEmpresa() { return Number(sessionStorage.getItem('app.idEmpresa') || sessionStorage.getItem('pedidos.idEmpresa') || document.getElementById('navbarEmpresaSelector')?.value); }
 function empresaValida() { const id = idEmpresa(); return Number.isInteger(id) && id > 0 ? id : null; }
@@ -160,6 +161,8 @@ async function aplicarPermisosPantallaMaestros() {
     const usuario = datos.usuario || {};
     const accesoActivo = (usuario.empresas || []).find(x => Number(x.idEmpresa) === empresaValida());
     const puedeEscribir = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN','OPERADOR'].includes(String(accesoActivo?.rol || '').toUpperCase());
+    puedeAdministrarEan = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN'].includes(String(accesoActivo?.rol || '').toUpperCase());
+    $('formReglaEan')?.classList.toggle('d-none', !puedeAdministrarEan);
     $('tabAltasMaestros').classList.toggle('d-none', !puedeEscribir);
     if (!puedeEscribir) cambiarPanelMaestros('consulta');
   } catch (_) {}
@@ -169,6 +172,8 @@ async function cargarCatalogosModelo() {
   const [marcas, rubros, proveedores, disciplinas] = await Promise.all([api('/api/maestros/marcas'), api('/api/maestros/rubros'), api('/api/maestros/proveedores'), api('/api/maestros/deportes')]);
   $('marcaModelo').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca...');
   $('rubroModelo').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Seleccione rubro...');
+  $('marcaReglaEan').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca...');
+  $('rubroReglaEan').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Seleccione rubro...');
   const proveedoresPresea = proveedores.datos.map(x => ({
     codigo: String(x.CODIGO || '').trim().toUpperCase(),
     nombre: String(x.NVA_RAZON_SOCIAL || '').trim()
@@ -185,6 +190,18 @@ async function cargarCatalogosModelo() {
   ajustarDisciplina();
   ajustarDisciplinaMasiva();
 }
+
+async function cargarLicenciasReglaEan() {
+  const marca=$('marcaReglaEan').value, rubro=$('rubroReglaEan').value, select=$('licenciaReglaEan');
+  if(!marca||!rubro){select.disabled=true;select.innerHTML='<option value="">Sin licencia</option>';return;}
+  const d=await api(`/api/maestros/licencias-modelos?marca=${encodeURIComponent(marca)}&rubro=${encodeURIComponent(rubro)}`);
+  const filas=Array.isArray(d.datos)?d.datos:[];
+  select.innerHTML='<option value="">Sin licencia</option>'+filas.filter(x=>x.CODIGO_LICENCIA!=='__SIN_LICENCIA__').map(x=>`<option value="${textoSeguro(x.DETALLE_LICENCIA||x.CODIGO_LICENCIA)}">${textoSeguro(x.DETALLE_LICENCIA||x.CODIGO_LICENCIA)}</option>`).join('');
+  select.disabled=false;
+}
+async function cargarReglasEan(){try{const d=await api('/api/altas-maestros/reglas-ean');$('tablaReglasEan').innerHTML=(d.datos||[]).map(x=>`<tr><td>${textoSeguro(x.MARCA)}</td><td>${textoSeguro(x.RUBRO)}</td><td>${textoSeguro(x.LICENCIA||'Sin licencia')}</td><td><span class="badge ${x.REQUIERE_EAN?'text-bg-success':'text-bg-secondary'}">${x.REQUIERE_EAN?'REQUIERE EAN':'EAN NO REQUERIDO'}</span></td><td><div>${textoSeguro(x.USUARIO_ACTUALIZACION)}</div><small class="text-secondary">${textoSeguro(new Date(x.FECHA_ACTUALIZACION).toLocaleString('es-AR'))}</small></td><td>${puedeAdministrarEan?`<button class="btn btn-sm btn-outline-danger" data-eliminar-regla-ean="${x.ID_REGLA_EAN}">Eliminar</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="text-center text-secondary">No hay excepciones configuradas. Todos los productos requieren EAN.</td></tr>';}catch(e){alerta(e.message,'danger');}}
+async function guardarReglaEan(){try{await api('/api/altas-maestros/reglas-ean',{method:'POST',body:JSON.stringify({marca:$('marcaReglaEan').value,rubro:$('rubroReglaEan').value,licencia:$('licenciaReglaEan').value,requiereEan:$('requiereReglaEan').value==='true'})});alerta('Regla de EAN guardada correctamente.','success');await cargarReglasEan();}catch(e){alerta(e.message,'danger');}}
+async function eliminarReglaEan(event){const boton=event.target.closest('[data-eliminar-regla-ean]');if(!boton||!confirm('¿Eliminar esta regla? La combinación volverá a requerir EAN por defecto.'))return;try{await api(`/api/altas-maestros/reglas-ean/${boton.dataset.eliminarReglaEan}`,{method:'DELETE'});await cargarReglasEan();}catch(e){alerta(e.message,'danger');}}
 async function cargarLicencias() {
   const marca = $('marcaModelo').value, rubro = $('rubroModelo').value;
   $('codigoMaestro').value = '';
@@ -435,6 +452,10 @@ async function descargarVistaPreviaModelos() {
   finally { btn.disabled = false; btn.textContent = original; }
 }
 async function iniciar() {
+  $('marcaReglaEan').addEventListener('change',cargarLicenciasReglaEan);
+  $('rubroReglaEan').addEventListener('change',cargarLicenciasReglaEan);
+  $('btnGuardarReglaEan').addEventListener('click',guardarReglaEan);
+  $('tablaReglasEan').addEventListener('click',eliminarReglaEan);
   $('tabAltasMaestros').addEventListener('click', () => cambiarPanelMaestros('altas'));
   $('tabConsultaMaestros').addEventListener('click', () => cambiarPanelMaestros('consulta'));
   $('tipoConsultaMaestros').addEventListener('change', cargarConsultaMaestros);
@@ -479,6 +500,7 @@ async function iniciar() {
       .then(() => Promise.all([
         cargarCatalogosModelo(),
         cargar(),
+        cargarReglasEan(),
         $('panelConsultaMaestros').classList.contains('d-none') ? Promise.resolve() : cargarConsultaMaestros()
       ]))
       .catch(e => alerta(e.message, 'danger'));
@@ -490,6 +512,7 @@ async function iniciar() {
     limpiarAvisoEmpresa();
     await cargarCatalogosModelo();
     await cargar();
+    await cargarReglasEan();
     if (!$('panelConsultaMaestros').classList.contains('d-none')) await cargarConsultaMaestros();
   }
   else alerta('Debe seleccionar una empresa desde la barra superior.', 'danger');

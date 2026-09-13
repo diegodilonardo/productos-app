@@ -1,6 +1,6 @@
 const express = require('express');
 const service = require('../services/altasMaestros.service');
-const { requerirAutenticacion, requerirEmpresa, requerirEscrituraEmpresa } = require('../middlewares/auth.middleware');
+const { requerirAutenticacion, requerirEmpresa, requerirEscrituraEmpresa, requerirAdminUsuarios } = require('../middlewares/auth.middleware');
 const router = express.Router();
 
 router.use(requerirAutenticacion, requerirEmpresa);
@@ -69,6 +69,18 @@ router.post('/modelos/descargar-vista-previa', requerirEscrituraEmpresa, async (
 router.post('/enviar-presea', requerirEscrituraEmpresa, async (req, res) => {
   try { res.json({ ok: true, ...(await service.enviarPresea({ idEmpresa: req.idEmpresa, usuario: req.session?.usuario?.usuario })) }); }
   catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }
+});
+router.get('/reglas-ean', async (req,res) => {
+  try { res.json({ok:true,datos:await service.listarReglasEan(req.idEmpresa)}); }
+  catch(e){ res.status(e.status||500).json({ok:false,mensaje:e.message}); }
+});
+router.post('/reglas-ean', requerirAdminUsuarios, async (req,res) => {
+  try { res.json({ok:true,registro:await service.guardarReglaEan({idEmpresa:req.idEmpresa,usuario:req.session?.usuario?.usuario,cuerpo:req.body||{}})}); }
+  catch(e){ res.status(e.status||500).json({ok:false,mensaje:e.message}); }
+});
+router.delete('/reglas-ean/:id', requerirAdminUsuarios, async (req,res) => {
+  try { res.json({ok:true,registro:await service.eliminarReglaEan({idEmpresa:req.idEmpresa,idRegla:req.params.id,usuario:req.session?.usuario?.usuario})}); }
+  catch(e){ res.status(e.status||500).json({ok:false,mensaje:e.message}); }
 });
 
 module.exports = router;

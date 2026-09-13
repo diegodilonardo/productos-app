@@ -103,6 +103,17 @@
 <div id="alertaAltasMaestros" class="alert d-none"></div>
 <div id="panelGestionMaestros">
   <div class="card shadow-sm mb-4"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3"><div><h2 class="h5 mb-1">Reglas de EAN</h2><p class="text-secondary mb-0">Definí si una combinación de marca, rubro y licencia requiere gestión de EAN.</p></div><span class="badge text-bg-light border">Por defecto: requiere EAN</span></div>
+    <div id="formReglaEan" class="row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label" for="marcaReglaEan">Marca</label><select id="marcaReglaEan" class="form-select"><option value="">Seleccione...</option></select></div>
+      <div class="col-md-3"><label class="form-label" for="rubroReglaEan">Rubro</label><select id="rubroReglaEan" class="form-select"><option value="">Seleccione...</option></select></div>
+      <div class="col-md-3"><label class="form-label" for="licenciaReglaEan">Licencia</label><select id="licenciaReglaEan" class="form-select" disabled><option value="">Sin licencia</option></select></div>
+      <div class="col-md-2"><label class="form-label" for="requiereReglaEan">Gestión EAN</label><select id="requiereReglaEan" class="form-select"><option value="true">Requiere EAN</option><option value="false">No requiere EAN</option></select></div>
+      <div class="col-md-1"><button id="btnGuardarReglaEan" class="btn btn-primary w-100" type="button">Guardar</button></div>
+    </div>
+    <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0"><thead><tr><th>Marca</th><th>Rubro</th><th>Licencia</th><th>Estado</th><th>Actualización</th><th></th></tr></thead><tbody id="tablaReglasEan"><tr><td colspan="6" class="text-center text-secondary">Cargando...</td></tr></tbody></table></div>
+  </div></div>
+  <div class="card shadow-sm mb-4"><div class="card-body">
       <div
         class="d-flex flex-wrap justify-content-between align-items-start gap-3"
       ><div><h2 class="h5 mb-1">Carga masiva de modelos</h2><p

@@ -81,6 +81,32 @@ async function crear(datos) {
   return r.recordset[0];
 }
 
+async function anularPendiente(idEmpresa, idAltaMaestro, usuario) {
+  const pool = await getConnection();
+  const r = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('ID_ALTA_MAESTRO', sql.Int, idAltaMaestro)
+    .input('USUARIO', sql.VarChar(100), usuario)
+    .query(`
+      DECLARE @ANULADOS TABLE (ID_ALTA_MAESTRO INT, TIPO VARCHAR(20), CODIGO VARCHAR(20), NOMBRE VARCHAR(100));
+
+      UPDATE dbo.ALTAS_MAESTROS
+      SET ESTADO='ANULADO'
+      OUTPUT INSERTED.ID_ALTA_MAESTRO, INSERTED.TIPO, INSERTED.CODIGO, INSERTED.NOMBRE
+        INTO @ANULADOS(ID_ALTA_MAESTRO,TIPO,CODIGO,NOMBRE)
+      WHERE ID_EMPRESA=@ID_EMPRESA
+        AND ID_ALTA_MAESTRO=@ID_ALTA_MAESTRO
+        AND ESTADO='PENDIENTE_ENVIO';
+
+      INSERT dbo.ALTAS_MAESTROS_HISTORIAL
+        (ID_ALTA_MAESTRO,ESTADO_ANTERIOR,ESTADO_NUEVO,OBSERVACION,USUARIO)
+      SELECT ID_ALTA_MAESTRO,'PENDIENTE_ENVIO','ANULADO','Solicitud eliminada antes de su envío a Presea',@USUARIO
+      FROM @ANULADOS;
+
+      SELECT * FROM @ANULADOS;`);
+  return r.recordset[0] || null;
+}
+
 async function obtenerPendientesYConfiguracion(idEmpresa) {
   const pool = await getConnection();
   const [pendientes, configuracion] = await Promise.all([
@@ -102,4 +128,4 @@ async function marcarEnviados(idEmpresa, ids, archivos, usuario) {
     SELECT TRY_CONVERT(INT,value),'PENDIENTE_ENVIO','ENVIADO_PRESEA','DBI enviado a la carpeta configurada',@USUARIO FROM STRING_SPLIT(@IDS,',');`);
 }
 
-module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, crear, obtenerPendientesYConfiguracion, marcarEnviados };
+module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados };

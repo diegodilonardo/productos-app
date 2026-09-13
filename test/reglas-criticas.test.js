@@ -1,11 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const altasService = require('../src/services/altas.service');
 const pedidosService = require('../src/services/pedidos.service');
 const exportacionRepository = require('../src/repositories/exportacion.repository');
 
-const { validarEdadSexoClasificacion } = altasService._internals;
+const { validarEdadSexoClasificacion, clasificacionesPorCurva } = altasService._internals;
 const {
   calcularCantidadesPedido,
   evaluarDestinosExportacionPedido,
@@ -46,6 +48,29 @@ test('BABY, JUNIOR, KIDS, TEEN y YOUTH aplican su clasificación', () => {
   for (const [edad, sexo, clasificacion] of casos) {
     assert.doesNotThrow(() => validarClasificacion(edad, sexo, clasificacion));
   }
+});
+
+test('las curvas conocidas sugieren por defecto su tipo de módulo', () => {
+  const frontend = fs.readFileSync(path.join(__dirname, '../public/js/alta-productos.js'), 'utf8');
+  const reglas = {
+    '21-34': 'MOD.KIDS', '24-30': 'MOD.KIDS',
+    '31-37': 'MOD.YOUTH', '33-37': 'MOD.YOUTH',
+    '21-27': 'MOD.BABY', '22-27': 'MOD.BABY',
+    '29-34': 'MOD.JUNIOR', '27-32': 'MOD.JUNIOR', '28-34': 'MOD.JUNIOR',
+    '35-40': 'MOD.MUJER',
+    '40-45': 'MOD.HOMBRE', '38-43': 'MOD.HOMBRE', '40-43': 'MOD.HOMBRE',
+  };
+  for (const [rango, clasificacion] of Object.entries(reglas)) {
+    assert.match(frontend, new RegExp(`'${rango}': \\[\\s*'${clasificacion.replace('.', '\\.')}`));
+  }
+  assert.match(frontend, /renderizarModulosSeleccionados[\s\S]*aplicarClasificacionSugeridaPorCurvas\(\)/);
+});
+
+test('el backend determina la clasificación de cada curva sin depender de Edad', () => {
+  assert.deepEqual(clasificacionesPorCurva({ DESCRIPCION_CURVA:'35 AL 40 X 12' }), ['MOD.MUJER', 'MOD.MUJ']);
+  assert.deepEqual(clasificacionesPorCurva({ DETALLE_MODULO:'40 al 45 (4,5,2,1)' }), ['MOD.HOMBRE', 'MOD.HOM']);
+  assert.deepEqual(clasificacionesPorCurva({ DESCRIPCION_CURVA:'21/22/23/24/25/26/27' }), ['MOD.BABY', 'MOD.BB']);
+  assert.equal(clasificacionesPorCurva({ DESCRIPCION_CURVA:'36 AL 41' }), null);
 });
 
 test('una combinación Edad/Sexo desconocida queda bloqueada', () => {

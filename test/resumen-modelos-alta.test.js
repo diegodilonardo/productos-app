@@ -65,15 +65,58 @@ test('nuevo pedido expone el boton y el resumen visual de modelos', () => {
   assert.match(cliente, /\/resumen-modelos/);
 });
 
-test('nuevo pedido permite sugerir Altas por temporada, año y rubro', () => {
+test('el resumen del nuevo pedido lista todos los productos de las Altas seleccionadas', async () => {
+  const obtenerAltaOriginal = pedidosRepository.obtenerAltaDisponiblePorId;
+  const obtenerProductosOriginal = pedidosRepository.obtenerResumenProductosAltas;
+  pedidosRepository.obtenerAltaDisponiblePorId = async id => ({
+    ID_ALTA: Number(id), ID_EMPRESA: 1, CODIGO_MARCA: '1', CODIGO_RUBRO: '1',
+    LICENCIA_ALTA: 'SIN LICENCIA', TIPO_PRODUCTO: 'MODULO', ESTADO: 'GENERADO_OK_EN_ERP'
+  });
+  pedidosRepository.obtenerResumenProductosAltas = async ids => ids.map(id => ({
+    ID_ALTA: id, CODIGO_ALTA: `ALT-${id}`, DETALLE_PRODUCTO: `PRODUCTO ${id}`,
+    TIPO_PRODUCTO_DETALLE: 'MODULO', DETALLE_MODULO: '35 AL 40', PARES: 12
+  }));
+  try {
+    const resultado = await pedidosService.obtenerResumenProductosAltas([10, 11], 1, accesoTotal);
+    assert.deepEqual(resultado.map(x => x.ID_ALTA), [10, 11]);
+    assert.equal(resultado[0].TALLE_CURVA, '35 AL 40');
+    assert.equal(resultado[0].CANTIDAD_REFERENCIA, 12);
+  } finally {
+    pedidosRepository.obtenerAltaDisponiblePorId = obtenerAltaOriginal;
+    pedidosRepository.obtenerResumenProductosAltas = obtenerProductosOriginal;
+  }
+
+  const vista = fs.readFileSync(path.join(__dirname, '../views/pedidos/nuevo.hbs'), 'utf8');
+  const cliente = fs.readFileSync(path.join(__dirname, '../public/js/pedido-nuevo.js'), 'utf8');
+  const rutas = fs.readFileSync(path.join(__dirname, '../src/routes/pedidos.routes.js'), 'utf8');
+  const repository = fs.readFileSync(path.join(__dirname, '../src/repositories/pedidos.repository.js'), 'utf8');
+  assert.match(vista, /id="modalProductosSeleccionados"/);
+  assert.match(vista, /id="verProductosSeleccionados"/);
+  assert.match(vista, /id="tablaProductosSeleccionados"/);
+  assert.match(cliente, /function cargarResumenProductosAltas/);
+  assert.match(cliente, /function mostrarProductosSeleccionados/);
+  assert.match(cliente, /\/api\/pedidos\/altas\/resumen-productos/);
+  assert.match(cliente, /DETALLE_PROVEEDOR/);
+  assert.match(rutas, /\/altas\/resumen-productos/);
+  assert.match(repository, /P\.ID_PRODUCTO[\s\S]*INNER JOIN dbo\.PRODUCTOS P[\s\S]*P\.CODIGO_ALFA=D\.CODIGO_ALFA/);
+  assert.doesNotMatch(repository, /D\.ID_PRODUCTO, D\.CODIGO_ALFA/);
+});
+
+test('nuevo pedido permite filtrar Altas por temporada, año, rubro y proveedor', () => {
   const vista = fs.readFileSync(path.join(__dirname, '../views/pedidos/nuevo.hbs'), 'utf8');
   const cliente = fs.readFileSync(path.join(__dirname, '../public/js/pedido-nuevo.js'), 'utf8');
 
   assert.match(vista, /id="filtroTemporadaAlta"/);
   assert.match(vista, /id="filtroAnoAlta"/);
   assert.match(vista, /id="filtroRubroAlta"/);
+  assert.match(vista, /id="filtroProveedorAlta"/);
+  assert.match(vista, /value="ARS">Pesos \(ARS\)/);
   assert.match(vista, /id="limpiarFiltrosAltas"/);
   assert.match(cliente, /function obtenerAltasFiltradas/);
   assert.match(cliente, /function renderizarAltasFiltradas/);
+  assert.match(cliente, /function aplicarFiltrosAltas/);
+  assert.match(cliente, /idsAltasSeleccionadas = new Set\([\s\S]*idsVisibles\.has/);
   assert.match(cliente, /idsAltasSeleccionadas\.has/);
+  assert.match(cliente, /function proveedoresDelAlta/);
+  assert.match(cliente, /proveedoresDelAlta\(alta\)\.some/);
 });

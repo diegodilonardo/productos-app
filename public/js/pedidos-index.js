@@ -20,6 +20,7 @@ async function iniciarPedidos() {
   document.getElementById('selectorEmpresaPedido')?.addEventListener('change', cambiarEmpresaPedido);
   document.getElementById('btnVistaTarjetasPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tarjetas'));
   document.getElementById('btnVistaTablaPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tabla'));
+  document.getElementById('tarjetasPedidos')?.addEventListener('click', descargarPurchaseOrderTarjeta);
   aplicarVistaPedidos(vistaPedidos);
 
   try {
@@ -310,9 +311,47 @@ function pintarTarjetas(lista) {
       <div class="pedido-summary-provider"><strong>${esc(p.DETALLE_PROVEEDOR || '-')}</strong><span>${esc(p.CODIGO_PROVEEDOR || '')} · Orden ${esc(p.NUMERO_ORDEN || '-')}</span></div>
       <div class="pedido-summary-meta"><div><span>Rubro</span><strong>${esc(p.DETALLE_RUBRO || p.CODIGO_RUBRO || '-')}</strong></div><div><span>Año / Temporada</span><strong>${esc(p.CODIGO_ANO || '-')} · ${esc(p.DETALLE_TEMPORADA || p.CODIGO_TEMPORADA || '-')}</strong></div><div><span>Productos</span><strong>${num(p.CANTIDAD_PRODUCTOS)}</strong></div><div class="pedido-summary-emphasis"><span>Pares</span><strong>${num(p.TOTAL_PARES)}</strong></div><div class="pedido-summary-emphasis"><span>Total</span><strong>${esc(p.MONEDA || 'USD')} ${dinero(p.TOTAL_PEDIDO)}</strong></div><div><span>Exportación</span>${badgeExportacion(p)}</div></div>
       ${est === 'ANULADO' && p.MOTIVO_ANULACION ? `<div class="pedido-summary-cancel">${esc(p.MOTIVO_ANULACION)}</div>` : ''}
-      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div>
+      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><div class="d-flex flex-wrap gap-2">${['BORRADOR','VALIDADO'].includes(est)?`<button class="btn btn-sm btn-outline-success" type="button" data-purchase-order="${esc(p.ID_PEDIDO)}">Purchase Order</button>`:''}<a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div></div>
     </article>`;
   }).join('');
+}
+
+async function descargarPurchaseOrderTarjeta(event) {
+  const boton = event.target.closest('[data-purchase-order]');
+  if (!boton) return;
+  const idPedido = boton.dataset.purchaseOrder;
+  const textoOriginal = boton.textContent;
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Generando...';
+    const respuesta = await fetch(
+      `/api/pedidos/${encodeURIComponent(idPedido)}/exportacion/purchase-order`,
+      opcionesEmpresa()
+    );
+    if (!respuesta.ok) {
+      let mensaje = `Error HTTP ${respuesta.status}`;
+      try { mensaje = (await respuesta.json())?.mensaje || mensaje; } catch {}
+      throw new Error(mensaje);
+    }
+    const blob = await respuesta.blob();
+    const disposicion = respuesta.headers.get('Content-Disposition') || '';
+    const coincidencia = disposicion.match(/filename="?([^";]+)"?/i);
+    const nombre = coincidencia?.[1] || `PURCHASE_ORDER_${idPedido}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    mostrarAlerta(`Purchase Order generada: ${nombre}`, 'success');
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
 }
 
 function pintarTabla(lista) {

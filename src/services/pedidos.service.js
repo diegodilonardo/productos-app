@@ -1,9 +1,12 @@
 const pedidosRepository = require('../repositories/pedidos.repository');
 const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const iconv = require('iconv-lite');
 const fs = require('fs');
 const path = require('path');
 const ftpService = require('./ftp.service');
+const purchaseOrderService = require('./purchaseOrder.service');
+const imagenesAltaService = require('./imagenesAlta.service');
 
 const ESTADOS_ALTAS_HABILITADOS_PEDIDOS = Object.freeze([
   'GENERADO_OK_EN_ERP',
@@ -381,6 +384,24 @@ async function obtenerProductosDisponiblesPorAltas(idsAltas, codigoProveedor, id
   });
 }
 
+async function obtenerResumenProductosAltas(idsAltas, idEmpresa, accesoEmpresa) {
+  const altas = await validarAltasDisponibles(idsAltas, idEmpresa, accesoEmpresa);
+  const productos = await pedidosRepository.obtenerResumenProductosAltas(
+    altas.map(alta => alta.ID_ALTA),
+    validarIdEmpresa(idEmpresa)
+  );
+  return productos.map(producto => {
+    const tipo = normalizarTipoProducto(producto.TIPO_PRODUCTO_DETALLE);
+    return {
+      ...producto,
+      TIPO_PRODUCTO_DETALLE: tipo,
+      TALLE_CURVA: tipo === 'MODULO' ? texto(producto.DETALLE_MODULO) : texto(producto.DETALLE_TALLE),
+      CANTIDAD_REFERENCIA: tipo === 'MODULO' ? Number(producto.PARES || 0) : 1,
+      UNIDAD_REFERENCIA: tipo === 'MODULO' ? 'PARES' : 'UNIDAD'
+    };
+  });
+}
+
 async function obtenerResumenModelosAlta(idAlta, idEmpresa, accesoEmpresa) {
   const alta = await validarAltaDisponible(idAlta, idEmpresa, accesoEmpresa);
   const filas = await pedidosRepository.obtenerResumenModelosAlta(
@@ -635,6 +656,149 @@ async function listarPedidos(idEmpresa, accesoEmpresa) {
   }));
 
   return evaluados.filter(Boolean);
+}
+
+async function generarReportePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
+  const estado = texto(filtros.estado || 'VALIDADO').toUpperCase();
+  if (!['VALIDADO', 'BORRADOR', 'AMBOS'].includes(estado)) {
+    throw new Error('Estado de reporte inválido.');
+  }
+
+  const rubro = texto(filtros.rubro).toUpperCase();
+  const temporada = texto(filtros.temporada).toUpperCase();
+  const ano = texto(filtros.ano).toUpperCase();
+  const proveedor = texto(filtros.proveedor).toUpperCase();
+  const pedidos = await listarPedidos(idEmpresa, accesoEmpresa);
+
+  return pedidos.filter(pedido => {
+    const estadoPedido = texto(pedido.ESTADO).toUpperCase();
+    if (estado === 'AMBOS' && !['VALIDADO', 'BORRADOR'].includes(estadoPedido)) return false;
+    if (estado !== 'AMBOS' && estadoPedido !== estado) return false;
+    if (rubro && texto(pedido.CODIGO_RUBRO || pedido.DETALLE_RUBRO).toUpperCase() !== rubro) return false;
+    if (temporada && texto(pedido.CODIGO_TEMPORADA || pedido.DETALLE_TEMPORADA).toUpperCase() !== temporada) return false;
+    if (ano && texto(pedido.CODIGO_ANO).toUpperCase() !== ano) return false;
+    if (proveedor && texto(pedido.CODIGO_PROVEEDOR || pedido.DETALLE_PROVEEDOR).toUpperCase() !== proveedor) return false;
+    return true;
+  }).map(pedido => ({
+    ID_PEDIDO: pedido.ID_PEDIDO,
+    CODIGO_PEDIDO: pedido.CODIGO_PEDIDO,
+    PROVEEDOR: pedido.DETALLE_PROVEEDOR || pedido.CODIGO_PROVEEDOR || '-',
+    CODIGO_PROVEEDOR: pedido.CODIGO_PROVEEDOR,
+    ORDEN: pedido.NUMERO_ORDEN || '-',
+    CANTIDAD_PARES: Number(pedido.TOTAL_PARES || 0),
+    CANTIDAD_DINERO: Number(pedido.TOTAL_PEDIDO || 0),
+    MONEDA: texto(pedido.MONEDA || 'USD').toUpperCase(),
+    RUBRO: pedido.DETALLE_RUBRO || pedido.CODIGO_RUBRO || '-',
+    CODIGO_RUBRO: pedido.CODIGO_RUBRO,
+    TEMPORADA: pedido.DETALLE_TEMPORADA || pedido.CODIGO_TEMPORADA || '-',
+    CODIGO_TEMPORADA: pedido.CODIGO_TEMPORADA,
+    ANO: pedido.CODIGO_ANO || '-',
+    ESTADO: pedido.ESTADO,
+  }));
+}
+
+async function generarReporteDetallePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
+  const pedidos = await generarReportePedidos(idEmpresa, accesoEmpresa, filtros);
+  const bloques = await Promise.all(pedidos.map(async pedido => {
+    const detalles = await pedidosRepository.listarDetallePedido(pedido.ID_PEDIDO, validarIdEmpresa(idEmpresa));
+    return detalles.map(detalle => {
+      const parametrosImagen = new URLSearchParams({
+        idAlta: texto(detalle.ID_ALTA),
+        ano: texto(detalle.CODIGO_ANO || pedido.ANO),
+        temporada: texto(detalle.CODIGO_TEMPORADA || pedido.CODIGO_TEMPORADA),
+        modelo: texto(detalle.CODIGO_MODELO),
+        color: texto(detalle.CODIGO_COLOR),
+      });
+      if (!texto(detalle.ID_ALTA)) parametrosImagen.delete('idAlta');
+      const cantidad = Number(detalle.CANTIDAD_PARES || 0);
+      const precio = Number(detalle.PRECIO_FOB_PAR || 0);
+      return {
+        ID_ALTA: detalle.ID_ALTA,
+        ID_PEDIDO: pedido.ID_PEDIDO,
+        CODIGO_PEDIDO: pedido.CODIGO_PEDIDO,
+        PROVEEDOR: pedido.PROVEEDOR,
+        CODIGO_PROVEEDOR: pedido.CODIGO_PROVEEDOR,
+        ORDEN: pedido.ORDEN,
+        MODELO: detalle.DETALLE_MODELO || detalle.CODIGO_MODELO || '-',
+        CODIGO_MODELO: detalle.CODIGO_MODELO,
+        COLOR: detalle.DETALLE_COLOR || detalle.CODIGO_COLOR || '-',
+        TALLE: normalizarTipoProducto(detalle.TIPO_PRODUCTO) === 'MODULO'
+          ? texto(detalle.DETALLE_MODULO)
+          : texto(detalle.DETALLE_TALLE),
+        PRECIO_UNITARIO: precio,
+        CANTIDAD: cantidad,
+        PRECIO_POR_CANTIDAD: Number(detalle.TOTAL_FOB ?? (precio * cantidad)),
+        MONEDA: pedido.MONEDA,
+        TEMPORADA: pedido.TEMPORADA,
+        ANO: pedido.ANO,
+        ESTADO: pedido.ESTADO,
+        URL_IMAGEN: `/api/imagenes/archivo?${parametrosImagen.toString()}`,
+      };
+    });
+  }));
+  return bloques.flat();
+}
+
+function estilizarHojaReporte(hoja, anchos) {
+  hoja.views = [{ state: 'frozen', ySplit: 1 }];
+  hoja.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: anchos.length } };
+  hoja.columns.forEach((columna, indice) => { columna.width = anchos[indice]; });
+  const encabezado = hoja.getRow(1);
+  encabezado.height = 24;
+  encabezado.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  encabezado.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF176BDB' } };
+  encabezado.alignment = { vertical: 'middle', horizontal: 'center' };
+  hoja.eachRow((fila, numeroFila) => {
+    if (numeroFila > 1) {
+      fila.alignment = { vertical: 'middle' };
+      fila.eachCell(celda => { celda.border = { bottom: { style: 'thin', color: { argb: 'FFE3E8EF' } } }; });
+    }
+  });
+}
+
+async function exportarReportePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
+  const tipo = texto(filtros.tipo || 'resumen').toLowerCase();
+  if (!['resumen', 'detalle'].includes(tipo)) throw new Error('Tipo de reporte inválido.');
+  const libro = new ExcelJS.Workbook();
+  libro.creator = 'Productos App';
+  libro.created = new Date();
+
+  if (tipo === 'resumen') {
+    const filas = await generarReportePedidos(idEmpresa, accesoEmpresa, filtros);
+    const hoja = libro.addWorksheet('Resumen de pedidos');
+    hoja.addRow(['PROVEEDOR', 'ORDEN', 'RUBRO', 'TEMPORADA', 'AÑO', 'ESTADO', 'CANTIDAD PARES', 'MONEDA', 'CANTIDAD DINERO']);
+    filas.forEach(fila => hoja.addRow([fila.PROVEEDOR, fila.ORDEN, fila.RUBRO, fila.TEMPORADA, fila.ANO, fila.ESTADO, fila.CANTIDAD_PARES, fila.MONEDA, fila.CANTIDAD_DINERO]));
+    estilizarHojaReporte(hoja, [30, 18, 18, 16, 10, 16, 18, 12, 20]);
+    hoja.getColumn(7).numFmt = '#,##0';
+    hoja.getColumn(9).numFmt = '#,##0.00';
+  } else {
+    const filas = await generarReporteDetallePedidos(idEmpresa, accesoEmpresa, filtros);
+    const hoja = libro.addWorksheet('Detalle de pedidos');
+    hoja.addRow(['FOTO', 'PROVEEDOR', 'ORDEN', 'MODELO', 'COLOR', 'TALLE / CURVA', 'PRECIO UNITARIO', 'CANTIDAD', 'P × Q', 'MONEDA']);
+    for (const fila of filas) {
+      const numeroFila = hoja.addRow(['', fila.PROVEEDOR, fila.ORDEN, fila.MODELO, fila.COLOR, fila.TALLE, fila.PRECIO_UNITARIO, fila.CANTIDAD, fila.PRECIO_POR_CANTIDAD, fila.MONEDA]).number;
+      hoja.getRow(numeroFila).height = 55;
+      try {
+        const imagen = await imagenesAltaService.buscarImagenProducto(fila.ID_ALTA, fila);
+        if (imagen?.archivo && fs.existsSync(imagen.archivo)) {
+          const extension = path.extname(imagen.archivo).toLowerCase() === '.png' ? 'png' : 'jpeg';
+          const idImagen = libro.addImage({ filename: imagen.archivo, extension });
+          hoja.addImage(idImagen, { tl: { col: 0.15, row: numeroFila - 0.88 }, ext: { width: 58, height: 58 }, editAs: 'oneCell' });
+        }
+      } catch (_) {
+        // La falta de una foto no impide descargar el reporte.
+      }
+    }
+    estilizarHojaReporte(hoja, [12, 30, 18, 32, 20, 28, 18, 14, 18, 12]);
+    hoja.getColumn(7).numFmt = '#,##0.00';
+    hoja.getColumn(8).numFmt = '#,##0';
+    hoja.getColumn(9).numFmt = '#,##0.00';
+  }
+
+  return {
+    buffer: Buffer.from(await libro.xlsx.writeBuffer()),
+    nombreArchivo: `REPORTE_PEDIDOS_${tipo.toUpperCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+  };
 }
 
 
@@ -1484,6 +1648,34 @@ async function exportarPedidoExcel(idPedido, idEmpresa, usuarioAutenticado) {
   };
 }
 
+async function exportarPurchaseOrder(idPedido, idEmpresa, usuarioAutenticado) {
+  const id = validarIdPedido(idPedido);
+  const empresa = validarIdEmpresa(idEmpresa);
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
+
+  if (!pedido) throw new Error('Pedido no encontrado.');
+  const estado = texto(pedido.ESTADO).toUpperCase();
+  if (!['BORRADOR', 'VALIDADO'].includes(estado)) {
+    throw new Error(
+      `El pedido está en estado ${pedido.ESTADO}. La Purchase Order está disponible para pedidos BORRADOR o VALIDADO.`
+    );
+  }
+
+  const detalles = await pedidosRepository.obtenerDatosMasterPedido(id, empresa);
+  if (!detalles?.length) {
+    throw new Error('El pedido no contiene productos para generar la Purchase Order.');
+  }
+
+  const imagenes = await Promise.all(detalles.map(detalle =>
+    imagenesAltaService.buscarImagenProducto(detalle.ID_ALTA, detalle)
+  ));
+  const buffer = await purchaseOrderService.generar({ pedido, detalles, imagenes });
+  const orden = limpiarNombreArchivoPedido(pedido.NUMERO_ORDEN || pedido.CODIGO_PEDIDO) || `PEDIDO_${id}`;
+  const nombreArchivo = `PURCHASE_ORDER_${orden}.xlsx`;
+
+  return { buffer, nombreArchivo, cantidadRegistros: detalles.length };
+}
+
 
 /* ============================================================
    EXPORTAR MASTER_DATA_APP DEL PEDIDO VALIDADO
@@ -1836,6 +2028,9 @@ async function exportarPrecFobDBI(idPedido, idEmpresa, usuarioAutenticado) {
 
 module.exports = {
   listarPedidos,
+  generarReportePedidos,
+  generarReporteDetallePedidos,
+  exportarReportePedidos,
   obtenerAltasDisponibles,
   validarAltaDisponible,
   validarAltasDisponibles,
@@ -1844,6 +2039,7 @@ module.exports = {
   validarProveedorDelAlta,
   obtenerProductosDisponibles,
   obtenerProductosDisponiblesPorAltas,
+  obtenerResumenProductosAltas,
   obtenerResumenModelosAlta,
   validarProductoDisponible,
   prepararCabeceraPedido,
@@ -1860,6 +2056,7 @@ module.exports = {
   validarPedido,
   anularPedido,
   exportarPedidoExcel,
+  exportarPurchaseOrder,
   exportarMasterDataAppExcel,
   exportarPrecFobDBI,
   listarExportacionesPedido,

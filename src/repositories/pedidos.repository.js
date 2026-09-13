@@ -16,6 +16,26 @@ async function obtenerAltasDisponibles(idEmpresa) {
         A.TIPO_PRODUCTO,
         A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA,
         A.CODIGO_ANO,
+        STUFF((
+          SELECT DISTINCT
+            '||' + LTRIM(RTRIM(DP.DETALLE_PROVEEDOR))
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE DP
+          INNER JOIN dbo.PRODUCTOS PP
+            ON PP.ID_EMPRESA = DP.ID_EMPRESA
+           AND PP.CODIGO_ALFA = DP.CODIGO_ALFA
+           AND PP.ACTIVO = 1
+          WHERE DP.ID_EMPRESA = A.ID_EMPRESA
+            AND DP.ID_ALTA = A.ID_ALTA
+            AND NULLIF(LTRIM(RTRIM(DP.DETALLE_PROVEEDOR)), '') IS NOT NULL
+            AND (
+              (A.TIPO_PRODUCTO = 'MODULO' AND DP.TIPO_PRODUCTO_DETALLE = 'MODULO')
+              OR
+              (A.TIPO_PRODUCTO = 'PAR_SUELTO'
+               AND DP.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+               AND DP.CODIGO_CLASIFICACION = '1')
+            )
+          FOR XML PATH(''), TYPE
+        ).value('.', 'nvarchar(max)'), 1, 2, '') AS PROVEEDORES_ALTA,
         (
           SELECT TOP 1
             CASE
@@ -267,6 +287,39 @@ async function obtenerProductosDisponiblesPorAltas(idsAltas, codigoProveedor, id
     ORDER BY A.ID_ALTA, D.DETALLE_MODELO, D.DETALLE_COLOR,
       D.DETALLE_MODULO, D.DETALLE_TALLE, P.CODIGO_ALFA;
   `);
+  return resultado.recordset;
+}
+
+async function obtenerResumenProductosAltas(idsAltas, idEmpresa) {
+  const ids = [...new Set(idsAltas.map(Number))];
+  const pool = await getConnection();
+  const request = pool.request().input('ID_EMPRESA', sql.Int, idEmpresa);
+  const parametros = ids.map((id, indice) => {
+    const nombre = `ID_ALTA_RESUMEN_${indice}`;
+    request.input(nombre, sql.Int, id);
+    return `@${nombre}`;
+  });
+  const resultado = await request.query(`
+    SELECT
+      A.ID_ALTA, A.CODIGO_ALTA, A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
+      P.ID_PRODUCTO, D.CODIGO_ALFA, D.TIPO_PRODUCTO_DETALLE,
+      D.CODIGO_MODELO, D.DETALLE_MODELO,
+      D.CODIGO_COLOR, D.DETALLE_COLOR, D.DETALLE_PRODUCTO,
+      D.CODIGO_TALLE, D.DETALLE_TALLE,
+      D.CODIGO_MODULO, D.DETALLE_MODULO, D.PARES,
+      D.CODIGO_PROVEEDOR, D.DETALLE_PROVEEDOR
+    FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+    INNER JOIN dbo.ALTAS_PRODUCTOS A
+      ON A.ID_EMPRESA=D.ID_EMPRESA AND A.ID_ALTA=D.ID_ALTA
+    INNER JOIN dbo.PRODUCTOS P
+      ON P.ID_EMPRESA=D.ID_EMPRESA AND P.CODIGO_ALFA=D.CODIGO_ALFA
+    WHERE D.ID_EMPRESA=@ID_EMPRESA
+      AND D.ID_ALTA IN (${parametros.join(', ')})
+      AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
+      AND ISNULL(D.GENERADO_AUTOMATICO, 0)=0
+      AND P.ACTIVO=1
+    ORDER BY A.ID_ALTA, D.DETALLE_MODELO, D.DETALLE_COLOR,
+      D.DETALLE_MODULO, D.DETALLE_TALLE, D.ID_DETALLE;`);
   return resultado.recordset;
 }
 
@@ -581,6 +634,7 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
     .query(`
       SELECT TOP 1
         P.*,
+        E.RAZON_SOCIAL,
         A.CODIGO_ALTA,
         A.CODIGO_MARCA,
         A.DETALLE_MARCA,
@@ -592,6 +646,8 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
       INNER JOIN dbo.ALTAS_PRODUCTOS A
         ON A.ID_EMPRESA = P.ID_EMPRESA
        AND A.ID_ALTA = P.ID_ALTA
+      INNER JOIN dbo.EMPRESAS E
+        ON E.ID_EMPRESA = P.ID_EMPRESA
       WHERE P.ID_EMPRESA = @ID_EMPRESA
         AND P.ID_PEDIDO = @ID_PEDIDO;
     `);
@@ -1356,7 +1412,9 @@ async function obtenerDatosMasterPedido(idPedido, idEmpresa) {
         PD.CODIGO_TALLE, PD.DETALLE_TALLE,
         PD.CODIGO_MODULO AS CODIGO_MODULO_PEDIDO,
         PD.DETALLE_MODULO AS DETALLE_MODULO_PEDIDO,
-        PD.DETALLE_EDAD, PD.PARES_MODULO, PD.PRECIO_FOB_PAR,
+        PD.DETALLE_EDAD, PD.PARES_MODULO, PD.CANTIDAD_PARES,
+        PD.CANTIDAD_MODULOS, PD.PRECIO_FOB_PAR, PD.TOTAL_FOB,
+        PD.ADICIONAL, PD.TOTAL_PRODUCTO, PD.ID_ALTA,
         P.CODIGO_PROVEEDOR, P.DETALLE_PROVEEDOR,
         A.CODIGO_ANO, A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA,
         A.CODIGO_MARCA, A.DETALLE_MARCA,
@@ -1490,6 +1548,7 @@ module.exports = {
   obtenerProveedoresPorAltas,
   obtenerProductosDisponibles,
   obtenerProductosDisponiblesPorAltas,
+  obtenerResumenProductosAltas,
   obtenerResumenModelosAlta,
   buscarPedidoDuplicadoActivo,
   crearPedido,

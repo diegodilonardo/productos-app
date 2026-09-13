@@ -551,6 +551,26 @@ async function buscarClasificacion(codigo, idEmpresa) {
   return resultado.recordset[0] || null;
 }
 
+async function buscarClasificacionPorDetalles(detalles, idEmpresa) {
+  const valores = [...new Set((Array.isArray(detalles) ? detalles : []).map(x => String(x || '').trim().toUpperCase()).filter(Boolean))].slice(0, 4);
+  if (!valores.length) return null;
+  const pool = await getConnection();
+  const request = pool.request().input('ID_EMPRESA', sql.Int, idEmpresa);
+  valores.forEach((valor, indice) => request.input(`DETALLE_${indice}`, sql.VarChar(50), valor));
+  const parametros = valores.map((_, indice) => `@DETALLE_${indice}`).join(', ');
+  const resultado = await request.query(`
+    SELECT TOP 1 CODIGO_CLASIFICACION, DETALLE_CLASIFICACION
+    FROM dbo.MAESTRO_CLASIFICACION
+    WHERE ID_EMPRESA = @ID_EMPRESA
+      AND UPPER(LTRIM(RTRIM(DETALLE_CLASIFICACION))) IN (${parametros})
+      AND ACTIVO = 1
+    ORDER BY CASE UPPER(LTRIM(RTRIM(DETALLE_CLASIFICACION)))
+      ${valores.map((_, indice) => `WHEN @DETALLE_${indice} THEN ${indice}`).join('\n')}
+      ELSE 99 END;
+  `);
+  return resultado.recordset[0] || null;
+}
+
 async function buscarColor(codigo, idEmpresa) {
   const pool = await getConnection();
 
@@ -1574,6 +1594,7 @@ module.exports = {
   buscarEdad,
   buscarSexo,
   buscarClasificacion,
+  buscarClasificacionPorDetalles,
   buscarColor,
   buscarPais,
   buscarOrigen,

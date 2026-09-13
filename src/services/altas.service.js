@@ -53,6 +53,39 @@ function normalizarTipoProducto(valor) {
         .replace(/-+/g, '_');
 }
 
+const CLASIFICACIONES_POR_RANGO_CURVA = Object.freeze({
+    '21-34': ['MOD.KIDS', 'MOD.KID'],
+    '24-30': ['MOD.KIDS', 'MOD.KID'],
+    '31-37': ['MOD.YOUTH'],
+    '33-37': ['MOD.YOUTH'],
+    '21-27': ['MOD.BABY', 'MOD.BB'],
+    '22-27': ['MOD.BABY', 'MOD.BB'],
+    '29-34': ['MOD.JUNIOR', 'MOD.JUN'],
+    '27-32': ['MOD.JUNIOR', 'MOD.JUN'],
+    '28-34': ['MOD.JUNIOR', 'MOD.JUN'],
+    '35-40': ['MOD.MUJER', 'MOD.MUJ'],
+    '40-45': ['MOD.HOMBRE', 'MOD.HOM'],
+    '38-43': ['MOD.HOMBRE', 'MOD.HOM'],
+    '40-43': ['MOD.HOMBRE', 'MOD.HOM']
+});
+
+function normalizarRangoCurva(valor) {
+    const textoRango = String(valor || '').toUpperCase().split('(')[0];
+    const explicito = textoRango.match(/(\d+(?:[.,]\d+)?)\s*(?:AL|A|-)\s*(\d+(?:[.,]\d+)?)/);
+    if (explicito) return `${explicito[1].replace(',', '.')}-${explicito[2].replace(',', '.')}`;
+    const numeros = textoRango.match(/\d+(?:[.,]\d+)?/g) || [];
+    return numeros.length >= 2
+        ? `${numeros[0].replace(',', '.')}-${numeros[numeros.length - 1].replace(',', '.')}`
+        : '';
+}
+
+function clasificacionesPorCurva(modulo) {
+    const rango = normalizarRangoCurva(
+        modulo?.DESCRIPCION_CURVA || modulo?.DETALLE_MODULO
+    );
+    return CLASIFICACIONES_POR_RANGO_CURVA[rango] || null;
+}
+
 
 function normalizarLicenciaSeguridad(valor) {
 
@@ -1657,12 +1690,14 @@ async function prepararDetalleProducto(
     }
     if (!pais) throw new Error('País inexistente o inactivo.');
 
-    validarEdadSexoClasificacion({
-        tipoProducto,
-        edad,
-        sexo: sexoMaestro,
-        clasificacion: clasificacionPrincipal
-    });
+    if (tipoProducto !== 'MODULO') {
+        validarEdadSexoClasificacion({
+            tipoProducto,
+            edad,
+            sexo: sexoMaestro,
+            clasificacion: clasificacionPrincipal
+        });
+    }
 
     const codigoOrigen =
         normalizarTexto(pais.DETALLE_PAIS).toUpperCase() === 'ARGENTINA'
@@ -1699,11 +1734,29 @@ async function prepararDetalleProducto(
         }
     }
 
+    let clasificacionAplicada = clasificacionPrincipal;
+    if (tipoProducto === 'MODULO') {
+        const detallesClasificacion = clasificacionesPorCurva(modulo);
+        if (!detallesClasificacion) {
+            throw new Error(`La curva ${modulo.CODIGO_MODULO} no tiene una clasificación configurada por rango.`);
+        }
+        clasificacionAplicada = await altasRepository.buscarClasificacionPorDetalles(
+            detallesClasificacion,
+            idEmpresa
+        );
+        if (!clasificacionAplicada) {
+            throw new Error(
+                `No se encontró en el maestro la clasificación ${detallesClasificacion[0]} ` +
+                `correspondiente a la curva ${modulo.CODIGO_MODULO}.`
+            );
+        }
+    }
+
     const rubroFactPrincipal =
         determinarRubroFact(
             alta.DETALLE_MARCA,
             alta.DETALLE_RUBRO,
-            clasificacionPrincipal.CODIGO_CLASIFICACION,
+            clasificacionAplicada.CODIGO_CLASIFICACION,
             tipoProducto
         );
 
@@ -2098,7 +2151,7 @@ async function prepararDetalleProducto(
     const codigoRubroHijosModulo =
         tipoProducto === 'MODULO'
             ? obtenerRubroCodigoAlfaHijoModulo(
-                clasificacionPrincipal
+                clasificacionAplicada
             )
             : null;
 
@@ -2109,7 +2162,7 @@ async function prepararDetalleProducto(
                 construirCodigoAlfa({
                     alta,
                     modelo,
-                    clasificacion: clasificacionPrincipal,
+                    clasificacion: clasificacionAplicada,
                     color,
                     codigoModulo: modulo.CODIGO_MODULO,
                     detalleTalle: null,
@@ -2130,7 +2183,7 @@ async function prepararDetalleProducto(
                     },
                     modelo,
                     color,
-                    clasificacion: clasificacionPrincipal,
+                    clasificacion: clasificacionAplicada,
                     modulo,
                     talle: null
                 });
@@ -2144,7 +2197,7 @@ async function prepararDetalleProducto(
             detallesAGuardar.push(
                 armarObjetoDetalle({
                     color,
-                    clasificacion: clasificacionPrincipal,
+                    clasificacion: clasificacionAplicada,
                     tipoDetalle: 'MODULO',
                     talle: null,
                     moduloDetalle: modulo,
@@ -3026,5 +3079,6 @@ module.exports = {
         normalizarCodigoModeloCodigoAlfa,
         determinarRubroFact,
         expandirCombinatoriaCurvas
+        ,clasificacionesPorCurva
     }
 };

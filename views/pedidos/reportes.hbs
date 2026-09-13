@@ -1,0 +1,62 @@
+<div class="pedidos-v1">
+  <section class="pedidos-hero">
+    <div class="pedidos-hero-main">
+      <span class="pedidos-hero-icon" aria-hidden="true">Σ</span>
+      <div>
+        <div class="pedidos-kicker">ANÁLISIS COMERCIAL</div>
+        <h1 class="h3 mb-1">Reportes de Pedidos</h1>
+        <p class="text-secondary mb-0">Pares e importes por proveedor y orden.</p>
+      </div>
+    </div>
+    <a class="btn btn-outline-secondary" href="/pedidos">Volver a Pedidos</a>
+  </section>
+
+  <div id="alertaReportePedidos" class="alert d-none" role="alert"></div>
+
+  <div class="nav nav-pills gap-2 mb-3 align-items-center" role="tablist">
+    <button id="verReporteResumen" class="btn btn-primary" type="button">Resumen por orden</button>
+    <button id="verReporteDetalle" class="btn btn-outline-primary" type="button">Detalle por temporada</button>
+    <button id="exportarReporteExcel" class="btn btn-success ms-auto" type="button">Exportar a Excel</button>
+  </div>
+
+  <div class="card pedidos-card mb-3">
+    <div class="card-body">
+      <div class="pedidos-kicker mb-2">FILTROS</div>
+      <div class="row g-2">
+        <div class="col-md-4 col-lg"><label class="form-label" for="reporteEstado">Estado</label><select id="reporteEstado" class="form-select"><option value="VALIDADO">Validados</option><option value="BORRADOR">Borradores</option><option value="AMBOS">Ambos</option></select></div>
+        <div class="col-md-4 col-lg"><label class="form-label" for="reporteProveedor">Proveedor</label><select id="reporteProveedor" class="form-select"><option value="">Todos</option></select></div>
+        <div class="col-md-4 col-lg"><label class="form-label" for="reporteRubro">Rubro</label><select id="reporteRubro" class="form-select"><option value="">Todos</option></select></div>
+        <div class="col-md-4 col-lg"><label class="form-label" for="reporteTemporada">Temporada</label><select id="reporteTemporada" class="form-select"><option value="">Todas</option></select></div>
+        <div class="col-md-4 col-lg"><label class="form-label" for="reporteAno">Año</label><select id="reporteAno" class="form-select"><option value="">Todos</option></select></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panelReporteResumen">
+  <div class="row g-3 pedidos-metrics mb-3">
+    <div class="col-md-4"><div class="card pedidos-card pedidos-metric-card"><div class="card-body"><span class="pedidos-metric-icon pedidos-tone-blue">#</span><div><div class="pedidos-metric-label">Órdenes</div><div id="reporteTotalOrdenes" class="pedidos-metric-value">-</div></div></div></div></div>
+    <div class="col-md-4"><div class="card pedidos-card pedidos-metric-card"><div class="card-body"><span class="pedidos-metric-icon pedidos-tone-green">Σ</span><div><div class="pedidos-metric-label">Cantidad de pares</div><div id="reporteTotalPares" class="pedidos-metric-value">-</div></div></div></div></div>
+    <div class="col-md-4"><div class="card pedidos-card pedidos-metric-card"><div class="card-body"><span class="pedidos-metric-icon pedidos-tone-gray">$</span><div><div class="pedidos-metric-label">Cantidad de dinero</div><div id="reporteTotalDinero" class="pedidos-metric-value">-</div></div></div></div></div>
+  </div>
+
+  <div class="card pedidos-card overflow-hidden">
+    <div class="pedidos-list-head"><div><div class="pedidos-kicker">PARES Y PLATA</div><strong>Detalle por proveedor y orden</strong><span id="reporteCantidad" class="pedidos-result-count"></span></div></div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 pedidos-table">
+        <thead><tr><th>Proveedor</th><th>Orden</th><th>Rubro</th><th>Temporada / Año</th><th>Estado</th><th class="text-end">Cantidad pares</th><th class="text-end">Cantidad dinero</th></tr></thead>
+        <tbody id="reportePedidosTabla"><tr><td colspan="7" class="text-center py-5 text-secondary">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  </div>
+
+  <div id="panelReporteDetalle" class="card pedidos-card overflow-hidden d-none">
+    <div class="pedidos-list-head"><div><div class="pedidos-kicker">DETALLE POR TEMPORADA</div><strong>Productos de los pedidos</strong><span id="reporteDetalleCantidad" class="pedidos-result-count"></span></div></div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 pedidos-table">
+        <thead><tr><th>Foto</th><th>Proveedor</th><th>Modelo</th><th>Color</th><th>Talle / Curva</th><th class="text-end">Precio unitario</th><th class="text-end">Cantidad</th><th class="text-end">P × Q</th></tr></thead>
+        <tbody id="reporteDetalleTabla"><tr><td colspan="8" class="text-center py-5 text-secondary">Seleccioná este reporte para cargar el detalle.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>

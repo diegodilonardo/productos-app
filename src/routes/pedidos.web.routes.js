@@ -108,6 +108,16 @@ async function requerirAutenticacionWeb(req, res, next) {
   );
 }
 
+function requerirReportesWeb(req, res, next) {
+  const usuario = req.session?.usuario;
+  const autorizado = Boolean(usuario?.superAdmin) ||
+    (Array.isArray(usuario?.empresas) && usuario.empresas.some(empresa =>
+      empresa?.puedeVerReportes === true
+    ));
+  if (autorizado) return next();
+  return res.status(403).send('Su rol no permite consultar reportes.');
+}
+
 router.use(requerirAutenticacionWeb);
 
 
@@ -131,6 +141,15 @@ router.get('/pedidos/nuevo', (req, res) => {
     style: '/css/pedidos.css?v=8',
     script: '/js/pedido-nuevo.js?v=5',
     idAltaPreseleccionada: req.query.alta || '',
+  });
+});
+
+router.get('/pedidos/reportes', requerirReportesWeb, (req, res) => {
+  res.render('pedidos/reportes', {
+    title: 'Reportes de Pedidos',
+    pagina: 'reportes',
+    style: '/css/pedidos.css?v=9',
+    script: '/js/pedidos-reportes.js?v=1',
   });
 });
 

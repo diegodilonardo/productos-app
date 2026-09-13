@@ -20,6 +20,19 @@ test('sugiere el primer código libre sin repetir maestro ni solicitud', async (
   finally { repository.codigosOcupados = original; }
 });
 
+test('los módulos de todas las empresas comienzan en A0 y continúan la serie alfanumérica', async () => {
+  const original = repository.codigosOcupados;
+  try {
+    repository.codigosOcupados = async () => [];
+    assert.equal(await service.sugerirCodigo(1, 'MODULO'), 'A0');
+    assert.equal(await service.sugerirCodigo(4, 'MODULO'), 'A0');
+    repository.codigosOcupados = async () => ['A0', 'A1', 'A2'];
+    assert.equal(await service.sugerirCodigo(2, 'MODULO'), 'A3');
+    repository.codigosOcupados = async () => ['A0', ...Array.from({ length: 35 }, (_, indice) => service.codigoBase36(Number.parseInt('A1', 36) + indice, 2))];
+    assert.equal(await service.sugerirCodigo(3, 'MODULO'), 'B0');
+  } finally { repository.codigosOcupados = original; }
+});
+
 test('respeta exactamente la estructura DBI de colores y modelos de Presea', () => {
   assert.deepEqual(service.definicionesDbi.COLOR.campos.map(x => [x.nombre, x.tipo, x.largo]), [['CODIGO', 'C', 2], ['DET_COLOR', 'C', 30]]);
   assert.deepEqual(service.definicionesDbi.MODELO.campos.map(x => [x.nombre, x.tipo, x.largo]), [['COD_MODELO', 'C', 6], ['MODELO', 'C', 50], ['C_PROVEEDO', 'C', 6], ['LICENCIA', 'C', 20], ['MARCA', 'C', 20], ['RUBRO', 'C', 20]]);
@@ -51,9 +64,75 @@ test('concilia modelos existentes en Presea y muestra quién realizó el alta', 
   const vista = fs.readFileSync(path.join(process.cwd(), 'views/altas-maestros/index.hbs'), 'utf8');
   const frontend = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
   assert.match(repositorySource, /MAESTRO_MODELOS[\s\S]*CONFIRMADO_ERP/);
-  assert.match(vista, /<th>Usuario<\/th>/);
+  assert.match(vista, /<th\s*>Usuario<\/th>/);
   assert.match(frontend, /USUARIO_CREACION/);
   assert.match(frontend, /REGISTRADO EN PRESEA/);
+});
+
+test('solo permite eliminar solicitudes de maestros pendientes y conserva la trazabilidad', async () => {
+  const original = repository.anularPendiente;
+  const llamadas = [];
+  repository.anularPendiente = async (...args) => { llamadas.push(args); return { ID_ALTA_MAESTRO: 8, ESTADO: 'ANULADO' }; };
+  try {
+    const registro = await service.eliminarPendiente({ idEmpresa: 2, idAltaMaestro: '8', usuario: 'DIEGO' });
+    assert.equal(registro.ID_ALTA_MAESTRO, 8);
+    assert.deepEqual(llamadas, [[2, 8, 'DIEGO']]);
+    await assert.rejects(() => service.eliminarPendiente({ idEmpresa: 2, idAltaMaestro: 'x', usuario: 'DIEGO' }), /no es válida/);
+  } finally { repository.anularPendiente = original; }
+
+  const repositorySource = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
+  const rutas = fs.readFileSync(path.join(process.cwd(), 'src/routes/altasMaestros.routes.js'), 'utf8');
+  const frontend = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
+  assert.match(repositorySource, /ID_EMPRESA=@ID_EMPRESA[\s\S]*ID_ALTA_MAESTRO=@ID_ALTA_MAESTRO[\s\S]*ESTADO='PENDIENTE_ENVIO'/);
+  assert.match(repositorySource, /'PENDIENTE_ENVIO','ANULADO'/);
+  assert.match(rutas, /router\.delete\('\/:id', requerirEscrituraEmpresa/);
+  assert.match(frontend, /ESTADO \|\| ''\)\.toUpperCase\(\) !== 'PENDIENTE_ENVIO'/);
+  assert.match(frontend, /El código volverá a quedar disponible/);
+});
+
+test('crea módulos solamente para calzado o indumentaria y calcula su distribución', async () => {
+  const originalCrear = repository.crear;
+  const originalListar = repository.listar;
+  const originalModulos = maestrosRepository.obtenerTallesModulosConsulta;
+  let guardado;
+  repository.crear = async datos => { guardado = datos; return datos; };
+  repository.listar = async () => [];
+  maestrosRepository.obtenerTallesModulosConsulta = async () => [];
+  try {
+    await service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: '0A', rubro: 'CALZADO', datos: { distribucion: { T35: 1, T36: 2, T37: 1 } } } });
+    assert.equal(guardado.nombre, '35 AL 37 X 4 (1,2,1)');
+    assert.deepEqual(JSON.parse(guardado.datosJson), { rubro: 'CALZADO', distribucion: { T35: 1, T36: 2, T37: 1 }, pares: 4 });
+    await assert.rejects(() => service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: '0B', rubro: 'INDUMENTARIA', datos: { distribucion: { T35: 1 } } } }), /no corresponde a INDUMENTARIA/);
+  } finally {
+    repository.crear = originalCrear;
+    repository.listar = originalListar;
+    maestrosRepository.obtenerTallesModulosConsulta = originalModulos;
+  }
+});
+
+test('el DBI de módulos respeta la estructura real de Presea', () => {
+  const definicion = service.definicionesDbi.MODULO;
+  assert.equal(definicion.archivo, 'TALLES_MODULOS.DBI');
+  assert.equal(definicion.campos.length, 101);
+  assert.deepEqual(definicion.campos.slice(0, 6).map(x => [x.nombre, x.tipo, x.largo]), [['CODIGO','C',2],['NOMBRE','C',50],['_3M','N',2],['_6M','N',2],['_9M','N',2],['_12M','N',2]]);
+  assert.deepEqual(definicion.campos.at(-1), { nombre: 'TALLE_COMP', tipo: 'L', largo: 1 });
+  const fila = definicion.map({ CODIGO: '0A', NOMBRE: '35 AL 37 X 4', DATOS_JSON: JSON.stringify({ distribucion: { T35: 1, T36: 2, T37: 1 }, pares: 4 }) });
+  assert.equal(fila.CODIGO, '0A');
+  assert.equal(fila.T35, 1);
+  assert.equal(fila.T36, 2);
+  assert.equal(fila.PARES, 4);
+});
+
+test('la pantalla permite editar cantidades de módulos por rubro', () => {
+  const vista = fs.readFileSync(path.join(process.cwd(), 'views/altas-maestros/index.hbs'), 'utf8');
+  const frontend = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
+  assert.match(vista, /id="rubroModulo"/);
+  assert.match(vista, /value="CALZADO"/);
+  assert.match(vista, /value="INDUMENTARIA"/);
+  assert.match(vista, /id="paresModuloTotal"/);
+  assert.match(frontend, /tallesModuloPorRubro/);
+  assert.match(frontend, /cantidad-talle-modulo/);
+  assert.match(frontend, /actualizarTotalModulo/);
 });
 
 test('sugiere modelo dentro de la numeración de empresa, marca, rubro y licencia', async () => {
@@ -296,4 +375,29 @@ test('la vista previa permite modificar solamente el nombre del modelo', () => {
   assert.match(js, /vistaPreviaModelos\[indice\]\.nombre = nombre/);
   assert.match(js, /tablaVistaPreviaModelos'\)\.addEventListener\('input', actualizarNombreModeloVistaPrevia\)/);
   assert.doesNotMatch(js, /class="[^"\n]*codigo-modelo-vista-previa/);
+});
+
+test('el envío a Presea informa al usuario y diferencia visualmente sus estados', () => {
+  const vista = fs.readFileSync(path.join(process.cwd(), 'views/altas-maestros/index.hbs'), 'utf8');
+  const js = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
+  assert.match(vista, /id="modalEnvioMaestros"/);
+  assert.match(vista, /Archivo\s+enviado a Presea/);
+  assert.match(js, /mostrarConfirmacionEnvioMaestros\(d\)/);
+  assert.match(js, /TBL_MODELOS\.DBI/);
+  assert.match(js, /PENDIENTE_ENVIO: \{ etiqueta: 'PENDIENTE DE ENVÍO', clase: 'text-bg-warning' \}/);
+  assert.match(js, /ENVIADO_PRESEA: \{ etiqueta: 'ENVIADO A PRESEA', clase: 'text-bg-primary' \}/);
+  assert.match(js, /CONFIRMADO_ERP: \{ etiqueta: 'REGISTRADO EN PRESEA', clase: 'text-bg-success' \}/);
+  assert.match(js, /ERROR_ENVIO: \{ etiqueta: 'ERROR DE ENVÍO', clase: 'text-bg-danger' \}/);
+});
+
+test('una solicitud individual se revisa antes de quedar pendiente de envío', () => {
+  const vista = fs.readFileSync(path.join(process.cwd(), 'views/altas-maestros/index.hbs'), 'utf8');
+  const js = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
+  assert.match(vista, /id="modalConfirmarSolicitudMaestro"/);
+  assert.match(vista, /La solicitud quedará\s+pendiente de envío a Presea/);
+  assert.match(vista, /id="btnConfirmarSolicitudMaestro"/);
+  assert.match(js, /function mostrarConfirmacionSolicitudMaestro/);
+  assert.match(js, /async function confirmarSolicitudMaestro/);
+  assert.match(js, /solicitudMaestroPorConfirmar = cuerpoSolicitudMaestro\(\)/);
+  assert.match(js, /JSON\.stringify\(solicitudMaestroPorConfirmar\)/);
 });

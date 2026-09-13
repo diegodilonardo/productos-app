@@ -6,6 +6,9 @@ let idEmpresaPedido = null;
 let accesoEmpresaPedido = null;
 let idsAltasSeleccionadas = new Set();
 let modalModelosAlta = null;
+let modalProductosSeleccionados = null;
+let productosResumenAltas = [];
+let revisionResumenProductos = 0;
 
 async function iniciarNuevoPedido() {
   document.getElementById('altasPedidoSelector').addEventListener('change', cambiarAlta);
@@ -21,10 +24,11 @@ async function iniciarNuevoPedido() {
   document.getElementById('moneda').addEventListener('change', actualizarResumen);
   document.getElementById('formNuevoPedido').addEventListener('submit', crearPedido);
   document.getElementById('selectorEmpresaPedido')?.addEventListener('change', cambiarEmpresaPedido);
-  ['filtroTemporadaAlta', 'filtroAnoAlta', 'filtroRubroAlta'].forEach(id => {
-    document.getElementById(id).addEventListener('change', renderizarAltasFiltradas);
+  ['filtroTemporadaAlta', 'filtroAnoAlta', 'filtroRubroAlta', 'filtroProveedorAlta'].forEach(id => {
+    document.getElementById(id).addEventListener('change', aplicarFiltrosAltas);
   });
   document.getElementById('limpiarFiltrosAltas').addEventListener('click', limpiarFiltrosAltas);
+  document.getElementById('verProductosSeleccionados').addEventListener('click', mostrarProductosSeleccionados);
 
   actualizarResumen();
 
@@ -136,6 +140,8 @@ async function cambiarEmpresaPedido() {
   idEmpresaPedido = Number(select?.value || 0) || null;
   altas = [];
   idsAltasSeleccionadas.clear();
+  productosResumenAltas = [];
+  revisionResumenProductos += 1;
 
   if (!idEmpresaPedido) {
     sessionStorage.removeItem('pedidos.idEmpresa');
@@ -280,6 +286,21 @@ function cargarOpcionesFiltrosAltas() {
     })),
     'Todos'
   );
+  completarFiltroAlta(
+    'filtroProveedorAlta',
+    altas.flatMap(alta => proveedoresDelAlta(alta).map(nombre => ({
+      valor: nombre.toLocaleUpperCase('es'),
+      etiqueta: nombre
+    }))),
+    'Todos'
+  );
+}
+
+function proveedoresDelAlta(alta) {
+  return String(alta.PROVEEDORES_ALTA || '')
+    .split('||')
+    .map(nombre => nombre.trim())
+    .filter(Boolean);
 }
 
 function completarFiltroAlta(id, opciones, etiquetaTodas) {
@@ -298,11 +319,13 @@ function obtenerAltasFiltradas() {
   const temporada = document.getElementById('filtroTemporadaAlta').value;
   const ano = document.getElementById('filtroAnoAlta').value;
   const rubro = document.getElementById('filtroRubroAlta').value;
+  const proveedor = document.getElementById('filtroProveedorAlta').value;
 
   return altas.filter(alta =>
     (!temporada || String(alta.CODIGO_TEMPORADA || alta.DETALLE_TEMPORADA || '') === temporada) &&
     (!ano || String(alta.CODIGO_ANO || '') === ano) &&
-    (!rubro || String(alta.CODIGO_RUBRO || alta.DETALLE_RUBRO || '') === rubro)
+    (!rubro || String(alta.CODIGO_RUBRO || alta.DETALLE_RUBRO || '') === rubro) &&
+    (!proveedor || proveedoresDelAlta(alta).some(nombre => nombre.toLocaleUpperCase('es') === proveedor))
   );
 }
 
@@ -341,8 +364,17 @@ function renderizarAltasFiltradas() {
   );
 }
 
+async function aplicarFiltrosAltas() {
+  const idsVisibles = new Set(obtenerAltasFiltradas().map(alta => Number(alta.ID_ALTA)));
+  idsAltasSeleccionadas = new Set(
+    [...idsAltasSeleccionadas].filter(idAlta => idsVisibles.has(Number(idAlta)))
+  );
+  renderizarAltasFiltradas();
+  await cambiarAlta();
+}
+
 function limpiarFiltrosAltas() {
-  ['filtroTemporadaAlta', 'filtroAnoAlta', 'filtroRubroAlta'].forEach(id => {
+  ['filtroTemporadaAlta', 'filtroAnoAlta', 'filtroRubroAlta', 'filtroProveedorAlta'].forEach(id => {
     document.getElementById(id).value = '';
   });
   renderizarAltasFiltradas();
@@ -407,6 +439,7 @@ async function cambiarAlta(event) {
     });
   }
   const idsAltas = [...idsAltasSeleccionadas];
+  cargarResumenProductosAltas(idsAltas);
 
   const selectProveedor =
     document
@@ -481,6 +514,50 @@ function obtenerAltasSeleccionadas() {
   return altas.filter(alta => idsAltasSeleccionadas.has(Number(alta.ID_ALTA)));
 }
 
+function renderizarResumenProductos() {
+  const estado = document.getElementById('resumenProductosEstado');
+  const boton = document.getElementById('verProductosSeleccionados');
+  const tabla = document.getElementById('tablaProductosSeleccionados');
+  if (!estado || !boton || !tabla) return;
+  estado.textContent = productosResumenAltas.length ? `${productosResumenAltas.length} producto${productosResumenAltas.length === 1 ? '' : 's'}` : '';
+  boton.disabled = productosResumenAltas.length === 0;
+  tabla.innerHTML = productosResumenAltas.map(producto => `<tr>
+    <td><span class="badge text-bg-light">${esc(producto.CODIGO_ALTA || `Alta ${producto.ID_ALTA}`)}</span></td>
+    <td><strong>${esc(producto.DETALLE_PRODUCTO || producto.DETALLE_MODELO || producto.CODIGO_ALFA || '-')}</strong></td>
+    <td>${esc(producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-')}<br><small class="text-secondary">${esc(producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-')}</small></td>
+    <td>${esc(producto.TALLE_CURVA || '-')}</td>
+    <td>${esc(formatearTipo(producto.TIPO_PRODUCTO_DETALLE))}</td>
+    <td><strong>${Number(producto.CANTIDAD_REFERENCIA || 0).toLocaleString('es-AR')}</strong> ${esc(producto.UNIDAD_REFERENCIA || '')}</td>
+    <td>${esc(producto.DETALLE_PROVEEDOR || '-')}</td>
+  </tr>`).join('');
+  setTexto('cantidadProductosSeleccionados', `${productosResumenAltas.length} producto${productosResumenAltas.length === 1 ? '' : 's'}`);
+}
+
+function mostrarProductosSeleccionados() {
+  if (!productosResumenAltas.length) return;
+  modalProductosSeleccionados ||= new bootstrap.Modal(document.getElementById('modalProductosSeleccionados'));
+  modalProductosSeleccionados.show();
+}
+
+async function cargarResumenProductosAltas(idsAltas) {
+  const revision = ++revisionResumenProductos;
+  productosResumenAltas = [];
+  const estado = document.getElementById('resumenProductosEstado');
+  if (!idsAltas.length) { renderizarResumenProductos(); return; }
+  if (estado) estado.textContent = 'Cargando...';
+  document.getElementById('verProductosSeleccionados').disabled = true;
+  try {
+    const data = await api('/api/pedidos/altas/resumen-productos', opcionesEmpresa({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idsAltas }) }));
+    if (revision !== revisionResumenProductos) return;
+    productosResumenAltas = Array.isArray(data?.datos) ? data.datos : [];
+    renderizarResumenProductos();
+  } catch (error) {
+    if (revision !== revisionResumenProductos) return;
+    if (estado) estado.textContent = 'No disponible';
+    document.getElementById('estadoProductosSeleccionados').textContent = error.message;
+  }
+}
+
 function actualizarResumen() {
   const altasElegidas = obtenerAltasSeleccionadas();
   const alta = altasElegidas[0];
@@ -496,6 +573,8 @@ function actualizarResumen() {
   if (!altasElegidas.length) {
     contenedorVacio.classList.remove('d-none');
     contenedorDatos.classList.add('d-none');
+    productosResumenAltas = [];
+    renderizarResumenProductos();
     return;
   }
 

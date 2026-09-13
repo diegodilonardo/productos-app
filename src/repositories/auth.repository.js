@@ -104,7 +104,8 @@ async function obtenerAccesosEmpresa(idUsuario) {
         R.DETALLE_ROL,
         UA.TODAS_MARCAS,
         UA.TODOS_RUBROS,
-        UA.TODAS_LICENCIAS
+        UA.TODAS_LICENCIAS,
+        UA.PUEDE_VER_REPORTES
       FROM dbo.USUARIOS_ACCESOS UA
       INNER JOIN dbo.EMPRESAS E
               ON E.ID_EMPRESA = UA.ID_EMPRESA

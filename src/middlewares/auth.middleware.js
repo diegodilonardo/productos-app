@@ -80,6 +80,7 @@ function obtenerAccesoEmpresa(contexto, idEmpresa) {
       todasMarcas: true,
       todosRubros: true,
       todasLicencias: true,
+      puedeVerReportes: true,
       marcas: [],
       rubros: [],
       licencias: []
@@ -259,6 +260,17 @@ function requerirEscrituraEmpresa(req, res, next) {
   }
 
   return next();
+}
+
+function requerirReportesEmpresa(req, res, next) {
+  const contexto = obtenerContextoUsuario(req);
+  if (contexto?.superAdmin || req.accesoEmpresa?.puedeVerReportes === true) {
+    return next();
+  }
+  return res.status(403).json({
+    ok: false,
+    mensaje: 'Su rol no permite consultar reportes.'
+  });
 }
 
 
@@ -533,6 +545,7 @@ module.exports = {
   resolverIdEmpresa,
   requerirEmpresa,
   requerirEscrituraEmpresa,
+  requerirReportesEmpresa,
   requerirAccesoAlta,
   requerirAccesoPedido,
   rolPermiteEscritura

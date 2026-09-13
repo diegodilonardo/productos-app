@@ -204,7 +204,8 @@ async function obtenerAccesos(idUsuario) {
         R.DETALLE_ROL,
         UA.TODAS_MARCAS,
         UA.TODOS_RUBROS,
-        UA.TODAS_LICENCIAS
+        UA.TODAS_LICENCIAS,
+        UA.PUEDE_VER_REPORTES
       FROM dbo.USUARIOS_ACCESOS UA
       INNER JOIN dbo.EMPRESAS E
               ON E.ID_EMPRESA = UA.ID_EMPRESA
@@ -519,6 +520,7 @@ async function actualizarUsuarioPermisos({
             .input('TODAS_MARCAS', sql.Bit, acceso.todasMarcas ? 1 : 0)
             .input('TODOS_RUBROS', sql.Bit, acceso.todosRubros ? 1 : 0)
             .input('TODAS_LICENCIAS', sql.Bit, acceso.todasLicencias ? 1 : 0)
+            .input('PUEDE_VER_REPORTES', sql.Bit, acceso.puedeVerReportes ? 1 : 0)
             .query(`
               UPDATE dbo.USUARIOS_ACCESOS
               SET
@@ -526,7 +528,8 @@ async function actualizarUsuarioPermisos({
                 ACTIVO = 1,
                 TODAS_MARCAS = @TODAS_MARCAS,
                 TODOS_RUBROS = @TODOS_RUBROS,
-                TODAS_LICENCIAS = @TODAS_LICENCIAS
+                TODAS_LICENCIAS = @TODAS_LICENCIAS,
+                PUEDE_VER_REPORTES = @PUEDE_VER_REPORTES
               WHERE ID_ACCESO = @ID_ACCESO;
             `);
         } else {
@@ -537,6 +540,7 @@ async function actualizarUsuarioPermisos({
             .input('TODAS_MARCAS', sql.Bit, acceso.todasMarcas ? 1 : 0)
             .input('TODOS_RUBROS', sql.Bit, acceso.todosRubros ? 1 : 0)
             .input('TODAS_LICENCIAS', sql.Bit, acceso.todasLicencias ? 1 : 0)
+            .input('PUEDE_VER_REPORTES', sql.Bit, acceso.puedeVerReportes ? 1 : 0)
             .query(`
               INSERT INTO dbo.USUARIOS_ACCESOS
               (
@@ -548,7 +552,8 @@ async function actualizarUsuarioPermisos({
                 FECHA_CREACION,
                 TODAS_MARCAS,
                 TODOS_RUBROS,
-                TODAS_LICENCIAS
+                TODAS_LICENCIAS,
+                PUEDE_VER_REPORTES
               )
               OUTPUT INSERTED.ID_ACCESO
               VALUES
@@ -561,7 +566,8 @@ async function actualizarUsuarioPermisos({
                 SYSDATETIME(),
                 @TODAS_MARCAS,
                 @TODOS_RUBROS,
-                @TODAS_LICENCIAS
+                @TODAS_LICENCIAS,
+                @PUEDE_VER_REPORTES
               );
             `);
 
@@ -701,6 +707,14 @@ async function actualizarUsuarioPermisos({
         }
       }
     }
+
+    await new sql.Request(transaction)
+      .input('ID_USUARIO', sql.Int, idUsuario)
+      .query(`
+        UPDATE dbo.USUARIOS
+        SET SESION_VERSION = ISNULL(SESION_VERSION, 1) + 1
+        WHERE ID_USUARIO = @ID_USUARIO;
+      `);
 
     await transaction.commit();
 

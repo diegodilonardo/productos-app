@@ -11,6 +11,7 @@ let modulosFiltrados = [];
 let codigosModulosSeleccionados = [];
 let tallesParSuelto = [];
 let clasificacionesMaestro = [];
+let familiasSeleccionadas = new Set();
 
 document.addEventListener('DOMContentLoaded', iniciar);
 
@@ -1498,6 +1499,54 @@ function obtenerDatosModulo(fila) {
   };
 }
 
+const CLASIFICACION_POR_RANGO_CURVA = Object.freeze({
+  '21-34': ['MOD.KIDS', 'MOD.KID'],
+  '24-30': ['MOD.KIDS', 'MOD.KID'],
+  '31-37': ['MOD.YOUTH'],
+  '33-37': ['MOD.YOUTH'],
+  '21-27': ['MOD.BABY', 'MOD.BB'],
+  '22-27': ['MOD.BABY', 'MOD.BB'],
+  '29-34': ['MOD.JUNIOR', 'MOD.JUN'],
+  '27-32': ['MOD.JUNIOR', 'MOD.JUN'],
+  '28-34': ['MOD.JUNIOR', 'MOD.JUN'],
+  '35-40': ['MOD.MUJER', 'MOD.MUJ'],
+  '40-45': ['MOD.HOMBRE', 'MOD.HOM'],
+  '38-43': ['MOD.HOMBRE', 'MOD.HOM'],
+  '40-43': ['MOD.HOMBRE', 'MOD.HOM']
+});
+
+function normalizarRangoCurva(valor) {
+  const textoRango = String(valor || '').toUpperCase().split('(')[0];
+  const explicito = textoRango.match(/(\d+(?:[.,]\d+)?)\s*(?:AL|A|-)\s*(\d+(?:[.,]\d+)?)/);
+  if (explicito) return `${explicito[1].replace(',', '.')}-${explicito[2].replace(',', '.')}`;
+  const numeros = textoRango.match(/\d+(?:[.,]\d+)?/g) || [];
+  return numeros.length >= 2
+    ? `${numeros[0].replace(',', '.')}-${numeros[numeros.length - 1].replace(',', '.')}`
+    : '';
+}
+
+function clasificacionSugeridaPorCurvas() {
+  const sugerencias = codigosModulosSeleccionados.map(codigo => {
+    const fila = modulos.find(item => obtenerDatosModulo(item).codigo === codigo);
+    const modulo = obtenerDatosModulo(fila || {});
+    return CLASIFICACION_POR_RANGO_CURVA[normalizarRangoCurva(modulo.rango || modulo.detalle)] || null;
+  }).filter(Boolean);
+  if (!sugerencias.length) return null;
+  const principal = sugerencias[0][0];
+  return sugerencias.every(opciones => opciones[0] === principal) ? sugerencias[0] : null;
+}
+
+function aplicarClasificacionSugeridaPorCurvas() {
+  const sugerida = clasificacionSugeridaPorCurvas();
+  const select = document.getElementById('codigoClasificacion');
+  if (!sugerida || !select) return;
+  const opcion = [...select.options].find(item =>
+    sugerida.includes(normalizarValorRegla(item.textContent)) ||
+    sugerida.includes(normalizarValorRegla(item.dataset.detalle))
+  );
+  if (opcion) select.value = opcion.value;
+}
+
 
 /*
  * Las curvas consecutivas se leen mejor mostrando únicamente sus
@@ -1931,6 +1980,8 @@ function renderizarModulosSeleccionados() {
         ? 'Se generará una familia por cada combinación de color y curva.'
         : '';
   }
+
+  aplicarClasificacionSugeridaPorCurvas();
 }
 
 
@@ -2381,6 +2432,7 @@ function seleccionarBuscadorMaestroConEnter(
       coincidencias[0]
     );
   }
+
 }
 
 
@@ -3070,6 +3122,8 @@ function configurarEventos() {
     });
 
   document.getElementById('btnExportarAlta').addEventListener('click', exportarAlta);
+  document.getElementById('btnEliminarFamiliasSeleccionadas')?.addEventListener('click', eliminarFamiliasSeleccionadas);
+  document.getElementById('seleccionarTodasFamilias')?.addEventListener('change', manejarSeleccionTodasFamilias);
 
   document
     .getElementById('tablaProductosAlta')
@@ -3078,6 +3132,10 @@ function configurarEventos() {
   document
     .getElementById('tablaProductosAlta')
     .addEventListener('change', manejarCambioImagenDetalle);
+
+  document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('change', manejarSeleccionFamilia);
 
   document
     .getElementById('tablaProductosAlta')
@@ -3188,31 +3246,8 @@ async function agregarProducto(event) {
       return;
     }
 
-    const permitidasEdadSexo =
-      obtenerClasificacionesPermitidasEdadSexo();
-
-    const detalleClasificacionSeleccionada =
-      obtenerClasificacionSeleccionadaDetalle();
-
-    if (!permitidasEdadSexo.length) {
-      mostrarAlerta(
-        'La combinación de Edad y Sexo no tiene una clasificación de módulo válida.',
-        'warning'
-      );
-      return;
-    }
-
-    if (
-      !detalleClasificacionSeleccionada ||
-      !permitidasEdadSexo.includes(detalleClasificacionSeleccionada)
-    ) {
-      mostrarAlerta(
-        'La clasificación seleccionada no corresponde a la combinación de Edad y Sexo.',
-        'warning'
-      );
-      return;
-    }
-
+    // El backend asigna una clasificación independiente a cada curva por su rango.
+    // Edad y Sexo se conservan como información del producto, pero no deciden el módulo.
     payload.codigoClasificacion = valor('codigoClasificacion');
 
   } else {
@@ -4167,7 +4202,8 @@ function pintarDetalle() {
 
   if (!detalle.length) {
     tbody.innerHTML =
-      '<tr><td colspan="10" class="text-center py-4 text-secondary">Todavía no hay productos en esta alta.</td></tr>';
+      '<tr><td colspan="11" class="text-center py-4 text-secondary">Todavía no hay productos en esta alta.</td></tr>';
+    actualizarAccionFamiliasSeleccionadas();
     return;
   }
 
@@ -4232,6 +4268,10 @@ function pintarDetalle() {
       puedeEditar &&
       esPrincipal &&
       idDetalle;
+
+    const selectorFamilia = puedeEliminar
+      ? `<input class="form-check-input seleccionar-familia" type="checkbox" value="${escapar(idDetalle)}" data-codigo-alfa="${escapar(fila.CODIGO_ALFA ?? fila.COD_ALFA ?? '')}" ${familiasSeleccionadas.has(String(idDetalle)) ? 'checked' : ''} aria-label="Seleccionar familia ${escapar(fila.CODIGO_ALFA ?? fila.COD_ALFA ?? '')}">`
+      : '';
 
     const cantidadHijos =
       esPrincipal && idDetalle
@@ -4378,6 +4418,7 @@ function pintarDetalle() {
         : `<div class="alta-child-detail"><span class="alta-child-line"></span>${escapar(fila.DETALLE_PRODUCTO ?? fila.DETALLE ?? '-')}</div>`;
 
     tr.innerHTML = `
+      <td class="text-center">${esPrincipal ? selectorFamilia : ''}</td>
       <td class="font-monospace alta-cod-alfa">${escapar(fila.CODIGO_ALFA ?? fila.COD_ALFA ?? '-')}</td>
       <td>${detalleVisual}</td>
       <td>${escapar(fila.TIPO_PRODUCTO_DETALLE ?? fila.TIPO_PRODUCTO ?? '-')}</td>
@@ -4470,6 +4511,7 @@ function pintarDetalle() {
   }
 
   aplicarFiltrosProductos();
+  actualizarAccionFamiliasSeleccionadas();
 }
 
 
@@ -5568,6 +5610,75 @@ async function descargarImagenesAlta() {
   } finally {
     if (btn) btn.textContent = 'Descargar imágenes (ZIP)';
     actualizarControlesEstado();
+  }
+
+}
+
+function actualizarAccionFamiliasSeleccionadas() {
+  const boton = document.getElementById('btnEliminarFamiliasSeleccionadas');
+  const cantidad = document.getElementById('cantidadFamiliasSeleccionadas');
+  const seleccionarTodas = document.getElementById('seleccionarTodasFamilias');
+  const checks = [...document.querySelectorAll('#tablaProductosAlta .seleccionar-familia')];
+  const idsDisponibles = new Set(checks.map(check => String(check.value)));
+  familiasSeleccionadas = new Set([...familiasSeleccionadas].filter(id => idsDisponibles.has(String(id))));
+  checks.forEach(check => { check.checked = familiasSeleccionadas.has(String(check.value)); });
+  if (cantidad) cantidad.textContent = String(familiasSeleccionadas.size);
+  boton?.classList.toggle('d-none', familiasSeleccionadas.size === 0 || estadoAlta() !== 'BORRADOR');
+  if (seleccionarTodas) {
+    const visibles = checks.filter(check => !check.closest('tr')?.classList.contains('alta-filter-hidden'));
+    seleccionarTodas.checked = visibles.length > 0 && visibles.every(check => check.checked);
+    seleccionarTodas.indeterminate = visibles.some(check => check.checked) && !seleccionarTodas.checked;
+    seleccionarTodas.disabled = estadoAlta() !== 'BORRADOR' || !checks.length;
+  }
+}
+
+function manejarSeleccionFamilia(event) {
+  const check = event.target.closest('.seleccionar-familia');
+  if (!check) return;
+  const id = String(check.value);
+  if (check.checked) familiasSeleccionadas.add(id);
+  else familiasSeleccionadas.delete(id);
+  actualizarAccionFamiliasSeleccionadas();
+}
+
+function manejarSeleccionTodasFamilias(event) {
+  const checks = [...document.querySelectorAll('#tablaProductosAlta .seleccionar-familia')]
+    .filter(check => !check.closest('tr')?.classList.contains('alta-filter-hidden'));
+  checks.forEach(check => {
+    check.checked = event.currentTarget.checked;
+    if (check.checked) familiasSeleccionadas.add(String(check.value));
+    else familiasSeleccionadas.delete(String(check.value));
+  });
+  actualizarAccionFamiliasSeleccionadas();
+}
+
+async function eliminarFamiliasSeleccionadas() {
+  if (estadoAlta() !== 'BORRADOR' || !familiasSeleccionadas.size) return;
+  const ids = [...familiasSeleccionadas];
+  if (!window.confirm(
+    `Se eliminarán ${ids.length} familias completas.\n\n` +
+    'Esto incluye sus productos principales y los automáticos que queden sin otra familia.\n\n¿Continuar?'
+  )) return;
+  const boton = document.getElementById('btnEliminarFamiliasSeleccionadas');
+  let eliminadas = 0;
+  try {
+    boton.disabled = true;
+    for (const idDetalle of ids) {
+      await apiJson(`/api/altas/${ID_ALTA}/detalle/${idDetalle}`, { method: 'DELETE' });
+      eliminadas += 1;
+    }
+    familiasSeleccionadas.clear();
+    await cargarAlta();
+    mostrarAlerta(`${eliminadas} familia(s) eliminada(s) correctamente.`, 'success');
+  } catch (error) {
+    familiasSeleccionadas.clear();
+    await cargarAlta();
+    mostrarAlerta(eliminadas
+      ? `${eliminadas} familia(s) fueron eliminadas antes del error: ${error.message}`
+      : error.message, 'danger');
+  } finally {
+    boton.disabled = false;
+    actualizarAccionFamiliasSeleccionadas();
   }
 }
 

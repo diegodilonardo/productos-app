@@ -117,6 +117,12 @@
                         <option value="">Todos</option>
                       </select>
                     </div>
+                    <div>
+                      <label class="form-label" for="filtroProveedorAlta">Proveedor</label>
+                      <select id="filtroProveedorAlta" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                      </select>
+                    </div>
                     <button id="limpiarFiltrosAltas" class="btn btn-sm btn-light border" type="button">
                       Limpiar filtros
                     </button>
@@ -170,6 +176,7 @@
                   <label class="form-label" for="moneda">Moneda</label>
                   <select id="moneda" class="form-select" required>
                     <option value="USD" selected>USD</option>
+                    <option value="ARS">Pesos (ARS)</option>
                     <option value="EUR">EUR</option>
                     <option value="CNY">CNY</option>
                     <option value="BRL">BRL</option>
@@ -257,6 +264,16 @@
             </div>
 
             <div class="pedido-summary-row">
+              <span class="pedido-summary-label">Detalle de productos</span>
+              <div class="d-flex align-items-center gap-2">
+                <small id="resumenProductosEstado" class="text-secondary"></small>
+                <button id="verProductosSeleccionados" type="button" class="btn btn-sm btn-outline-primary" disabled>
+                  Ver productos
+                </button>
+              </div>
+            </div>
+
+            <div class="pedido-summary-row">
               <span class="pedido-summary-label">Proveedor</span>
               <strong id="resumenProveedor">Pendiente</strong>
             </div>
@@ -279,6 +296,33 @@
             </span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalProductosSeleccionados" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="pedidos-kicker">RESUMEN DEL PEDIDO</div>
+          <h2 class="modal-title h5 mb-0">Productos de las Altas seleccionadas</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="estadoProductosSeleccionados" class="p-4 text-center text-secondary d-none"></div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0 pedidos-table">
+            <thead><tr><th>Alta</th><th>Producto</th><th>Modelo / Color</th><th>Curva / Talle</th><th>Tipo</th><th>Pares / Unidades</th><th>Proveedor</th></tr></thead>
+            <tbody id="tablaProductosSeleccionados"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span id="cantidadProductosSeleccionados" class="me-auto text-secondary small"></span>
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>

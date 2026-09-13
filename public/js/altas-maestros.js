@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 let vistaPreviaModelos = [];
 let consultaMaestros = [];
 let paginaConsultaMaestros = 1;
+let solicitudMaestroPorConfirmar = null;
 const filasPorPaginaConsulta = 25;
 function idEmpresa() { return Number(sessionStorage.getItem('app.idEmpresa') || sessionStorage.getItem('pedidos.idEmpresa') || document.getElementById('navbarEmpresaSelector')?.value); }
 function empresaValida() { const id = idEmpresa(); return Number.isInteger(id) && id > 0 ? id : null; }
@@ -26,7 +27,18 @@ function disciplinaRequierePrefijo(rubro, licencia, disciplina) {
 }
 function ajustarDisciplina() { const selector = $('disciplinaModelo'), conLicencia = Boolean($('licenciaModelo').value) && $('licenciaModelo').value !== '__SIN_LICENCIA__'; if (conLicencia) selector.value = '__SIN_DISCIPLINA__'; selector.disabled = conLicencia; $('datosDisciplina').classList.toggle('d-none', !disciplinaRequierePrefijo($('rubroModelo').value, $('licenciaModelo').value, selector.value)); $('codigoMaestro').value = ''; }
 function ajustarDisciplinaMasiva() { const selector = $('disciplinaModelosMasivos'), conLicencia = Boolean($('licenciaModelosMasivos').value) && $('licenciaModelosMasivos').value !== '__SIN_LICENCIA__'; if (conLicencia) selector.value = '__SIN_DISCIPLINA__'; selector.disabled = conLicencia; $('datosDisciplinaMasiva').classList.toggle('d-none', !disciplinaRequierePrefijo($('rubroModelosMasivos').value, $('licenciaModelosMasivos').value, selector.value)); vistaPreviaModelos = []; $('panelVistaPreviaModelos').classList.add('d-none'); }
-function ajustarCampos() { const t = $('tipoMaestro').value; $('camposModeloPrevios').classList.toggle('d-none', t !== 'MODELO'); $('camposModeloPosteriores').classList.toggle('d-none', t !== 'MODELO'); $('avisoModulo').classList.toggle('d-none', t !== 'MODULO'); $('codigoMaestro').maxLength = t === 'MODELO' ? 6 : 2; $('codigoMaestro').readOnly = t === 'MODELO'; }
+const tallesModuloPorRubro = {
+  CALZADO: ['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','38.5','39','39.5','40','40.5','41','41.5','42','42.5','43','43.5','44','44.5','45','45.5','46','47','48','49','50'],
+  INDUMENTARIA: ['XS','S','M','L','XL','2XL','3XL']
+};
+function campoTalleModulo(talle) { return /^\d+\.5$/.test(talle) ? `T${talle.replace('.', '')}` : (/^\d+$/.test(talle) ? `T${talle}` : `T_${talle}`); }
+function actualizarTotalModulo() { $('paresModuloTotal').textContent = [...document.querySelectorAll('.cantidad-talle-modulo')].reduce((total, input) => total + Number(input.value || 0), 0); }
+function renderEditorModulo() {
+  const talles = tallesModuloPorRubro[$('rubroModulo').value] || [];
+  $('tallesModuloEditor').innerHTML = talles.map(talle => `<div class="col-4 col-sm-3"><label class="form-label small mb-1">${textoSeguro(talle)}</label><input class="form-control form-control-sm cantidad-talle-modulo" type="number" min="0" max="99" step="1" value="0" data-campo-talle="${campoTalleModulo(talle)}"></div>`).join('') || '<div class="col-12 small text-secondary">Seleccione Calzado o Indumentaria para cargar la distribución.</div>';
+  actualizarTotalModulo();
+}
+function ajustarCampos() { const t = $('tipoMaestro').value; const modulo = t === 'MODULO'; $('camposModeloPrevios').classList.toggle('d-none', t !== 'MODELO'); $('camposModeloPosteriores').classList.toggle('d-none', t !== 'MODELO'); $('editorModulo').classList.toggle('d-none', !modulo); $('nombreMaestro').classList.toggle('d-none', modulo); $('nombreMaestro').required = !modulo; $('codigoMaestro').maxLength = t === 'MODELO' ? 6 : 2; $('codigoMaestro').readOnly = t === 'MODELO'; if (modulo) renderEditorModulo(); }
 function proveedorVistaPrevia(x) { return textoSeguro(x.proveedorNombre || '-') + '<div class="small text-secondary">' + textoSeguro(x.cProveedor || '') + '</div>'; }
 function cambiarPanelMaestros(panel) {
   const consulta = panel === 'consulta';
@@ -89,12 +101,24 @@ function renderConsultaMaestros() {
   } else if (tipo === 'COLORES') {
     encabezado = '<tr><th>Código</th><th>Descripción</th></tr>';
     cuerpo = pagina.map(x => `<tr><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO_COLOR)}</td><td>${textoSeguro(x.DETALLE_COLOR)}</td></tr>`).join('');
+  } else if (tipo === 'PROVEEDORES') {
+    encabezado = '<tr><th>Código</th><th>Razón social</th><th>Código Presea</th><th>Rubro informado</th></tr>';
+    cuerpo = pagina.map(x => `<tr><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO || '-')}</td><td>${textoSeguro(x.NVA_RAZON_SOCIAL || '-')}</td><td class="font-monospace">${textoSeguro(x.PRESEA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td></tr>`).join('');
   } else if (tipo === 'MODULOS') {
     encabezado = '<tr><th>Código</th><th>Descripción</th><th>Distribución</th><th>Pares</th><th>Estado</th></tr>';
     cuerpo = pagina.map(x => { const ok = Boolean(Number(x.ES_CONSISTENTE)); return `<tr class="${ok ? '' : 'table-warning'}"><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO_MODULO)}</td><td>${textoSeguro(x.DETALLE_MODULO)}</td><td>${textoSeguro(x.DESCRIPCION_CURVA)}</td><td>${textoSeguro(x.PARES)}</td><td><span class="badge ${ok ? 'text-bg-success' : 'text-bg-warning'}">${ok ? 'CONSISTENTE' : 'INCONSISTENTE'}</span>${x.OBSERVACION ? `<div class="small mt-1">${textoSeguro(x.OBSERVACION)}</div>` : ''}</td></tr>`; }).join('');
   } else {
     encabezado = '<tr><th>Código</th><th>Disciplina</th></tr>';
     cuerpo = pagina.map(x => `<tr><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO_DEPORTE)}</td><td>${textoSeguro(x.DETALLE_DEPORTE)}</td></tr>`).join('');
+  }
+  if (tipo === 'PRODUCTOS') {
+    for (const estado of ['BORRADOR', 'VALIDADO', 'EXPORTADO', 'PARCIAL_ERP', 'GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP', 'ANULADO']) {
+      const etiqueta = estado.replaceAll('_', ' ');
+      cuerpo = cuerpo.replaceAll(
+        `<span class="badge text-bg-secondary">${etiqueta}</span>`,
+        `<span class="badge ${claseEstadoAltaConsulta(estado)}">${etiqueta}</span>`
+      );
+    }
   }
   $('encabezadoConsultaMaestros').innerHTML = encabezado;
   $('tablaConsultaMaestros').innerHTML = cuerpo || `<tr><td colspan="6" class="text-center py-5 text-secondary">No hay resultados.</td></tr>`;
@@ -111,7 +135,7 @@ async function cargarConsultaMaestros() {
   $('filtrosModelosConsulta').classList.toggle('d-none', !['MODELOS', 'PRODUCTOS'].includes(tipo));
   $('tablaConsultaMaestros').innerHTML = '<tr><td colspan="6" class="text-center py-5 text-secondary">Cargando...</td></tr>';
   try {
-    const endpoint = tipo === 'MODELOS' ? '/api/maestros/consulta/modelos' : tipo === 'PRODUCTOS' ? '/api/maestros/consulta/productos' : tipo === 'COLORES' ? '/api/maestros/colores' : tipo === 'MODULOS' ? '/api/maestros/consulta/talles-modulos' : '/api/maestros/deportes';
+    const endpoint = tipo === 'MODELOS' ? '/api/maestros/consulta/modelos' : tipo === 'PRODUCTOS' ? '/api/maestros/consulta/productos' : tipo === 'PROVEEDORES' ? '/api/maestros/proveedores' : tipo === 'COLORES' ? '/api/maestros/colores' : tipo === 'MODULOS' ? '/api/maestros/consulta/talles-modulos' : '/api/maestros/deportes';
     const datos = await api(endpoint);
     consultaMaestros = Array.isArray(datos.datos) ? datos.datos : [];
     if (tipo === 'MODELOS' || tipo === 'PRODUCTOS') cargarOpcionesFiltroModelos();
@@ -190,9 +214,142 @@ async function cargarLicenciasMasivas() {
   ajustarDisciplinaMasiva();
 }
 async function sugerir() { try { const tipo = $('tipoMaestro').value; let url = `/api/altas-maestros/siguiente-codigo/${tipo}`; if (tipo === 'MODELO') { const licencia = esLicenciaNueva() ? $('detalleLicenciaNueva').value : $('licenciaModelo').value; const q = new URLSearchParams({ marca: $('marcaModelo').value, rubro: $('rubroModelo').value, licencia, disciplina: $('disciplinaModelo').value, prefijoDisciplina: $('prefijoDisciplina').value, nuevaLicencia: String(esLicenciaNueva()), prefijo: $('prefijoLicencia').value }); url += `?${q}`; } const d = await api(url); $('codigoMaestro').value = d.codigo; } catch (e) { alerta(e.message, 'danger'); } }
-async function cargar() { try { const d = await api('/api/altas-maestros'); $('tablaAltasMaestros').innerHTML = d.registros.map(x => { const confirmado = x.ESTADO === 'CONFIRMADO_ERP'; const estado = confirmado ? 'REGISTRADO EN PRESEA' : x.ESTADO.replaceAll('_', ' '); return `<tr><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${confirmado ? 'text-bg-success' : 'text-bg-secondary'}">${estado}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td></tr>`; }).join('') || '<tr><td colspan="6" class="text-center text-secondary py-4">Todavía no hay solicitudes.</td></tr>'; } catch (e) { alerta(e.message, 'danger'); } }
-async function guardar(ev) { ev.preventDefault(); try { const tipo = $('tipoMaestro').value; if (tipo === 'MODELO' && !$('codigoMaestro').value) throw new Error('Primero debe sugerir el código de modelo.'); const cuerpo = { tipo, codigo: $('codigoMaestro').value, nombre: $('nombreMaestro').value, cProveedor: $('proveedorModelo').value, licencia: esLicenciaNueva() ? $('detalleLicenciaNueva').value : $('licenciaModelo').value, marca: $('marcaModelo').value, rubro: $('rubroModelo').value, disciplina: $('disciplinaModelo').value, prefijoDisciplina: $('prefijoDisciplina').value }; const d = await api('/api/altas-maestros', { method: 'POST', body: JSON.stringify(cuerpo) }); alerta(`${d.registro.TIPO} ${d.registro.CODIGO} reservado correctamente.`); ev.target.reset(); ajustarCampos(); await cargarCatalogosModelo(); await cargar(); } catch (e) { alerta(e.message, 'danger'); } }
-async function enviar() { if (!confirm('¿Generar y enviar los DBI pendientes a Presea?')) return; try { const d = await api('/api/altas-maestros/enviar-presea', { method: 'POST', body: '{}' }); alerta(`${d.registros} registros enviados correctamente en ${d.archivos.length} archivo(s).`); await cargar(); } catch (e) { alerta(e.message, 'danger'); } }
+function presentacionEstadoMaestro(valor) {
+  const estado = String(valor || '').trim().toUpperCase();
+  const estados = {
+    PENDIENTE_ENVIO: { etiqueta: 'PENDIENTE DE ENVÍO', clase: 'text-bg-warning' },
+    ENVIADO_PRESEA: { etiqueta: 'ENVIADO A PRESEA', clase: 'text-bg-primary' },
+    CONFIRMADO_ERP: { etiqueta: 'REGISTRADO EN PRESEA', clase: 'text-bg-success' },
+    ERROR_ENVIO: { etiqueta: 'ERROR DE ENVÍO', clase: 'text-bg-danger' }
+  };
+  return estados[estado] || {
+    etiqueta: estado.replaceAll('_', ' ') || 'SIN ESTADO',
+    clase: 'text-bg-secondary'
+  };
+}
+
+function claseEstadoAltaConsulta(valor) {
+  const estado = String(valor || '').trim().toUpperCase();
+  const clases = {
+    BORRADOR: 'text-bg-secondary',
+    VALIDADO: 'text-bg-info',
+    EXPORTADO: 'text-bg-primary',
+    PARCIAL_ERP: 'text-bg-warning',
+    GENERADO_OK_EN_ERP: 'text-bg-success',
+    SIN_NOVEDADES_ERP: 'badge-sin-novedades-erp',
+    ANULADO: 'text-bg-danger'
+  };
+  return clases[estado] || 'text-bg-secondary';
+}
+
+function mostrarConfirmacionEnvioMaestros(resultado) {
+  const archivos = Array.isArray(resultado?.archivos) ? resultado.archivos : [];
+  const archivoModelos = archivos.find(archivo => String(archivo.nombre || '').toUpperCase() === 'TBL_MODELOS.DBI');
+  $('mensajeModalEnvioMaestros').textContent = archivoModelos
+    ? `Se envió el archivo de modelos a Presea con ${Number(archivoModelos.registros || 0)} registro(s).`
+    : `Se enviaron ${Number(resultado?.registros || 0)} registro(s) a Presea.`;
+  $('archivosModalEnvioMaestros').innerHTML = archivos
+    .map(archivo => `<div><strong>${textoSeguro(archivo.nombre)}</strong> · ${Number(archivo.registros || 0)} registro(s)</div>`)
+    .join('');
+  bootstrap.Modal.getOrCreateInstance($('modalEnvioMaestros')).show();
+}
+
+function accionEliminarSolicitudMaestro(registro) {
+  if (String(registro.ESTADO || '').toUpperCase() !== 'PENDIENTE_ENVIO') return '';
+  return `<button class="btn btn-sm btn-outline-danger" type="button" data-eliminar-solicitud-maestro="${Number(registro.ID_ALTA_MAESTRO)}" data-codigo-solicitud="${textoSeguro(registro.CODIGO)}">Eliminar</button>`;
+}
+
+async function cargar() { try { const d = await api('/api/altas-maestros'); $('tablaAltasMaestros').innerHTML = d.registros.map(x => { const estado = presentacionEstadoMaestro(x.ESTADO); return `<tr><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`; }).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">Todavía no hay solicitudes.</td></tr>'; } catch (e) { alerta(e.message, 'danger'); } }
+
+async function eliminarSolicitudMaestro(evento) {
+  const boton = evento.target.closest('[data-eliminar-solicitud-maestro]');
+  if (!boton) return;
+  const codigo = boton.dataset.codigoSolicitud || '';
+  if (!confirm(`¿Eliminar la solicitud ${codigo}? El código volverá a quedar disponible.`)) return;
+  try {
+    boton.disabled = true;
+    await api(`/api/altas-maestros/${boton.dataset.eliminarSolicitudMaestro}`, { method: 'DELETE' });
+    alerta(`La solicitud ${codigo} fue eliminada correctamente.`, 'success');
+    await cargar();
+  } catch (e) {
+    boton.disabled = false;
+    alerta(e.message, 'danger');
+  }
+}
+function cuerpoSolicitudMaestro() {
+  const tipo = $('tipoMaestro').value;
+  if (!$('codigoMaestro').value.trim()) throw new Error(`Primero debe sugerir o ingresar el código de ${tipo.toLowerCase()}.`);
+  if (tipo !== 'MODULO' && !$('nombreMaestro').value.trim()) throw new Error('Debe indicar el nombre o descripción.');
+  const cuerpo = { tipo, codigo: $('codigoMaestro').value, nombre: $('nombreMaestro').value, cProveedor: $('proveedorModelo').value, licencia: esLicenciaNueva() ? $('detalleLicenciaNueva').value : $('licenciaModelo').value, marca: $('marcaModelo').value, rubro: $('rubroModelo').value, disciplina: $('disciplinaModelo').value, prefijoDisciplina: $('prefijoDisciplina').value };
+  if (tipo === 'MODELO' && (!cuerpo.marca || !cuerpo.rubro || !cuerpo.licencia || !cuerpo.disciplina || !cuerpo.cProveedor)) throw new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.');
+  if (tipo === 'MODULO') {
+    cuerpo.rubro = $('rubroModulo').value;
+    const activos = [...document.querySelectorAll('.cantidad-talle-modulo')].filter(input => Number(input.value) > 0).map(input => ({ campo: input.dataset.campoTalle, talle: input.previousElementSibling?.textContent || input.dataset.campoTalle, cantidad: Number(input.value) }));
+    cuerpo.datos = { distribucion: Object.fromEntries(activos.map(item => [item.campo, item.cantidad])) };
+    const pares = activos.reduce((total, item) => total + item.cantidad, 0);
+    if (!cuerpo.rubro) throw new Error('Seleccione si el módulo corresponde a Calzado o Indumentaria.');
+    if (!pares) throw new Error('Ingrese al menos un talle con cantidad mayor a cero.');
+    cuerpo.nombre = activos.length === 1 ? `${activos[0].talle} X ${pares} (${activos[0].cantidad})` : `${activos[0].talle} AL ${activos.at(-1).talle} X ${pares} (${activos.map(x => x.cantidad).join(',')})`;
+  }
+  return cuerpo;
+}
+
+function filaConfirmacionMaestro(etiqueta, valor) {
+  return `<dt class="col-5 text-secondary">${textoSeguro(etiqueta)}</dt><dd class="col-7 fw-semibold">${textoSeguro(valor || '-')}</dd>`;
+}
+
+function mostrarConfirmacionSolicitudMaestro(cuerpo) {
+  const filas = [
+    ['Tipo', cuerpo.tipo],
+    ['Código', cuerpo.codigo],
+    ['Descripción', cuerpo.nombre]
+  ];
+  if (cuerpo.tipo === 'MODELO') filas.push(
+    ['Marca', cuerpo.marca],
+    ['Rubro', cuerpo.rubro],
+    ['Licencia', cuerpo.licencia === '__SIN_LICENCIA__' ? 'SIN LICENCIA' : cuerpo.licencia],
+    ['Disciplina', cuerpo.disciplina === '__SIN_DISCIPLINA__' ? 'SIN DISCIPLINA' : cuerpo.disciplina],
+    ['Proveedor', $('proveedorModelo').selectedOptions[0]?.textContent || cuerpo.cProveedor]
+  );
+  if (cuerpo.tipo === 'MODULO') filas.push(['Rubro', cuerpo.rubro], ['Distribución', cuerpo.nombre], ['Total', `${Object.values(cuerpo.datos.distribucion).reduce((total, cantidad) => total + cantidad, 0)} pares/unidades`]);
+  $('detalleConfirmarSolicitudMaestro').innerHTML = filas.map(([etiqueta, valor]) => filaConfirmacionMaestro(etiqueta, valor)).join('');
+  bootstrap.Modal.getOrCreateInstance($('modalConfirmarSolicitudMaestro')).show();
+}
+
+function guardar(ev) {
+  ev.preventDefault();
+  try {
+    solicitudMaestroPorConfirmar = cuerpoSolicitudMaestro();
+    mostrarConfirmacionSolicitudMaestro(solicitudMaestroPorConfirmar);
+  } catch (e) {
+    solicitudMaestroPorConfirmar = null;
+    alerta(e.message, 'danger');
+  }
+}
+
+async function confirmarSolicitudMaestro() {
+  if (!solicitudMaestroPorConfirmar) return;
+  const btn = $('btnConfirmarSolicitudMaestro');
+  const textoOriginal = btn.textContent;
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+    const d = await api('/api/altas-maestros', { method: 'POST', body: JSON.stringify(solicitudMaestroPorConfirmar) });
+    bootstrap.Modal.getInstance($('modalConfirmarSolicitudMaestro'))?.hide();
+    alerta(`${d.registro.TIPO} ${d.registro.CODIGO} reservado correctamente.`);
+    solicitudMaestroPorConfirmar = null;
+    $('formAltaMaestro').reset();
+    ajustarCampos();
+    await cargarCatalogosModelo();
+    await cargar();
+  } catch (e) {
+    alerta(e.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+}
+async function enviar() { if (!confirm('¿Generar y enviar los DBI pendientes a Presea?')) return; try { const d = await api('/api/altas-maestros/enviar-presea', { method: 'POST', body: '{}' }); alerta(`${d.registros} registros enviados correctamente en ${d.archivos.length} archivo(s).`); await cargar(); mostrarConfirmacionEnvioMaestros(d); } catch (e) { alerta(e.message, 'danger'); } }
 function pintarVistaPreviaModelos(resultado) {
   vistaPreviaModelos = resultado.filas || [];
   $('panelVistaPreviaModelos').classList.remove('d-none');
@@ -289,6 +446,8 @@ async function iniciar() {
   $('btnSiguienteConsultaMaestros').addEventListener('click', () => { paginaConsultaMaestros += 1; renderConsultaMaestros(); });
   $('btnExportarConsultaMaestros').addEventListener('click', exportarConsultaMaestros);
   $('tipoMaestro').addEventListener('change', ajustarCampos);
+  $('rubroModulo').addEventListener('change', renderEditorModulo);
+  $('tallesModuloEditor').addEventListener('input', actualizarTotalModulo);
   $('marcaModelo').addEventListener('change', cargarLicencias);
   $('rubroModelo').addEventListener('change', cargarLicencias);
   $('licenciaModelo').addEventListener('change', () => { ajustarLicenciaNueva(); ajustarDisciplina(); });
@@ -305,6 +464,8 @@ async function iniciar() {
   $('btnDescargarVistaPreviaModelos').addEventListener('click', descargarVistaPreviaModelos);
   $('tablaVistaPreviaModelos').addEventListener('input', actualizarNombreModeloVistaPrevia);
   $('btnConfirmarModelosMasivos').addEventListener('click', confirmarModelosMasivos);
+  $('btnConfirmarSolicitudMaestro').addEventListener('click', confirmarSolicitudMaestro);
+  $('tablaAltasMaestros').addEventListener('click', eliminarSolicitudMaestro);
   $('formAltaMaestro').addEventListener('submit', guardar);
   window.addEventListener('app:empresa-cambiada', event => {
     event.preventDefault();

@@ -152,6 +152,9 @@ async function construirContextoUsuario(usuarioDb) {
       todasLicencias:
         Boolean(acceso.TODAS_LICENCIAS),
 
+      puedeVerReportes:
+        Boolean(acceso.PUEDE_VER_REPORTES),
+
       marcas:
         marcas.map(
           item => ({

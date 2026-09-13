@@ -378,6 +378,10 @@ function pintarAcceso(acceso) {
           <div class="text-secondary fw-semibold mb-1">Licencias</div>
           <div>${licencias}</div>
         </div>
+        <div class="col-12">
+          <div class="text-secondary fw-semibold mb-1">Funciones</div>
+          <span class="badge ${acceso.puedeVerReportes ? 'text-bg-success' : 'text-bg-light border'}">${acceso.puedeVerReportes ? 'Puede ver reportes' : 'Sin acceso a reportes'}</span>
+        </div>
       </div>
     </div>
   `;
@@ -802,6 +806,13 @@ function crearTarjetaAcceso(acceso = {}, opciones = {}) {
         </div>
       </div>
 
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input permiso-ver-reportes" type="checkbox" role="switch"
+               id="permisoReportes${indice}" ${acceso.puedeVerReportes ? 'checked' : ''}>
+        <label class="form-check-label fw-semibold" for="permisoReportes${indice}">Ver reportes</label>
+        <div class="form-text">Permite consultar pares e importes de los pedidos de esta empresa.</div>
+      </div>
+
       ${crearBloqueScope(
         'marcas',
         'Marcas',
@@ -890,6 +901,7 @@ function agregarAccesoVacio() {
     todasMarcas: false,
     todosRubros: false,
     todasLicencias: true,
+    puedeVerReportes: false,
     marcas: [],
     rubros: [],
     licencias: []
@@ -1075,7 +1087,8 @@ function leerAccesosFormulario() {
       todosRubros: rubros.todos,
       rubros: rubros.valores,
       todasLicencias: licencias.todos,
-      licencias: licencias.valores
+      licencias: licencias.valores,
+      puedeVerReportes: Boolean(tarjeta.querySelector('.permiso-ver-reportes')?.checked)
     });
   });
 

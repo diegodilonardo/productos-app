@@ -354,6 +354,17 @@ function actualizarPermisosNavbar(
       'd-none',
       !puedeAdministrarUsuarios
     );
+
+  const puedeVerReportes =
+    Boolean(usuario?.superAdmin) ||
+    acceso?.puedeVerReportes === true ||
+    (!acceso && Array.isArray(usuario?.empresas) && usuario.empresas.some(item =>
+      item?.puedeVerReportes === true
+    ));
+
+  document
+    .getElementById('navReportes')
+    ?.classList.toggle('d-none', !puedeVerReportes);
 }
 
 function obtenerEmpresaActiva(

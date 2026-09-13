@@ -53,7 +53,7 @@ test('Maestros incorpora productos como consulta de solo lectura por empresa', (
   assert.match(js, /\/api\/maestros\/consulta\/productos/);
   assert.match(js, /Código alfa \/ ERP/);
   assert.match(vista, /id="filtroTipoProductos"/);
-  assert.match(vista, /value="MODULO">Módulos/);
+  assert.match(vista, /value="MODULO"\s*>Módulos/);
   assert.match(vista, /value="PAR_SUELTO">Pares sueltos/);
   assert.match(js, /item\.TIPO_PRODUCTO/);
   assert.match(js, /loading="lazy"/);
@@ -64,4 +64,20 @@ test('Maestros incorpora productos como consulta de solo lectura por empresa', (
   assert.match(repository, /COALESCE\(D\.TIPO_PRODUCTO_DETALLE, A\.TIPO_PRODUCTO, P\.TIPO_PRODUCTO\) AS TIPO_PRODUCTO/);
   assert.match(rutas, /"\/consulta\/productos"/);
   assert.doesNotMatch(vista, /editarProductoMaestro|eliminarProductoMaestro/);
+});
+
+test('Maestros incorpora proveedores como consulta de solo lectura y exportable', () => {
+  const vista = fs.readFileSync(path.join(process.cwd(), 'views/altas-maestros/index.hbs'), 'utf8');
+  const js = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
+  assert.match(vista, /value="PROVEEDORES"\s*>Proveedores/);
+  assert.match(js, /tipo === 'PROVEEDORES' \? '\/api\/maestros\/proveedores'/);
+  assert.match(js, /Razón social/);
+  assert.match(js, /x\.NVA_RAZON_SOCIAL/);
+
+  const archivo = maestrosService.exportarConsultaMaestros('PROVEEDORES', [{
+    CODIGO: 'PB0001', NVA_RAZON_SOCIAL: 'PROVEEDOR UNO', PRESEA: '15000', RUBRO: 'CALZADO', PRIVADO: 'NO'
+  }]);
+  const libro = XLSX.read(archivo, { type: 'buffer' });
+  const filas = XLSX.utils.sheet_to_json(libro.Sheets.PROVEEDORES);
+  assert.deepEqual(filas, [{ CODIGO: 'PB0001', NVA_RAZON_SOCIAL: 'PROVEEDOR UNO', PRESEA: '15000', RUBRO: 'CALZADO' }]);
 });

@@ -5,6 +5,7 @@ const {
   requerirAutenticacion,
   requerirEmpresa,
   requerirEscrituraEmpresa,
+  requerirReportesEmpresa,
   requerirAccesoAlta,
   requerirAccesoPedido
 } = require('../middlewares/auth.middleware');
@@ -29,6 +30,43 @@ router.get('/', requerirEmpresa, async (req, res) => {
   try {
     const datos = await pedidosService.listarPedidos(req.idEmpresa, req.accesoEmpresa);
     return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.get('/reportes/resumen', requerirEmpresa, requerirReportesEmpresa, async (req, res) => {
+  try {
+    const datos = await pedidosService.generarReportePedidos(
+      req.idEmpresa,
+      req.accesoEmpresa,
+      req.query
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.get('/reportes/detalle', requerirEmpresa, requerirReportesEmpresa, async (req, res) => {
+  try {
+    const datos = await pedidosService.generarReporteDetallePedidos(
+      req.idEmpresa,
+      req.accesoEmpresa,
+      req.query
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.get('/reportes/exportar', requerirEmpresa, requerirReportesEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.exportarReportePedidos(req.idEmpresa, req.accesoEmpresa, req.query);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${resultado.nombreArchivo}"`);
+    return res.send(resultado.buffer);
   } catch (error) {
     return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }
@@ -59,6 +97,17 @@ router.post('/altas/productos', requerirEmpresa, async (req, res) => {
     const datos = await pedidosService.obtenerProductosDisponiblesPorAltas(
       req.body?.idsAltas, req.body?.codigoProveedor,
       req.idEmpresa, req.accesoEmpresa
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.post('/altas/resumen-productos', requerirEmpresa, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerResumenProductosAltas(
+      req.body?.idsAltas, req.idEmpresa, req.accesoEmpresa
     );
     return res.json({ ok: true, cantidad: datos.length, datos });
   } catch (error) {
@@ -187,6 +236,20 @@ router.post('/:id/anular', requerirAccesoPedido, requerirEscrituraEmpresa, async
 router.get('/:id/exportacion/pedido-excel', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.exportarPedidoExcel(
+      req.params.id, req.idEmpresa, usuarioAuditoria(req)
+    );
+    res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition',`attachment; filename="${resultado.nombreArchivo}"`);
+    res.setHeader('X-Cantidad-Registros',String(resultado.cantidadRegistros));
+    return res.send(resultado.buffer);
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.get('/:id/exportacion/purchase-order', requerirAccesoPedido, async (req, res) => {
+  try {
+    const resultado = await pedidosService.exportarPurchaseOrder(
       req.params.id, req.idEmpresa, usuarioAuditoria(req)
     );
     res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

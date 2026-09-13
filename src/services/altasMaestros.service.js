@@ -16,6 +16,16 @@ function resolverRutaDestinoMaestros(rutaConfigurada) {
 }
 
 const largos = { COLOR: 2, MODELO: 6, MODULO: 2 };
+const tallesModuloIndumentaria = ['T_XS','T_S','T_M','T_L','T_XL','T_2XL','T_3XL'];
+const tallesModuloCalzado = [
+  'T15','T16','T17','T18','T19','T20','T21','T22','T23','T24','T25','T26','T27','T28','T29','T30',
+  'T31','T32','T33','T34','T35','T36','T37','T38','T385','T39','T395','T40','T405','T41','T415','T42',
+  'T425','T43','T435','T44','T445','T45','T455','T46','T47','T48','T49','T50'
+];
+const etiquetasTallesModulo = Object.fromEntries([
+  ...tallesModuloCalzado.map(campo => [campo, campo.length === 4 && campo.endsWith('5') ? `${campo.slice(1, -1)}.5` : campo.slice(1)]),
+  ['T_XS','XS'],['T_S','S'],['T_M','M'],['T_L','L'],['T_XL','XL'],['T_2XL','2XL'],['T_3XL','3XL']
+]);
 const seriesModeloSinLicencia = {
   'INDUMENTARIA|SIN DISCIPLINA': { prefijo: 'I', largoCorrelativo: 5, ultimoConfirmado: 326 },
   'INDUMENTARIA|FUTBOL': { prefijo: 'AF', largoCorrelativo: 4, ultimoConfirmado: 0 },
@@ -71,7 +81,8 @@ async function sugerirCodigo(idEmpresa, tipoEntrada) {
   if (!largo) throw Object.assign(new Error('Tipo de maestro inválido.'), { status: 400 });
   const ocupados = new Set(await repository.codigosOcupados(idEmpresa, tipo));
   const limite = 36 ** largo;
-  for (let i = 0; i < limite; i += 1) {
+  const inicio = tipo === 'MODULO' ? Number.parseInt('A0', 36) : 0;
+  for (let i = inicio; i < limite; i += 1) {
     const codigo = codigoBase36(i, largo);
     if (!ocupados.has(codigo)) return codigo;
   }
@@ -81,6 +92,14 @@ async function sugerirCodigo(idEmpresa, tipoEntrada) {
 async function listar(idEmpresa, usuario = 'SISTEMA') {
   await repository.conciliarModelosRegistrados(idEmpresa, usuario);
   return repository.listar(idEmpresa);
+}
+
+async function eliminarPendiente({ idEmpresa, idAltaMaestro, usuario }) {
+  const id = Number(idAltaMaestro);
+  if (!Number.isInteger(id) || id <= 0) throw Object.assign(new Error('La solicitud indicada no es válida.'), { status: 400 });
+  const registro = await repository.anularPendiente(idEmpresa, id, usuario || 'SISTEMA');
+  if (!registro) throw Object.assign(new Error('La solicitud no existe o ya no está pendiente de envío.'), { status: 409 });
+  return registro;
 }
 
 async function sugerirCodigoModelo(idEmpresa, filtros) {
@@ -156,11 +175,11 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
 
 async function crear({ idEmpresa, usuario, cuerpo }) {
   const tipo = normalizar(cuerpo.tipo);
-  const nombre = normalizar(cuerpo.nombre);
+  let nombre = normalizar(cuerpo.nombre);
   const licenciaModelo = normalizarLicencia(cuerpo.licencia);
   const disciplinaModelo = licenciaModelo === 'SIN LICENCIA' ? normalizarDisciplina(cuerpo.disciplina) : 'SIN DISCIPLINA';
   const codigo = normalizar(cuerpo.codigo) || await sugerirCodigo(idEmpresa, tipo);
-  if (!largos[tipo] || !nombre) throw Object.assign(new Error('Debe indicar tipo y nombre.'), { status: 400 });
+  if (!largos[tipo]) throw Object.assign(new Error('Debe indicar un tipo de maestro válido.'), { status: 400 });
   const largoValido = tipo === 'MODELO' ? codigo.length >= 1 && codigo.length <= largos[tipo] : codigo.length === largos[tipo];
   if (!/^[A-Z0-9]+$/.test(codigo) || !largoValido) {
     throw Object.assign(new Error(`El código de ${tipo} debe tener hasta ${largos[tipo]} caracteres alfanuméricos.`), { status: 400 });
@@ -168,8 +187,43 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
   if (tipo === 'MODELO' && (!normalizar(cuerpo.marca) || !normalizar(cuerpo.rubro) || !licenciaModelo || !disciplinaModelo || !normalizar(cuerpo.cProveedor))) {
     throw Object.assign(new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.'), { status: 400 });
   }
+  let datosModulo = null;
+  if (tipo === 'MODULO') {
+    const rubroModulo = normalizar(cuerpo.rubro);
+    if (!['CALZADO', 'INDUMENTARIA'].includes(rubroModulo)) throw Object.assign(new Error('El módulo debe corresponder a Calzado o Indumentaria.'), { status: 400 });
+    const permitidos = rubroModulo === 'CALZADO' ? tallesModuloCalzado : tallesModuloIndumentaria;
+    const distribucionEntrada = cuerpo.datos?.distribucion && typeof cuerpo.datos.distribucion === 'object' ? cuerpo.datos.distribucion : {};
+    const distribucion = {};
+    for (const [campo, valor] of Object.entries(distribucionEntrada)) {
+      if (!permitidos.includes(campo)) throw Object.assign(new Error(`El talle ${campo} no corresponde a ${rubroModulo}.`), { status: 400 });
+      const cantidad = Number(valor);
+      if (!Number.isInteger(cantidad) || cantidad < 0 || cantidad > 99) throw Object.assign(new Error(`La cantidad de ${etiquetasTallesModulo[campo] || campo} debe ser un entero entre 0 y 99.`), { status: 400 });
+      if (cantidad > 0) distribucion[campo] = cantidad;
+    }
+    const camposActivos = permitidos.filter(campo => distribucion[campo] > 0);
+    const pares = camposActivos.reduce((total, campo) => total + distribucion[campo], 0);
+    if (!camposActivos.length || pares <= 0) throw Object.assign(new Error('Ingrese al menos un talle con cantidad mayor a cero.'), { status: 400 });
+    const cantidades = camposActivos.map(campo => distribucion[campo]).join(',');
+    const primerTalle = etiquetasTallesModulo[camposActivos[0]];
+    const ultimoTalle = etiquetasTallesModulo[camposActivos[camposActivos.length - 1]];
+    nombre = camposActivos.length === 1
+      ? `${primerTalle} X ${pares} (${cantidades})`
+      : `${primerTalle} AL ${ultimoTalle} X ${pares} (${cantidades})`;
+    datosModulo = { rubro: rubroModulo, distribucion, pares };
+
+    const existentes = await maestrosRepository.obtenerTallesModulosConsulta(idEmpresa);
+    const pendientes = (await repository.listar(idEmpresa)).filter(x => x.TIPO === 'MODULO' && x.ESTADO === 'PENDIENTE_ENVIO');
+    const firma = permitidos.map(campo => Number(distribucion[campo] || 0)).join('|');
+    const repetidoMaestro = existentes.some(item => permitidos.map(campo => Number(item[campo] || 0)).join('|') === firma);
+    const repetidoPendiente = pendientes.some(item => {
+      try { const datos = JSON.parse(item.DATOS_JSON || '{}'); return permitidos.map(campo => Number(datos.distribucion?.[campo] || 0)).join('|') === firma; }
+      catch { return false; }
+    });
+    if (repetidoMaestro || repetidoPendiente) throw Object.assign(new Error('Ya existe un módulo con la misma distribución de talles.'), { status: 409 });
+  }
+  if (!nombre) throw Object.assign(new Error('Debe indicar el nombre o la distribución del módulo.'), { status: 400 });
   const cProveedor = tipo === 'MODELO' ? validarCodigoProveedor(cuerpo.cProveedor) : normalizar(cuerpo.cProveedor);
-  const datos = tipo === 'MODELO' ? { ...(cuerpo.datos || {}), disciplina: disciplinaModelo, prefijoDisciplina: normalizar(cuerpo.prefijoDisciplina) || null } : cuerpo.datos;
+  const datos = tipo === 'MODELO' ? { ...(cuerpo.datos || {}), disciplina: disciplinaModelo, prefijoDisciplina: normalizar(cuerpo.prefijoDisciplina) || null } : (datosModulo || cuerpo.datos);
   return repository.crear({ idEmpresa, tipo, codigo, nombre, cProveedor, licencia: licenciaModelo, marca: normalizar(cuerpo.marca), rubro: normalizar(cuerpo.rubro), datosJson: datos ? JSON.stringify(datos) : null, usuario: usuario || 'SISTEMA' });
 }
 
@@ -327,6 +381,23 @@ const definicionesDbi = {
       MARCA: x.MARCA,
       RUBRO: x.RUBRO
     })
+  },
+  MODULO: {
+    archivo: 'TALLES_MODULOS.DBI',
+    campos: [
+      { nombre: 'CODIGO', tipo: 'C', largo: 2 }, { nombre: 'NOMBRE', tipo: 'C', largo: 50 },
+      ...['_3M','_6M','_9M','_12M','T17','T18','T19','T20','T21','T22','T23','T24','T25','T26','T27','T28','T29','T30','T31','T32','T33','T34','T35','T36','T37','T38','T39','T40','T41','T42','T43','T44','T45'].map(nombre => ({ nombre, tipo: 'N', largo: 2 })),
+      { nombre: 'PARES', tipo: 'N', largo: 2 },
+      ...['T46','T47','T48','T49','T50','T16','T15'].map(nombre => ({ nombre, tipo: 'N', largo: 2 })),
+      ...['T100','T105','T110','T90','T95'].map(nombre => ({ nombre, tipo: 'N', largo: 3 })),
+      ...['USAH10','USAH105','USAH11','USAH115','USAH12','USAH125','USAH13','USAH135','USAH14','USAH145','USAH15','USAM5','USAM55','USAM6','USAM65','USAM7','USAM75','USAM8','USAM85','USAM9','USAM95','USAH155','USAM4','USAM45','USAM10','T01','T02','T03','T04','T05','T06','T07','T08','T85','T10','T12','T14','T_2XL','T_3XL','T_L','T_M','T_S','T_XL','T_XS','T385','T395','T405','T415','T425','T435','T445','T455'].map(nombre => ({ nombre, tipo: 'N', largo: 2 })),
+      { nombre: 'TALLE_COMP', tipo: 'L', largo: 1 }
+    ],
+    map: x => {
+      const datos = JSON.parse(x.DATOS_JSON || '{}');
+      const cantidadesVacias = Object.fromEntries(definicionesDbi.MODULO.campos.filter(campo => campo.tipo === 'N').map(campo => [campo.nombre, 0]));
+      return { CODIGO: x.CODIGO, NOMBRE: x.NOMBRE, ...cantidadesVacias, ...Object.fromEntries([...tallesModuloCalzado, ...tallesModuloIndumentaria].map(campo => [campo, Number(datos.distribucion?.[campo] || 0)])), PARES: Number(datos.pares || 0), TALLE_COMP: false };
+    }
   }
 };
 
@@ -334,13 +405,11 @@ async function enviarPresea({ idEmpresa, usuario }) {
   const datos = await repository.obtenerPendientesYConfiguracion(idEmpresa);
   const rutaDestino = resolverRutaDestinoMaestros(datos.rutaDestino);
   if (!rutaDestino) throw Object.assign(new Error('La empresa no tiene configurada la carpeta FTP de Altas de Maestros.'), { status: 409 });
-  const noSoportados = datos.registros.filter(x => x.TIPO === 'MODULO');
-  if (noSoportados.length) throw Object.assign(new Error('Hay módulos pendientes: primero debe completarse su distribución de talles.'), { status: 409 });
   if (!datos.registros.length) throw Object.assign(new Error('No hay solicitudes pendientes para enviar.'), { status: 409 });
   const carpetaLocal = path.join(process.env.EXPORT_PATH || path.join(process.cwd(), 'salidas'), 'altas-maestros', String(idEmpresa));
   fs.mkdirSync(carpetaLocal, { recursive: true });
   const archivos = [];
-  for (const tipo of ['COLOR', 'MODELO']) {
+  for (const tipo of ['COLOR', 'MODELO', 'MODULO']) {
     const filas = datos.registros.filter(x => x.TIPO === tipo);
     if (!filas.length) continue;
     const def = definicionesDbi[tipo];
@@ -353,4 +422,6 @@ async function enviarPresea({ idEmpresa, usuario }) {
   return { archivos, registros: datos.registros.length, rutaDestino };
 }
 
-module.exports = { listar, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros };
+function etiquetasTallesModuloExport(campo) { return etiquetasTallesModulo[campo] || campo; }
+
+module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport };

@@ -839,12 +839,17 @@
         class="alta-products-filter-result"
         aria-live="polite"
       ></div>
+
+      <button id="btnEliminarFamiliasSeleccionadas" type="button" class="btn btn-danger d-none">
+        Eliminar seleccionadas (<span id="cantidadFamiliasSeleccionadas">0</span>)
+      </button>
     </div>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0 alta-products-table">
         <thead>
           <tr>
+            <th class="text-center"><input id="seleccionarTodasFamilias" class="form-check-input" type="checkbox" aria-label="Seleccionar todas las familias visibles"></th>
             <th>COD_ALFA</th>
             <th>Detalle</th>
             <th>Tipo</th>
@@ -859,7 +864,7 @@
         </thead>
         <tbody id="tablaProductosAlta">
           <tr>
-            <td colspan="10" class="text-center py-5 text-secondary">Cargando...</td>
+            <td colspan="11" class="text-center py-5 text-secondary">Cargando...</td>
           </tr>
         </tbody>
       </table>

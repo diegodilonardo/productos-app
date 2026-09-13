@@ -34,6 +34,16 @@ router.post('/', requerirEscrituraEmpresa, async (req, res) => {
     res.status(duplicado ? 409 : (e.status || 500)).json({ ok: false, mensaje: duplicado ? 'Ese código ya existe o está reservado.' : e.message });
   }
 });
+router.delete('/:id', requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const registro = await service.eliminarPendiente({
+      idEmpresa: req.idEmpresa,
+      idAltaMaestro: req.params.id,
+      usuario: req.session?.usuario?.usuario || 'SISTEMA'
+    });
+    res.json({ ok: true, registro });
+  } catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }
+});
 router.post('/modelos/vista-previa', requerirEscrituraEmpresa, express.raw({ type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'], limit: '5mb' }), async (req, res) => {
   try { res.json({ ok: true, ...(await service.previsualizarModelos({ idEmpresa: req.idEmpresa, buffer: req.body, contexto: req.query })) }); }
   catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }

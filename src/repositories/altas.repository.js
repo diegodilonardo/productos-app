@@ -235,6 +235,17 @@ async function listarAltas(idEmpresa) {
                         AND ISNULL(DM.GENERADO_AUTOMATICO, 0) = 0
                 ) AS CANTIDAD_MODULOS
 
+                ,(
+                    SELECT COUNT(DISTINCT PI.CODIGO_ALFA)
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DI
+                    INNER JOIN dbo.PRODUCTOS PI
+                        ON PI.ID_EMPRESA = DI.ID_EMPRESA
+                       AND PI.CODIGO_ALFA = DI.CODIGO_ALFA
+                    WHERE DI.ID_EMPRESA = A.ID_EMPRESA
+                      AND DI.ID_ALTA = A.ID_ALTA
+                      AND LTRIM(RTRIM(ISNULL(PI.C_ESTADIO, ''))) = '9'
+                ) AS CANTIDAD_PRODUCTOS_INHABILITADOS
+
             FROM dbo.ALTAS_PRODUCTOS A
             WHERE A.ID_EMPRESA = @ID_EMPRESA
 
@@ -272,10 +283,15 @@ async function obtenerDetalleAlta(idAlta) {
         .request()
         .input("ID_ALTA", sql.BigInt, idAlta)
         .query(`
-          SELECT *
-          FROM dbo.ALTAS_PRODUCTOS_DETALLE
-          WHERE ID_ALTA = @ID_ALTA
-          ORDER BY ID_DETALLE;
+          SELECT D.*, P.C_ESTADIO,
+            CASE WHEN LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) = '9'
+              THEN CONVERT(BIT, 1) ELSE CONVERT(BIT, 0) END AS INHABILITADO_PRESEA
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+          LEFT JOIN dbo.PRODUCTOS P
+            ON P.ID_EMPRESA = D.ID_EMPRESA
+           AND P.CODIGO_ALFA = D.CODIGO_ALFA
+          WHERE D.ID_ALTA = @ID_ALTA
+          ORDER BY D.ID_DETALLE;
         `),
 
       pool

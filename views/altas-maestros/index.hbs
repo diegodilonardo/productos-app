@@ -99,9 +99,13 @@
     id="tabConsultaMaestros"
     class="nav-link"
     type="button"
-  >Consulta de maestros</button></div>
+  >Consulta de maestros</button><button
+    id="tabReglasEan"
+    class="nav-link"
+    type="button"
+  >Control de EAN</button></div>
 <div id="alertaAltasMaestros" class="alert d-none"></div>
-<div id="panelGestionMaestros">
+<div id="panelReglasEan" class="d-none">
   <div class="card shadow-sm mb-4"><div class="card-body">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3"><div><h2 class="h5 mb-1">Reglas de EAN</h2><p class="text-secondary mb-0">Definí si una combinación de marca, rubro y licencia requiere gestión de EAN.</p></div><span class="badge text-bg-light border">Por defecto: requiere EAN</span></div>
     <div id="formReglaEan" class="row g-2 align-items-end">
@@ -113,6 +117,8 @@
     </div>
     <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0"><thead><tr><th>Marca</th><th>Rubro</th><th>Licencia</th><th>Estado</th><th>Actualización</th><th></th></tr></thead><tbody id="tablaReglasEan"><tr><td colspan="6" class="text-center text-secondary">Cargando...</td></tr></tbody></table></div>
   </div></div>
+</div>
+<div id="panelGestionMaestros">
   <div class="card shadow-sm mb-4"><div class="card-body">
       <div
         class="d-flex flex-wrap justify-content-between align-items-start gap-3"
@@ -268,7 +274,7 @@
           >Solicitudes</h2><div class="table-responsive"><table
               class="table align-middle"
             ><thead><tr><th>Tipo</th><th>Código</th><th>Descripción</th><th
-                  >Usuario</th><th>Estado</th><th>Fecha</th><th
+                  >Marca</th><th>Rubro</th><th>Usuario</th><th>Estado</th><th>Fecha</th><th
                     class="text-end"
                   >Acciones</th></tr></thead><tbody
                 id="tablaAltasMaestros"
@@ -314,7 +320,12 @@
             class="form-select d-none"
           ><option value="TODOS">Todos los productos</option><option
               value="MODULO"
-            >Módulos</option><option value="PAR_SUELTO">Pares sueltos</option></select></div></div><div
+            >Módulos</option><option value="PAR_SUELTO">Pares sueltos</option></select><select
+            id="filtroEstadoProductos"
+            class="form-select d-none mt-2"
+          ><option value="TODOS">Habilitados e inhabilitados</option><option
+              value="HABILITADO"
+            >Habilitados</option><option value="INHABILITADO">Inhabilitados en Presea</option></select></div></div><div
         id="filtrosModelosConsulta"
         class="row g-2 mt-1"
       ><div class="col-md-4"><select

@@ -306,9 +306,11 @@ function pintarTarjetas(lista) {
   }
   contenedor.innerHTML = lista.map(p => {
     const est = estado(p);
+    const inhabilitados = Number(p.CANTIDAD_PRODUCTOS_INHABILITADOS || 0);
     return `<article class="pedido-summary-card pedido-summary-${est.toLowerCase()}">
       <div class="pedido-summary-top"><div class="pedido-summary-title"><div class="pedido-code">${esc(p.CODIGO_PEDIDO || '-')}</div><div class="pedido-muted">Alta ${esc(p.CODIGO_ALTA || '-')}</div></div><span class="badge ${claseEstado(est)}">${esc(est)}</span></div>
       <div class="pedido-summary-provider"><strong>${esc(p.DETALLE_PROVEEDOR || '-')}</strong><span>${esc(p.CODIGO_PROVEEDOR || '')} · Orden ${esc(p.NUMERO_ORDEN || '-')}</span></div>
+      ${inhabilitados > 0 ? `<div class="mb-3"><span class="badge text-bg-danger">${num(inhabilitados)} producto${inhabilitados === 1 ? '' : 's'} inhabilitado${inhabilitados === 1 ? '' : 's'}</span></div>` : ''}
       <div class="pedido-summary-meta"><div><span>Rubro</span><strong>${esc(p.DETALLE_RUBRO || p.CODIGO_RUBRO || '-')}</strong></div><div><span>Año / Temporada</span><strong>${esc(p.CODIGO_ANO || '-')} · ${esc(p.DETALLE_TEMPORADA || p.CODIGO_TEMPORADA || '-')}</strong></div><div><span>Productos</span><strong>${num(p.CANTIDAD_PRODUCTOS)}</strong></div><div class="pedido-summary-emphasis"><span>Pares</span><strong>${num(p.TOTAL_PARES)}</strong></div><div class="pedido-summary-emphasis"><span>Total</span><strong>${esc(p.MONEDA || 'USD')} ${dinero(p.TOTAL_PEDIDO)}</strong></div><div><span>Exportación</span>${badgeExportacion(p)}</div></div>
       ${est === 'ANULADO' && p.MOTIVO_ANULACION ? `<div class="pedido-summary-cancel">${esc(p.MOTIVO_ANULACION)}</div>` : ''}
       <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><div class="d-flex flex-wrap gap-2">${['BORRADOR','VALIDADO'].includes(est)?`<button class="btn btn-sm btn-outline-success" type="button" data-purchase-order="${esc(p.ID_PEDIDO)}">Purchase Order</button>`:''}<a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div></div>

@@ -237,7 +237,7 @@ router.get('/altas-maestros', (req, res) => {
   res.render('altas-maestros/index', {
     title: 'Altas de Maestros',
     pagina: 'altas-maestros',
-    script: '/js/altas-maestros.js?v=15'
+    script: '/js/altas-maestros.js?v=18'
   });
 });
 

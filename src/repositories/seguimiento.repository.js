@@ -64,6 +64,12 @@ async function listarAltasSeguimiento({
             A.USUARIO_VALIDACION,
             A.FECHA_EXPORTACION,
             A.USUARIO_EXPORTACION,
+            COALESCE(
+                NULLIF(LTRIM(RTRIM(A.USUARIO_EXPORTACION)), ''),
+                MAX(NULLIF(LTRIM(RTRIM(E.USUARIO_EXPORTACION)), '')),
+                NULLIF(LTRIM(RTRIM(A.USUARIO_CREACION)), ''),
+                'SISTEMA'
+            ) AS USUARIO_SEGUIMIENTO,
             A.ARCHIVO_EXPORTADO,
             A.FECHA_ANULACION,
             A.USUARIO_ANULACION,
@@ -370,6 +376,11 @@ async function listarProductosSeguimientoEan(idEmpresa) {
             INNER JOIN dbo.ALTAS_PRODUCTOS A
                 ON A.ID_ALTA = E.ID_ALTA
                AND A.ID_EMPRESA = E.ID_EMPRESA
+            INNER JOIN dbo.PRODUCTOS PE
+                ON PE.ID_EMPRESA = E.ID_EMPRESA
+               AND PE.CODIGO_ALFA = E.COD_ALFA
+               AND ISNULL(PE.ACTIVO, 1) = 1
+               AND LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) <> '9'
             LEFT JOIN dbo.GS1_PRODUCTOS_URLS G
                 ON G.ID_EMPRESA = E.ID_EMPRESA
                AND G.ID_ALTA = E.ID_ALTA

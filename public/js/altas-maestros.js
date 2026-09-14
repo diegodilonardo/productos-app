@@ -43,12 +43,16 @@ function ajustarCampos() { const t = $('tipoMaestro').value; const modulo = t ==
 function proveedorVistaPrevia(x) { return textoSeguro(x.proveedorNombre || '-') + '<div class="small text-secondary">' + textoSeguro(x.cProveedor || '') + '</div>'; }
 function cambiarPanelMaestros(panel) {
   const consulta = panel === 'consulta';
-  $('panelGestionMaestros').classList.toggle('d-none', consulta);
+  const reglasEan = panel === 'ean';
+  $('panelGestionMaestros').classList.toggle('d-none', consulta || reglasEan);
   $('panelConsultaMaestros').classList.toggle('d-none', !consulta);
-  $('accionesAltasMaestros').classList.toggle('d-none', consulta);
-  $('tabAltasMaestros').classList.toggle('active', !consulta);
+  $('panelReglasEan').classList.toggle('d-none', !reglasEan);
+  $('accionesAltasMaestros').classList.toggle('d-none', consulta || reglasEan);
+  $('tabAltasMaestros').classList.toggle('active', !consulta && !reglasEan);
   $('tabConsultaMaestros').classList.toggle('active', consulta);
+  $('tabReglasEan').classList.toggle('active', reglasEan);
   if (consulta && empresaValida() && !consultaMaestros.length) cargarConsultaMaestros();
+  if (reglasEan && empresaValida()) cargarReglasEan();
 }
 function filasConsultaFiltradas() {
   const texto = $('buscarConsultaMaestros').value.trim().toUpperCase();
@@ -58,6 +62,7 @@ function filasConsultaFiltradas() {
   const rubro = $('filtroRubroModelos').value;
   const licencia = $('filtroLicenciaModelos').value;
   const tipoProducto = $('filtroTipoProductos').value;
+  const estadoProducto = $('filtroEstadoProductos').value;
   return consultaMaestros.filter(item => {
     if (texto && !Object.values(item).some(valor => String(valor ?? '').toUpperCase().includes(texto))) return false;
     if (tipo === 'MODELOS' || tipo === 'PRODUCTOS') {
@@ -67,6 +72,7 @@ function filasConsultaFiltradas() {
       if (licencia && licenciaItem !== licencia) return false;
     }
     if (tipo === 'PRODUCTOS' && tipoProducto !== 'TODOS' && String(item.TIPO_PRODUCTO || '').trim().toUpperCase() !== tipoProducto) return false;
+    if (tipo === 'PRODUCTOS' && estadoProducto !== 'TODOS' && String(item.ESTADO_PRODUCTO || 'HABILITADO').trim().toUpperCase() !== estadoProducto) return false;
     if (tipo === 'MODULOS' && estado !== 'TODOS') {
       const consistente = Boolean(Number(item.ES_CONSISTENTE));
       if (estado === 'CONSISTENTES' && !consistente) return false;
@@ -97,8 +103,8 @@ function renderConsultaMaestros() {
     encabezado = '<tr><th>Código</th><th>Descripción</th><th>Marca</th><th>Rubro</th><th>Licencia</th></tr>';
     cuerpo = pagina.map(x => `<tr><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO_MODELO)}</td><td>${textoSeguro(x.DETALLE_MODELO)}</td><td>${textoSeguro(x.MARCA_MODELO || '-')}</td><td>${textoSeguro(x.RUBRO_MODELO || '-')}</td><td>${textoSeguro(x.LICENCIA || 'Sin licencia')}</td></tr>`).join('');
   } else if (tipo === 'PRODUCTOS') {
-    encabezado = '<tr><th>Imagen</th><th>Código alfa / ERP</th><th>EAN</th><th>Tipo</th><th>Producto</th><th>Modelo / color</th><th>Talle / módulo</th><th>Marca / rubro</th><th>Alta / estado</th></tr>';
-    cuerpo = pagina.map(x => { const tipoProducto = String(x.TIPO_PRODUCTO || '').toUpperCase(), modulo = tipoProducto === 'MODULO', suelto = tipoProducto === 'PAR_SUELTO', etiquetaTipo = modulo ? 'MÓDULO' : suelto ? 'PAR SUELTO' : 'SIN CLASIFICAR'; const imagen = x.URL_IMAGEN ? `<a href="${textoSeguro(x.URL_IMAGEN)}" target="_blank" rel="noopener"><img src="${textoSeguro(x.URL_IMAGEN)}" alt="${textoSeguro(x.DETALLE_PRODUCTO || 'Producto')}" loading="lazy" style="width:58px;height:58px;object-fit:contain;border:1px solid #dbe3ec;border-radius:8px;background:#fff" onerror="this.parentElement.outerHTML='<span class=&quot;small text-secondary&quot;>Sin foto</span>'"></a>` : '<span class="small text-secondary">Sin foto</span>'; return `<tr><td>${imagen}</td><td><div class="font-monospace fw-bold">${textoSeguro(x.CODIGO_ALFA)}</div><div class="small text-secondary">ERP ${textoSeguro(x.CODIGO_ERP || '-')}</div></td><td class="font-monospace">${textoSeguro(x.CODIGO_EAN || '-')}</td><td><span class="badge ${modulo ? 'text-bg-primary' : suelto ? 'text-bg-info' : 'text-bg-secondary'}">${etiquetaTipo}</span></td><td>${textoSeguro(x.DETALLE_PRODUCTO || '-')}</td><td><div>${textoSeguro(x.DETALLE_MODELO || x.CODIGO_MODELO || '-')}</div><div class="small text-secondary">${textoSeguro(x.DETALLE_COLOR || x.CODIGO_COLOR || '-')}</div></td><td>${textoSeguro(x.TALLE_MODULO || '-')}</td><td><div>${textoSeguro(x.DETALLE_MARCA || x.CODIGO_MARCA || '-')}</div><div class="small text-secondary">${textoSeguro(x.DETALLE_RUBRO || x.CODIGO_RUBRO || '-')} · ${textoSeguro(x.LICENCIA || 'Sin licencia')}</div></td><td><div>${textoSeguro(x.CODIGO_ALTA || '-')}</div><span class="badge text-bg-secondary">${textoSeguro(String(x.ESTADO_ALTA || '-').replaceAll('_', ' '))}</span></td></tr>`; }).join('');
+    encabezado = '<tr><th>Imagen</th><th>Código alfa / ERP</th><th>EAN</th><th>Tipo</th><th>Disponibilidad</th><th>Producto</th><th>Modelo / color</th><th>Talle / módulo</th><th>Marca / rubro</th><th>Alta / estado</th></tr>';
+    cuerpo = pagina.map(x => { const tipoProducto = String(x.TIPO_PRODUCTO || '').toUpperCase(), modulo = tipoProducto === 'MODULO', suelto = tipoProducto === 'PAR_SUELTO', etiquetaTipo = modulo ? 'MÓDULO' : suelto ? 'PAR SUELTO' : 'SIN CLASIFICAR', inhabilitado = String(x.C_ESTADIO || '').trim() === '9'; const imagen = x.URL_IMAGEN ? `<a href="${textoSeguro(x.URL_IMAGEN)}" target="_blank" rel="noopener"><img src="${textoSeguro(x.URL_IMAGEN)}" alt="${textoSeguro(x.DETALLE_PRODUCTO || 'Producto')}" loading="lazy" style="width:58px;height:58px;object-fit:contain;border:1px solid #dbe3ec;border-radius:8px;background:#fff" onerror="this.parentElement.outerHTML='<span class=&quot;small text-secondary&quot;>Sin foto</span>'"></a>` : '<span class="small text-secondary">Sin foto</span>'; return `<tr class="${inhabilitado ? 'table-light text-secondary' : ''}"><td>${imagen}</td><td><div class="font-monospace fw-bold">${textoSeguro(x.CODIGO_ALFA)}</div><div class="small text-secondary">ERP ${textoSeguro(x.CODIGO_ERP || '-')}</div></td><td class="font-monospace">${textoSeguro(x.CODIGO_EAN || '-')}</td><td><span class="badge ${modulo ? 'text-bg-primary' : suelto ? 'text-bg-info' : 'text-bg-secondary'}">${etiquetaTipo}</span></td><td><span class="badge ${inhabilitado ? 'text-bg-danger' : 'text-bg-success'}">${inhabilitado ? 'INHABILITADO' : 'HABILITADO'}</span></td><td>${textoSeguro(x.DETALLE_PRODUCTO || '-')}</td><td><div>${textoSeguro(x.DETALLE_MODELO || x.CODIGO_MODELO || '-')}</div><div class="small text-secondary">${textoSeguro(x.DETALLE_COLOR || x.CODIGO_COLOR || '-')}</div></td><td>${textoSeguro(x.TALLE_MODULO || '-')}</td><td><div>${textoSeguro(x.DETALLE_MARCA || x.CODIGO_MARCA || '-')}</div><div class="small text-secondary">${textoSeguro(x.DETALLE_RUBRO || x.CODIGO_RUBRO || '-')} · ${textoSeguro(x.LICENCIA || 'Sin licencia')}</div></td><td><div>${textoSeguro(x.CODIGO_ALTA || '-')}</div><span class="badge text-bg-secondary">${textoSeguro(String(x.ESTADO_ALTA || '-').replaceAll('_', ' '))}</span></td></tr>`; }).join('');
   } else if (tipo === 'COLORES') {
     encabezado = '<tr><th>Código</th><th>Descripción</th></tr>';
     cuerpo = pagina.map(x => `<tr><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO_COLOR)}</td><td>${textoSeguro(x.DETALLE_COLOR)}</td></tr>`).join('');
@@ -133,6 +139,7 @@ async function cargarConsultaMaestros() {
   const tipo = $('tipoConsultaMaestros').value;
   $('estadoConsultaModulos').classList.toggle('d-none', tipo !== 'MODULOS');
   $('filtroTipoProductos').classList.toggle('d-none', tipo !== 'PRODUCTOS');
+  $('filtroEstadoProductos').classList.toggle('d-none', tipo !== 'PRODUCTOS');
   $('filtrosModelosConsulta').classList.toggle('d-none', !['MODELOS', 'PRODUCTOS'].includes(tipo));
   $('tablaConsultaMaestros').innerHTML = '<tr><td colspan="6" class="text-center py-5 text-secondary">Cargando...</td></tr>';
   try {
@@ -276,7 +283,7 @@ function accionEliminarSolicitudMaestro(registro) {
   return `<button class="btn btn-sm btn-outline-danger" type="button" data-eliminar-solicitud-maestro="${Number(registro.ID_ALTA_MAESTRO)}" data-codigo-solicitud="${textoSeguro(registro.CODIGO)}">Eliminar</button>`;
 }
 
-async function cargar() { try { const d = await api('/api/altas-maestros'); $('tablaAltasMaestros').innerHTML = d.registros.map(x => { const estado = presentacionEstadoMaestro(x.ESTADO); return `<tr><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`; }).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">Todavía no hay solicitudes.</td></tr>'; } catch (e) { alerta(e.message, 'danger'); } }
+async function cargar() { try { const d = await api('/api/altas-maestros'); $('tablaAltasMaestros').innerHTML = d.registros.map(x => { const estado = presentacionEstadoMaestro(x.ESTADO); return `<tr><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.MARCA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`; }).join('') || '<tr><td colspan="9" class="text-center text-secondary py-4">Todavía no hay solicitudes.</td></tr>'; } catch (e) { alerta(e.message, 'danger'); } }
 
 async function eliminarSolicitudMaestro(evento) {
   const boton = evento.target.closest('[data-eliminar-solicitud-maestro]');
@@ -458,10 +465,12 @@ async function iniciar() {
   $('tablaReglasEan').addEventListener('click',eliminarReglaEan);
   $('tabAltasMaestros').addEventListener('click', () => cambiarPanelMaestros('altas'));
   $('tabConsultaMaestros').addEventListener('click', () => cambiarPanelMaestros('consulta'));
+  $('tabReglasEan').addEventListener('click', () => cambiarPanelMaestros('ean'));
   $('tipoConsultaMaestros').addEventListener('change', cargarConsultaMaestros);
   $('buscarConsultaMaestros').addEventListener('input', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   $('estadoConsultaModulos').addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   $('filtroTipoProductos').addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
+  $('filtroEstadoProductos').addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   for (const id of ['filtroMarcaModelos', 'filtroRubroModelos', 'filtroLicenciaModelos']) $(id).addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   $('btnAnteriorConsultaMaestros').addEventListener('click', () => { paginaConsultaMaestros -= 1; renderConsultaMaestros(); });
   $('btnSiguienteConsultaMaestros').addEventListener('click', () => { paginaConsultaMaestros += 1; renderConsultaMaestros(); });

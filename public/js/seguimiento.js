@@ -905,10 +905,13 @@ function pintarTarjetasSeguimiento(filas) {
     const id = fila.ID_ALTA ?? fila.idAlta;
     const estado = String(fila.ESTADO ?? fila.estado ?? '-').toUpperCase();
     const erp = resumenErpFila(fila);
+    const usuario = fila.USUARIO_SEGUIMIENTO ?? fila.usuarioSeguimiento ??
+      fila.USUARIO_EXPORTACION ?? fila.usuarioExportacion ??
+      fila.USUARIO_CREACION ?? fila.usuarioCreacion ?? '-';
     return `<article class="seguimiento-summary-card seguimiento-summary-${estado.toLowerCase().replaceAll('_', '-')}">
       <div class="seguimiento-summary-top"><div class="seguimiento-summary-title"><strong>${escapar(fila.CODIGO_ALTA ?? fila.codigoAlta ?? '-')}</strong><span>ID ${escapar(id ?? '-')}</span></div><span class="badge ${claseEstado(estado)}">${escapar(estado)}</span></div>
       <div class="seguimiento-summary-brand"><strong>${escapar(fila.DETALLE_MARCA ?? fila.marca ?? '-')}</strong><span>${escapar(fila.DETALLE_RUBRO ?? fila.rubro ?? '-')}</span></div>
-      <div class="seguimiento-summary-meta"><div><span>Campaña</span>${formatearAnoTemporada(fila)}</div><div><span>Tipo</span><strong>${escapar(fila.TIPO_PRODUCTO ?? fila.tipoProducto ?? '-')}</strong></div><div><span>Licencia</span>${badgeLicencia(fila.LICENCIA_ALTA ?? fila.licenciaAlta)}</div><div><span>ERP</span><strong>${erp.confirmados} / ${erp.total}</strong></div></div>
+      <div class="seguimiento-summary-meta"><div><span>Campaña</span>${formatearAnoTemporada(fila)}</div><div><span>Tipo</span><strong>${escapar(fila.TIPO_PRODUCTO ?? fila.tipoProducto ?? '-')}</strong></div><div><span>Licencia</span>${badgeLicencia(fila.LICENCIA_ALTA ?? fila.licenciaAlta)}</div><div><span>ERP</span><strong>${erp.confirmados} / ${erp.total}</strong></div><div><span>Usuario</span><strong>${escapar(usuario)}</strong></div></div>
       <div class="seguimiento-summary-progress"><div><span>Avance ERP</span><strong>${erp.porcentaje}%</strong></div><div class="progress" role="progressbar" aria-valuenow="${erp.porcentaje}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:${erp.porcentaje}%"></div></div></div>
       <div class="seguimiento-summary-file" title="${escapar(fila.ARCHIVO_EXPORTADO ?? fila.archivoExportado ?? '-')}">${escapar(fila.ARCHIVO_EXPORTADO ?? fila.archivoExportado ?? 'Sin archivo informado')}</div>
       <div class="seguimiento-summary-footer"><span>Conciliación ERP</span><a href="/seguimiento/${encodeURIComponent(id)}" class="btn btn-sm btn-outline-primary">Ver detalle</a></div>

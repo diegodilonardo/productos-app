@@ -329,6 +329,7 @@ function pintarTarjetasAltas(filas) {
     const estado = String(alta.ESTADO || alta.estado || '-').toUpperCase();
     const cantidad = alta.CANTIDAD_PRODUCTOS ?? alta.cantidadProductos ?? 0;
     const cantidadModulos = alta.CANTIDAD_MODULOS ?? alta.cantidadModulos ?? 0;
+    const inhabilitados = Number(alta.CANTIDAD_PRODUCTOS_INHABILITADOS ?? alta.cantidadProductosInhabilitados ?? 0);
     const temporada = alta.DETALLE_TEMPORADA ?? alta.CODIGO_TEMPORADA ?? '-';
     const motivo = alta.MOTIVO_ANULACION ?? alta.motivoAnulacion ?? 'Sin motivo informado';
 
@@ -346,6 +347,8 @@ function pintarTarjetasAltas(filas) {
           <strong>${escapar(alta.DETALLE_MARCA ?? '-')}</strong>
           <span>${escapar(alta.DETALLE_RUBRO ?? '-')}</span>
         </div>
+
+        ${inhabilitados > 0 ? `<div class="mb-3"><span class="badge text-bg-danger">${escapar(inhabilitados)} producto${inhabilitados === 1 ? '' : 's'} inhabilitado${inhabilitados === 1 ? '' : 's'}</span></div>` : ''}
 
         <div class="alta-summary-meta">
           <div><span>Tipo</span><strong>${escapar(alta.TIPO_PRODUCTO ?? '-')}</strong></div>
@@ -762,13 +765,15 @@ async function mostrarProductosAlta(idAlta) {
       const cantidad = tipo === 'MODULO'
         ? `${Number(item.PARES || 0).toLocaleString('es-AR')} pares`
         : '1 unidad';
+      const inhabilitado = item.INHABILITADO_PRESEA === true || Number(item.INHABILITADO_PRESEA) === 1 || String(item.C_ESTADIO || '').trim() === '9';
 
       return `
-        <tr>
+        <tr class="${inhabilitado ? 'table-danger' : ''}">
           <td><strong>${escapar(item.DETALLE_MODELO || item.CODIGO_MODELO || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_MODELO || '')}</div></td>
           <td>${escapar(item.DETALLE_COLOR || item.CODIGO_COLOR || '-')}</td>
           <td>${escapar(curvaTalle)}</td>
           <td>${escapar(tipo.replaceAll('_', ' ') || '-')}</td>
+          <td><span class="badge ${inhabilitado ? 'text-bg-danger' : 'text-bg-success'}">${inhabilitado ? 'INHABILITADO' : 'HABILITADO'}</span></td>
           <td>${escapar(item.DETALLE_CLASIFICACION || item.CODIGO_CLASIFICACION || '-')}</td>
           <td><strong>${escapar(cantidad)}</strong></td>
         </tr>

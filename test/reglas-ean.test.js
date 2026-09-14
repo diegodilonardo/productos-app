@@ -20,3 +20,20 @@ test('Seguimiento identifica y excluye visualmente los EAN no requeridos',()=>{
   assert.match(cliente,/EAN NO REQUERIDO/);
   assert.match(cliente,/estadoEan === 'NO_REQUERIDO' \? 'disabled'/);
 });
+
+test('Maestros presenta el control EAN como una sección independiente',()=>{
+  const vista=fs.readFileSync(path.join(__dirname,'../views/altas-maestros/index.hbs'),'utf8');
+  const cliente=fs.readFileSync(path.join(__dirname,'../public/js/altas-maestros.js'),'utf8');
+  assert.match(vista,/id="tabReglasEan"[\s\S]*>Control de EAN<\/button>/);
+  assert.match(vista,/id="panelReglasEan" class="d-none"/);
+  assert.match(cliente,/panel === 'ean'/);
+  assert.match(cliente,/panelReglasEan/);
+});
+
+test('el listado de solicitudes de maestros muestra marca y rubro',()=>{
+  const vista=fs.readFileSync(path.join(__dirname,'../views/altas-maestros/index.hbs'),'utf8');
+  const cliente=fs.readFileSync(path.join(__dirname,'../public/js/altas-maestros.js'),'utf8');
+  assert.match(vista,/Descripción<\/th><th[\s\S]*>Marca<\/th><th>Rubro<\/th><th>Usuario/);
+  assert.match(cliente,/x\.MARCA \|\| '-'/);
+  assert.match(cliente,/x\.RUBRO \|\| '-'/);
+});

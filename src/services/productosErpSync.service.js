@@ -63,7 +63,7 @@ async function obtenerEmpresasProductos() {
 /* ============================================================
    PARSER
    Formato:
-   CODIGO_ALFA|CODIGO|EAN|RUBRO|CODIGO_EMPRESA
+   CODIGO_ALFA|CODIGO|EAN|RUBRO|C_ESTADIO|CODIGO_EMPRESA
    ============================================================ */
 
 function parsear(
@@ -113,12 +113,12 @@ function parsear(
 
     /*
       Ahora exigimos el código de empresa como último campo.
-      Se esperan exactamente 5 columnas.
+      Se esperan exactamente 6 columnas.
     */
-    if (partes.length !== 5) {
+    if (partes.length !== 6) {
       throw new Error(
         `Estructura inválida en línea ${i + 1}. ` +
-        `Se esperaban 5 columnas y se encontraron ${partes.length}.`
+        `Se esperaban 6 columnas y se encontraron ${partes.length}.`
       );
     }
 
@@ -135,8 +135,11 @@ function parsear(
     const rubroErp =
       partes[3];
 
-    const codigoEmpresaArchivo =
+    const cEstadio =
       partes[4];
+
+    const codigoEmpresaArchivo =
+      partes[5];
 
 
     if (!codigoAlfa) {
@@ -178,7 +181,10 @@ function parsear(
           codigoEan || null,
 
         RUBRO_ERP:
-          rubroErp || null
+          rubroErp || null,
+
+        C_ESTADIO:
+          cEstadio || null
       }
     );
   }
@@ -257,6 +263,12 @@ function crearTablaBulk(
     }
   );
 
+  tabla.columns.add(
+    'C_ESTADIO',
+    sql.VarChar(10),
+    { nullable: true }
+  );
+
 
   for (
     const r
@@ -268,7 +280,8 @@ function crearTablaBulk(
       r.CODIGO_ALFA,
       r.CODIGO,
       r.CODIGO_EAN,
-      r.RUBRO_ERP
+      r.RUBRO_ERP,
+      r.C_ESTADIO
     );
   }
 
@@ -339,6 +352,8 @@ async function asegurarEstructura(
         )
           AS P_ACTIVO,
 
+        COL_LENGTH('dbo.PRODUCTOS', 'C_ESTADIO') AS P_ESTADIO,
+
         COL_LENGTH(
           'dbo.PRODUCTOS',
           'ID_PRODUCTO'
@@ -350,6 +365,8 @@ async function asegurarEstructura(
           'ID_EMPRESA'
         )
           AS S_EMPRESA,
+
+        COL_LENGTH('dbo.PRODUCTOS_ERP_STAGING', 'C_ESTADIO') AS S_ESTADIO,
 
         COLUMNPROPERTY(
           OBJECT_ID('dbo.PRODUCTOS'),
@@ -410,7 +427,9 @@ async function asegurarEstructura(
     !x.P_CODIGO ||
     !x.P_EAN ||
     !x.P_ACTIVO ||
-    !x.S_EMPRESA
+    !x.P_ESTADIO ||
+    !x.S_EMPRESA ||
+    !x.S_ESTADIO
   ) {
 
     throw new Error(
@@ -615,6 +634,7 @@ async function sincronizarEmpresa(
             CODIGO_ALFA,
             CODIGO,
             CODIGO_EAN,
+            C_ESTADIO,
             ACTIVO
           `
         : `
@@ -623,6 +643,7 @@ async function sincronizarEmpresa(
             CODIGO_ALFA,
             CODIGO,
             CODIGO_EAN,
+            C_ESTADIO,
             ACTIVO
           `;
 
@@ -636,6 +657,7 @@ async function sincronizarEmpresa(
             S.CODIGO_ALFA,
             S.CODIGO,
             S.CODIGO_EAN,
+            S.C_ESTADIO,
             1
           `
         : `
@@ -644,6 +666,7 @@ async function sincronizarEmpresa(
             S.CODIGO_ALFA,
             S.CODIGO,
             S.CODIGO_EAN,
+            S.C_ESTADIO,
             1
           `;
 
@@ -685,6 +708,7 @@ async function sincronizarEmpresa(
             S.CODIGO,
             S.CODIGO_EAN,
             S.RUBRO_ERP,
+            S.C_ESTADIO,
 
             /*
               ALTAS ya es multiempresa.
@@ -779,6 +803,8 @@ async function sincronizarEmpresa(
                  T.ACTIVO,
                  0
                ) <> 1
+
+               OR ISNULL(T.C_ESTADIO, '') <> ISNULL(S.C_ESTADIO, '')
              )
         THEN
 
@@ -788,6 +814,9 @@ async function sincronizarEmpresa(
 
             T.CODIGO_EAN =
               S.CODIGO_EAN,
+
+            T.C_ESTADIO =
+              S.C_ESTADIO,
 
             T.ACTIVO =
               1
@@ -1346,5 +1375,6 @@ function resolverArchivo() {
 
 module.exports = {
   sincronizarProductosErp,
-  resolverArchivo
+  resolverArchivo,
+  parsearArchivoProductos: parsear
 };

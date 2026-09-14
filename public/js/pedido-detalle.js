@@ -6,6 +6,27 @@ let modalProducto, modalAnular;
 let vistaDisponibles='tarjetas', vistaDetalle='tarjetas';
 const cargaListaPedido=new Map();
 
+const pintarDetalleSinEstadoPresea = pintarDetalle;
+pintarDetalle = function pintarDetalleConEstadoPresea() {
+  pintarDetalleSinEstadoPresea();
+  const filas = [...document.querySelectorAll('#tablaDetallePedido tr')];
+  const tarjetas = [...document.querySelectorAll('#tarjetasDetallePedido .pedido-product-card')];
+  detalle.forEach((producto, indice) => {
+    const inhabilitado = producto.INHABILITADO_PRESEA === true ||
+      Number(producto.INHABILITADO_PRESEA) === 1 ||
+      String(producto.C_ESTADIO || '').trim() === '9';
+    if (!inhabilitado) return;
+    filas[indice]?.classList.add('table-danger');
+    filas[indice]?.children[1]?.insertAdjacentHTML(
+      'beforeend', '<div><span class="badge text-bg-danger mt-1">INHABILITADO</span></div>'
+    );
+    tarjetas[indice]?.classList.add('border-danger');
+    tarjetas[indice]?.querySelector('.pedido-product-card-title')?.insertAdjacentHTML(
+      'beforeend', '<span class="badge text-bg-danger mt-1 align-self-start">INHABILITADO</span>'
+    );
+  });
+};
+
 async function iniciarDetallePedido(){
   modalProducto=new bootstrap.Modal(document.getElementById('modalProductoPedido'));
   modalAnular=new bootstrap.Modal(document.getElementById('modalAnularPedido'));

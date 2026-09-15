@@ -2788,6 +2788,11 @@ async function validarAlta(
     const codigosInternos = new Set();
     const idsDetalle =
         new Set(detalles.map(item => Number(item.ID_DETALLE)));
+    const validacionesMasivas =
+        await altasRepository.obtenerValidacionesMasivasAlta(id);
+    const validacionesPorDetalle = new Map(
+        validacionesMasivas.map(item => [Number(item.ID_DETALLE), item])
+    );
 
     for (const detalle of detalles) {
         const codigoAlfa =
@@ -2846,11 +2851,15 @@ async function validarAlta(
             }
         }
 
-        const existeOtraAlta =
-            await altasRepository.buscarCodigoAlfaEnOtraAlta(
-                id,
-                codigoAlfa
-            );
+        const validacionMasiva =
+            validacionesPorDetalle.get(Number(detalle.ID_DETALLE)) || {};
+        const existeOtraAlta = validacionMasiva.OTRA_ID_ALTA
+            ? {
+                ID_ALTA: validacionMasiva.OTRA_ID_ALTA,
+                CODIGO_ALTA: validacionMasiva.OTRA_CODIGO_ALTA,
+                ESTADO_ALTA: validacionMasiva.OTRA_ESTADO_ALTA
+              }
+            : null;
 
         if (existeOtraAlta) {
             throw new Error(
@@ -2861,12 +2870,16 @@ async function validarAlta(
             );
         }
 
-        const existeERP =
-            await altasRepository.buscarProductoERP(
-                tipoDetalle,
-                codigoAlfa,
-                idEmpresa
-            );
+        const existeERP = validacionMasiva.ERP_ID_PRODUCTO
+            ? {
+                ID_PRODUCTO: validacionMasiva.ERP_ID_PRODUCTO,
+                TIPO_PRODUCTO: validacionMasiva.ERP_TIPO_PRODUCTO,
+                CODIGO_ALFA: validacionMasiva.ERP_CODIGO_ALFA,
+                CODIGO: validacionMasiva.ERP_CODIGO,
+                CODIGO_EAN: validacionMasiva.ERP_CODIGO_EAN,
+                ACTIVO: validacionMasiva.ERP_ACTIVO
+              }
+            : null;
 
         if (estadoValidacion === 'EXISTE_ERP') {
             if (!existeERP) {

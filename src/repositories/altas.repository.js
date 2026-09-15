@@ -966,6 +966,76 @@ async function buscarCodigoAlfaEnOtraAlta(idAltaActual, codigoAlfa) {
 }
 
 /* ============================================================
+   VALIDACIONES MASIVAS DEL ALTA
+
+   Devuelve en una sola consulta los conflictos con otras Altas y
+   la existencia actual en PRODUCTOS. Evita ejecutar dos requests
+   por cada detalle durante la validación de lotes grandes.
+   ============================================================ */
+async function obtenerValidacionesMasivasAlta(idAlta) {
+  const pool = await getConnection();
+
+  const resultado = await pool
+    .request()
+    .input('ID_ALTA', sql.BigInt, idAlta)
+    .query(`
+      SELECT
+        D.ID_DETALLE,
+        D.CODIGO_ALFA,
+
+        OA.ID_ALTA AS OTRA_ID_ALTA,
+        OA.CODIGO_ALTA AS OTRA_CODIGO_ALTA,
+        OA.ESTADO_ALTA AS OTRA_ESTADO_ALTA,
+
+        ERP.ID_PRODUCTO AS ERP_ID_PRODUCTO,
+        ERP.TIPO_PRODUCTO AS ERP_TIPO_PRODUCTO,
+        ERP.CODIGO_ALFA AS ERP_CODIGO_ALFA,
+        ERP.CODIGO AS ERP_CODIGO,
+        ERP.CODIGO_EAN AS ERP_CODIGO_EAN,
+        ERP.ACTIVO AS ERP_ACTIVO
+
+      FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+
+      OUTER APPLY (
+        SELECT TOP 1
+          DO.ID_ALTA,
+          AO.CODIGO_ALTA,
+          AO.ESTADO AS ESTADO_ALTA
+        FROM dbo.ALTAS_PRODUCTOS_DETALLE DO
+        INNER JOIN dbo.ALTAS_PRODUCTOS AO
+          ON AO.ID_EMPRESA = DO.ID_EMPRESA
+         AND AO.ID_ALTA = DO.ID_ALTA
+        WHERE DO.ID_EMPRESA = D.ID_EMPRESA
+          AND DO.CODIGO_ALFA = D.CODIGO_ALFA
+          AND DO.ID_ALTA <> D.ID_ALTA
+          AND ISNULL(AO.ESTADO, '') <> 'ANULADO'
+        ORDER BY DO.ID_ALTA DESC, DO.ID_DETALLE DESC
+      ) OA
+
+      OUTER APPLY (
+        SELECT TOP 1
+          P.ID_PRODUCTO,
+          P.TIPO_PRODUCTO,
+          P.CODIGO_ALFA,
+          P.CODIGO,
+          P.CODIGO_EAN,
+          P.ACTIVO
+        FROM dbo.PRODUCTOS P
+        WHERE P.ID_EMPRESA = D.ID_EMPRESA
+          AND UPPER(LTRIM(RTRIM(ISNULL(P.CODIGO_ALFA, '')))) =
+              UPPER(LTRIM(RTRIM(ISNULL(D.CODIGO_ALFA, ''))))
+        ORDER BY
+          CASE WHEN ISNULL(P.ACTIVO, 0) = 1 THEN 0 ELSE 1 END,
+          P.ID_PRODUCTO DESC
+      ) ERP
+
+      WHERE D.ID_ALTA = @ID_ALTA;
+    `);
+
+  return resultado.recordset || [];
+}
+
+/* ============================================================
    INSERTAR DETALLES EN TRANSACCION
 
    Soporta relaciones padre/hijo mediante:
@@ -1699,6 +1769,7 @@ module.exports = {
   reconciliarExistenciaERPAlta,
   buscarDetallePorCodigoAlfa,
   buscarCodigoAlfaEnOtraAlta,
+  obtenerValidacionesMasivasAlta,
 
   crearDetalles,
   obtenerDetallePorId,

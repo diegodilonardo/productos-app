@@ -41,7 +41,15 @@ document.addEventListener(
         document.getElementById('btnVistaListaPedidosDashboard')?.addEventListener('click', () => aplicarVistaPedidosDashboard('lista'));
         aplicarVistaPedidosDashboard(vistaPedidosDashboard);
         document.getElementById('mostrarAnuladasAltasDashboard')?.addEventListener('change', pintarAltasDashboardFiltradas);
+        for (const id of ['filtroProveedorAltaDashboard', 'filtroRubroAltaDashboard', 'filtroAnoAltaDashboard', 'filtroTemporadaAltaDashboard']) {
+            document.getElementById(id)?.addEventListener('change', pintarAltasDashboardFiltradas);
+        }
+        document.getElementById('limpiarFiltrosAltasDashboard')?.addEventListener('click', limpiarFiltrosAltasDashboard);
         document.getElementById('mostrarAnuladosPedidosDashboard')?.addEventListener('change', pintarPedidosDashboardFiltrados);
+        for (const id of ['filtroProveedorPedidoDashboard', 'filtroRubroPedidoDashboard', 'filtroAnoPedidoDashboard', 'filtroTemporadaPedidoDashboard']) {
+            document.getElementById(id)?.addEventListener('change', pintarPedidosDashboardFiltrados);
+        }
+        document.getElementById('limpiarFiltrosPedidosDashboard')?.addEventListener('click', limpiarFiltrosPedidosDashboard);
 
         try {
             ID_EMPRESA_DASHBOARD =
@@ -68,6 +76,8 @@ function actualizarEmpresaDashboard(event) {
 
     altasDashboard = [];
     pedidosDashboard = [];
+    limpiarFiltrosAltasDashboard(false);
+    limpiarFiltrosPedidosDashboard(false);
 
     cargarDashboard();
 }
@@ -227,6 +237,7 @@ async function cargarDashboard() {
         );
 
         altasDashboard = Array.isArray(altasJson.resultado) ? altasJson.resultado : [];
+        cargarOpcionesFiltrosAltasDashboard();
         pintarAltasDashboardFiltradas();
 
         await cargarPedidosDashboard(
@@ -477,9 +488,72 @@ function pintarAltas(altas) {
 
 function pintarAltasDashboardFiltradas() {
     const mostrarAnuladas = document.getElementById('mostrarAnuladasAltasDashboard')?.checked === true;
-    pintarAltas(altasDashboard.filter(alta =>
-        mostrarAnuladas || String(alta.ESTADO || '').trim().toUpperCase() !== 'ANULADO'
-    ));
+    const proveedor = document.getElementById('filtroProveedorAltaDashboard')?.value || '';
+    const rubro = document.getElementById('filtroRubroAltaDashboard')?.value || '';
+    const ano = document.getElementById('filtroAnoAltaDashboard')?.value || '';
+    const temporada = document.getElementById('filtroTemporadaAltaDashboard')?.value || '';
+    const filtradas = altasDashboard.filter(alta =>
+        (mostrarAnuladas || String(alta.ESTADO || '').trim().toUpperCase() !== 'ANULADO') &&
+        (!proveedor || proveedoresAltaDashboard(alta).includes(proveedor)) &&
+        (!rubro || valorFiltroAltaDashboard(alta.DETALLE_RUBRO || alta.CODIGO_RUBRO) === rubro) &&
+        (!ano || valorFiltroAltaDashboard(alta.CODIGO_ANO) === ano) &&
+        (!temporada || valorFiltroAltaDashboard(alta.DETALLE_TEMPORADA || alta.CODIGO_TEMPORADA) === temporada)
+    );
+    const resultado = document.getElementById('resultadoFiltrosAltasDashboard');
+    if (resultado) resultado.textContent = `${filtradas.length} de ${altasDashboard.length} Altas`;
+    pintarAltas(filtradas);
+}
+
+function valorFiltroAltaDashboard(valor) {
+    return String(valor || '').trim().toLocaleUpperCase('es');
+}
+
+function proveedoresAltaDashboard(alta) {
+    return String(alta.PROVEEDORES_ALTA || '')
+        .split('||')
+        .map(valorFiltroAltaDashboard)
+        .filter(Boolean);
+}
+
+function completarFiltroAltaDashboard(id, valores, etiqueta) {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const actual = select.value;
+    const unicos = [...new Map(valores
+        .filter(item => item.valor)
+        .map(item => [item.valor, item])).values()]
+        .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es', { numeric: true }));
+    select.innerHTML = `<option value="">${escaparHtml(etiqueta)}</option>` + unicos
+        .map(item => `<option value="${escaparHtml(item.valor)}">${escaparHtml(item.etiqueta)}</option>`)
+        .join('');
+    select.value = unicos.some(item => item.valor === actual) ? actual : '';
+}
+
+function cargarOpcionesFiltrosAltasDashboard() {
+    completarFiltroAltaDashboard('filtroProveedorAltaDashboard', altasDashboard.flatMap(alta =>
+        String(alta.PROVEEDORES_ALTA || '').split('||').map(nombre => ({
+            valor: valorFiltroAltaDashboard(nombre), etiqueta: String(nombre || '').trim()
+        }))
+    ), 'Todos los proveedores');
+    completarFiltroAltaDashboard('filtroRubroAltaDashboard', altasDashboard.map(alta => {
+        const texto = alta.DETALLE_RUBRO || alta.CODIGO_RUBRO || '';
+        return { valor: valorFiltroAltaDashboard(texto), etiqueta: String(texto).trim() };
+    }), 'Todos los rubros');
+    completarFiltroAltaDashboard('filtroAnoAltaDashboard', altasDashboard.map(alta => ({
+        valor: valorFiltroAltaDashboard(alta.CODIGO_ANO), etiqueta: String(alta.CODIGO_ANO || '').trim()
+    })), 'Todos los años');
+    completarFiltroAltaDashboard('filtroTemporadaAltaDashboard', altasDashboard.map(alta => {
+        const texto = alta.DETALLE_TEMPORADA || alta.CODIGO_TEMPORADA || '';
+        return { valor: valorFiltroAltaDashboard(texto), etiqueta: String(texto).trim() };
+    }), 'Todas las temporadas');
+}
+
+function limpiarFiltrosAltasDashboard(actualizar = true) {
+    for (const id of ['filtroProveedorAltaDashboard', 'filtroRubroAltaDashboard', 'filtroAnoAltaDashboard', 'filtroTemporadaAltaDashboard']) {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = '';
+    }
+    if (actualizar) pintarAltasDashboardFiltradas();
 }
 
 function aplicarVistaAltasDashboard(vista) {
@@ -509,11 +583,13 @@ function pintarTarjetasAltasDashboard(altas) {
         const confirmados = Number(seguimiento.confirmados || 0);
         const porcentaje = Math.max(0, Math.min(100, Number(seguimiento.porcentajeConfirmado || 0)));
         const estado = String(alta.ESTADO || '').trim().toUpperCase();
+        const cantidadPares = Number(alta.CANTIDAD_PARES || 0);
+        const cantidadModulos = Number(alta.CANTIDAD_MODULOS || 0);
         const porcentajeTexto = estado === 'SIN_NOVEDADES_ERP' ? '-' : `${porcentaje}%`;
         return `<article class="dashboard-alta-card dashboard-alta-${estado.toLowerCase().replaceAll('_','-')}">
           <div class="dashboard-alta-top"><div class="dashboard-alta-title"><strong>${escaparHtml(alta.CODIGO_ALTA || '-')}</strong><small>ID ${escaparHtml(alta.ID_ALTA)}</small></div>${badgeEstado(estado)}</div>
           <div class="dashboard-alta-brand"><strong>${escaparHtml(alta.DETALLE_MARCA || alta.CODIGO_MARCA || '-')}</strong><span>${escaparHtml(alta.DETALLE_RUBRO || alta.CODIGO_RUBRO || '-')}</span></div>
-          <div class="dashboard-alta-meta"><div><span>Campaña</span>${formatearAnoTemporada(alta)}</div><div><span>Tipo</span><strong>${escaparHtml(alta.TIPO_PRODUCTO || '-')}</strong></div><div><span>Licencia</span>${badgeLicencia(alta.LICENCIA_ALTA)}</div><div><span>ERP</span><strong>${confirmados}/${total} · ${porcentajeTexto}</strong></div></div>
+          <div class="dashboard-alta-meta"><div><span>Campaña</span>${formatearAnoTemporada(alta)}</div><div><span>Tipo</span><strong>${escaparHtml(alta.TIPO_PRODUCTO || '-')}</strong></div><div><span>Licencia</span>${badgeLicencia(alta.LICENCIA_ALTA)}</div><div><span>Pares</span><strong>${cantidadPares.toLocaleString('es-AR')}</strong></div><div><span>Módulos</span><strong>${cantidadModulos.toLocaleString('es-AR')}</strong></div><div><span>ERP</span><strong>${confirmados}/${total} · ${porcentajeTexto}</strong></div></div>
           <div class="progress dashboard-alta-progress"><div class="progress-bar" style="width:${porcentaje}%"></div></div>
           <div class="dashboard-alta-file" title="${escaparHtml(alta.ARCHIVO_EXPORTADO || '-')}">${escaparHtml(alta.ARCHIVO_EXPORTADO || 'Sin archivo informado')}</div>
           <div class="dashboard-alta-footer"><span>Creada ${escaparHtml(formatearFechaPedidoDashboard(alta.FECHA_CREACION))} · ${escaparHtml(alta.USUARIO_CREACION || 'SISTEMA')}</span><a class="btn btn-sm btn-outline-primary" href="/seguimiento/${encodeURIComponent(alta.ID_ALTA)}">Ver</a></div>
@@ -591,6 +667,7 @@ async function cargarPedidosDashboard(altasEmpresa) {
         );
 
         pedidosDashboard = pedidos;
+        cargarOpcionesFiltrosPedidosDashboard();
         pintarPedidosDashboardFiltrados();
 
     } catch (error) {
@@ -818,9 +895,47 @@ function pintarPedidosRecientes(pedidos) {
 
 function pintarPedidosDashboardFiltrados() {
     const mostrarAnulados = document.getElementById('mostrarAnuladosPedidosDashboard')?.checked === true;
-    pintarPedidosRecientes(pedidosDashboard.filter(pedido =>
-        mostrarAnulados || String(pedido.ESTADO || '').trim().toUpperCase() !== 'ANULADO'
-    ));
+    const proveedor = document.getElementById('filtroProveedorPedidoDashboard')?.value || '';
+    const rubro = document.getElementById('filtroRubroPedidoDashboard')?.value || '';
+    const ano = document.getElementById('filtroAnoPedidoDashboard')?.value || '';
+    const temporada = document.getElementById('filtroTemporadaPedidoDashboard')?.value || '';
+    const filtrados = pedidosDashboard.filter(pedido =>
+        (mostrarAnulados || String(pedido.ESTADO || '').trim().toUpperCase() !== 'ANULADO') &&
+        (!proveedor || valorFiltroAltaDashboard(pedido.DETALLE_PROVEEDOR || pedido.CODIGO_PROVEEDOR) === proveedor) &&
+        (!rubro || valorFiltroAltaDashboard(pedido.DETALLE_RUBRO_ALTA || pedido.DETALLE_RUBRO || pedido.CODIGO_RUBRO) === rubro) &&
+        (!ano || valorFiltroAltaDashboard(pedido.CODIGO_ANO_ALTA || pedido.CODIGO_ANO) === ano) &&
+        (!temporada || valorFiltroAltaDashboard(pedido.DETALLE_TEMPORADA_ALTA || pedido.DETALLE_TEMPORADA || pedido.CODIGO_TEMPORADA) === temporada)
+    );
+    const resultado = document.getElementById('resultadoFiltrosPedidosDashboard');
+    if (resultado) resultado.textContent = `${filtrados.length} de ${pedidosDashboard.length} Pedidos`;
+    pintarPedidosRecientes(filtrados);
+}
+
+function cargarOpcionesFiltrosPedidosDashboard() {
+    completarFiltroAltaDashboard('filtroProveedorPedidoDashboard', pedidosDashboard.map(pedido => {
+        const texto = pedido.DETALLE_PROVEEDOR || pedido.CODIGO_PROVEEDOR || '';
+        return { valor: valorFiltroAltaDashboard(texto), etiqueta: String(texto).trim() };
+    }), 'Todos los proveedores');
+    completarFiltroAltaDashboard('filtroRubroPedidoDashboard', pedidosDashboard.map(pedido => {
+        const texto = pedido.DETALLE_RUBRO_ALTA || pedido.DETALLE_RUBRO || pedido.CODIGO_RUBRO || '';
+        return { valor: valorFiltroAltaDashboard(texto), etiqueta: String(texto).trim() };
+    }), 'Todos los rubros');
+    completarFiltroAltaDashboard('filtroAnoPedidoDashboard', pedidosDashboard.map(pedido => {
+        const texto = pedido.CODIGO_ANO_ALTA || pedido.CODIGO_ANO || '';
+        return { valor: valorFiltroAltaDashboard(texto), etiqueta: String(texto).trim() };
+    }), 'Todos los años');
+    completarFiltroAltaDashboard('filtroTemporadaPedidoDashboard', pedidosDashboard.map(pedido => {
+        const texto = pedido.DETALLE_TEMPORADA_ALTA || pedido.DETALLE_TEMPORADA || pedido.CODIGO_TEMPORADA || '';
+        return { valor: valorFiltroAltaDashboard(texto), etiqueta: String(texto).trim() };
+    }), 'Todas las temporadas');
+}
+
+function limpiarFiltrosPedidosDashboard(actualizar = true) {
+    for (const id of ['filtroProveedorPedidoDashboard', 'filtroRubroPedidoDashboard', 'filtroAnoPedidoDashboard', 'filtroTemporadaPedidoDashboard']) {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = '';
+    }
+    if (actualizar) pintarPedidosDashboardFiltrados();
 }
 
 function aplicarVistaPedidosDashboard(vista) {

@@ -912,6 +912,44 @@
 </div>
 
 
+<div class="modal fade" id="modalInformacionProducto" tabindex="-1" aria-labelledby="tituloInformacionProducto" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="formEditarInformacionProducto">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title fs-5" id="tituloInformacionProducto">Editar información del producto</h2>
+            <div class="small text-secondary" id="codigoInformacionProducto">-</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <input id="idDetalleInformacionProducto" type="hidden">
+          <div class="alert alert-info py-2">
+            Los cambios se aplicarán al producto principal y a todos los integrantes de su familia.
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6"><label for="editarCoNew" class="form-label">CO_NEW</label><input id="editarCoNew" class="form-control" maxlength="50"></div>
+            <div class="col-md-6"><label for="editarMuestra" class="form-label">Muestra</label><input id="editarMuestra" class="form-control" maxlength="50"></div>
+            <div class="col-12"><label for="editarComentario" class="form-label">Comentario</label><textarea id="editarComentario" class="form-control" rows="2" maxlength="255"></textarea></div>
+            <div class="col-12"><label for="editarCorrecciones" class="form-label">Correcciones</label><textarea id="editarCorrecciones" class="form-control" rows="2" maxlength="255"></textarea></div>
+            <div class="col-md-6"><label for="editarMaterialCalzado" class="form-label">Material del calzado</label><input id="editarMaterialCalzado" class="form-control" maxlength="100"></div>
+            <div class="col-md-6"><label for="editarMaterialSuela" class="form-label">Material de la suela</label><input id="editarMaterialSuela" class="form-control" maxlength="100"></div>
+            <div class="col-md-6"><label for="editarTipoAjuste" class="form-label">Tipo de ajuste</label><input id="editarTipoAjuste" class="form-control" maxlength="100"></div>
+            <div class="col-md-6"><label for="editarFlow" class="form-label">Flow</label><input id="editarFlow" class="form-control" maxlength="100"></div>
+            <div class="col-12"><label for="editarDescripcion" class="form-label">Descripción</label><textarea id="editarDescripcion" class="form-control" rows="3" maxlength="500"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+          <button id="btnGuardarInformacionProducto" type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
 <div class="modal fade" id="modalPreviewExportacion" tabindex="-1" aria-labelledby="tituloPreviewExportacion" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
@@ -989,4 +1027,4 @@
 
 
 <script src="/js/reglas-talles-par-suelto.js?v=1"></script>
-<script src="/js/alta-productos.js?v=11"></script>
+<script src="/js/alta-productos.js?v=12"></script>

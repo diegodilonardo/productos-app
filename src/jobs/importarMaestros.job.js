@@ -66,6 +66,12 @@ async function ejecutarWorker(
         '../services/importarMaestrosMultiempresa.service'
     );
 
+    const {
+        sincronizarProveedores
+    } = require(
+        '../services/proveedoresSync.service'
+    );
+
     const inicio =
         Date.now();
 
@@ -133,6 +139,36 @@ async function ejecutarWorker(
                 resultados;
 
             throw error;
+        }
+
+        /*
+         * El maestro de proveedores vive en Google Sheets y no forma
+         * parte de los archivos multiempresa descargados por FTP.
+         * Se actualiza dentro del mismo ciclo para que la consulta y
+         * los selectores no queden atrasados.
+         *
+         * Una indisponibilidad temporal de Google no invalida la carga
+         * de los demás maestros que ya terminó correctamente.
+         */
+        try {
+            const proveedores =
+                await sincronizarProveedores();
+
+            console.log(
+                '[PROVEEDORES] Sincronización finalizada.',
+                {
+                    cantidad:
+                        proveedores.cantidad,
+                    origen:
+                        proveedores.urlOrigen
+                }
+            );
+        } catch (error) {
+            console.error(
+                '[PROVEEDORES] No se pudo actualizar el maestro; ' +
+                'las demás sincronizaciones continúan válidas:',
+                error.message
+            );
         }
 
         console.log(

@@ -14,7 +14,7 @@ Aplicación interna para gestionar Altas de productos, conciliarlas con Presea y
 1. Instalar dependencias: `npm install`.
 2. Crear `.env` usando [CONFIGURACION.md](docs/CONFIGURACION.md). Nunca versionar credenciales.
 3. Verificar SQL Server y las migraciones de `sql/`.
-4. Iniciar: `npm run dev` o `npm start`.
+4. Iniciar: `npm run dev` en desarrollo o `npm start` en producción. El inicio de producción incluye supervisión y recuperación automática.
 5. Comprobar `GET /api/status`.
 
 El servidor valida SQL antes de escuchar. Los jobs de maestros y productos ERP se inician después; un fallo FTP no debe apagar la aplicación.

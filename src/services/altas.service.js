@@ -60,6 +60,7 @@ const CLASIFICACIONES_POR_RANGO_CURVA = Object.freeze({
     '33-37': ['MOD.YOUTH'],
     '21-27': ['MOD.BABY', 'MOD.BB'],
     '22-27': ['MOD.BABY', 'MOD.BB'],
+    '21-26': ['MOD.BABY', 'MOD.BB'],
     '29-34': ['MOD.JUNIOR', 'MOD.JUN'],
     '27-32': ['MOD.JUNIOR', 'MOD.JUN'],
     '28-34': ['MOD.JUNIOR', 'MOD.JUN'],
@@ -1737,19 +1738,24 @@ async function prepararDetalleProducto(
     let clasificacionAplicada = clasificacionPrincipal;
     if (tipoProducto === 'MODULO') {
         const detallesClasificacion = clasificacionesPorCurva(modulo);
-        if (!detallesClasificacion) {
-            throw new Error(`La curva ${modulo.CODIGO_MODULO} no tiene una clasificación configurada por rango.`);
-        }
-        clasificacionAplicada = await altasRepository.buscarClasificacionPorDetalles(
-            detallesClasificacion,
-            idEmpresa
-        );
-        if (!clasificacionAplicada) {
-            throw new Error(
-                `No se encontró en el maestro la clasificación ${detallesClasificacion[0]} ` +
-                `correspondiente a la curva ${modulo.CODIGO_MODULO}.`
+        if (detallesClasificacion) {
+            clasificacionAplicada = await altasRepository.buscarClasificacionPorDetalles(
+                detallesClasificacion,
+                idEmpresa
             );
+
+            if (!clasificacionAplicada) {
+                throw new Error(
+                    `No se encontró en el maestro la clasificación ${detallesClasificacion[0]} ` +
+                    `correspondiente a la curva ${modulo.CODIGO_MODULO}.`
+                );
+            }
         }
+
+        /*
+         * Cuando el rango no forma parte de la matriz automática,
+         * clasificacionAplicada conserva la opción elegida por el usuario.
+         */
     }
 
     const rubroFactPrincipal =
@@ -2624,6 +2630,77 @@ async function eliminarDetalle(
 }
 
 /* ============================================================
+   EDITAR INFORMACION ADICIONAL DEL PRINCIPAL Y SU FAMILIA
+   ============================================================ */
+
+async function actualizarInformacionFamilia(
+    idAlta,
+    idDetalle,
+    datosEntrada = {}
+) {
+    const id = validarId(idAlta);
+    const detalleId = Number(idDetalle);
+
+    if (!Number.isInteger(detalleId) || detalleId <= 0) {
+        throw new Error('ID_DETALLE inválido.');
+    }
+
+    const alta = await altasRepository.obtenerAltaPorId(id);
+
+    if (!alta) {
+        throw new Error('Alta no encontrada.');
+    }
+
+    if (String(alta.ESTADO || '').trim().toUpperCase() !== 'BORRADOR') {
+        throw new Error(
+            `La información del producto no puede modificarse porque ` +
+            `el alta está en estado ${alta.ESTADO}.`
+        );
+    }
+
+    const detalle = await altasRepository.obtenerDetallePorId(id, detalleId);
+
+    if (!detalle) {
+        throw new Error('El producto no existe dentro de esta alta.');
+    }
+
+    if (Boolean(detalle.GENERADO_AUTOMATICO)) {
+        throw new Error(
+            'La información debe editarse desde el producto principal de la familia.'
+        );
+    }
+
+    const informacion = {
+        CO_NEW: normalizarTextoLimitado(datosEntrada.coNew, 'CO_NEW', 50),
+        MUESTRA: normalizarTextoLimitado(datosEntrada.muestra, 'MUESTRA', 50),
+        COMENTARIO: normalizarTextoLimitado(datosEntrada.comentario, 'COMENTARIO', 255),
+        CORRECCIONES: normalizarTextoLimitado(datosEntrada.correcciones, 'CORRECCIONES', 255),
+        MATERIAL_CALZADO: normalizarTextoLimitado(datosEntrada.materialCalzado, 'MATERIAL_CALZADO', 100),
+        MATERIAL_SUELA: normalizarTextoLimitado(datosEntrada.materialSuela, 'MATERIAL_SUELA', 100),
+        TIPO_AJUSTE: normalizarTextoLimitado(datosEntrada.tipoAjuste, 'TIPO_AJUSTE', 100),
+        DESCRIPCION: normalizarTextoLimitado(datosEntrada.descripcion, 'DESCRIPCION', 500),
+        FLOW: normalizarTextoLimitado(datosEntrada.flow, 'FLOW', 100)
+    };
+
+    const resultado = await altasRepository.actualizarInformacionFamilia(
+        id,
+        detalleId,
+        informacion
+    );
+
+    if (!resultado.cantidad) {
+        throw new Error('No se pudo actualizar la información de la familia.');
+    }
+
+    return {
+        idAlta: id,
+        idDetalle: detalleId,
+        cantidadActualizada: resultado.cantidad,
+        informacion
+    };
+}
+
+/* ============================================================
    VALIDAR ALTA COMPLETA
    ============================================================ */
 
@@ -3066,6 +3143,8 @@ module.exports = {
     obtenerAlta,
 
     agregarDetalle,
+
+    actualizarInformacionFamilia,
 
     eliminarDetalle,
 

@@ -117,6 +117,33 @@ router.post('/:id/detalle', requerirAccesoAlta, requerirEscrituraEmpresa, async 
 
 
 /* ============================================================
+   EDITAR INFORMACION ADICIONAL DE UNA FAMILIA
+   ============================================================ */
+
+router.put('/:id/detalle/:idDetalle/informacion', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const resultado =
+            await altasService.actualizarInformacionFamilia(
+                req.params.id,
+                req.params.idDetalle,
+                req.body || {}
+            );
+
+        res.json({
+            ok: true,
+            mensaje: 'Información de la familia actualizada correctamente.',
+            resultado
+        });
+    } catch (error) {
+        res.status(400).json({
+            ok: false,
+            mensaje: error.message
+        });
+    }
+});
+
+
+/* ============================================================
    ELIMINAR DETALLE
    ============================================================ */
 

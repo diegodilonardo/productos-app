@@ -5,6 +5,8 @@ const config = {
     password: process.env.DB_PASSWORD,
     server: process.env.DB_SERVER,
     database: process.env.DB_DATABASE,
+    connectionTimeout: Math.max(1000, Number(process.env.DB_CONNECTION_TIMEOUT_MS || 15000)),
+    requestTimeout: Math.max(1000, Number(process.env.DB_REQUEST_TIMEOUT_MS || 120000)),
 
     options: {
         encrypt: process.env.DB_ENCRYPT === 'true',

@@ -1506,6 +1506,7 @@ const CLASIFICACION_POR_RANGO_CURVA = Object.freeze({
   '33-37': ['MOD.YOUTH'],
   '21-27': ['MOD.BABY', 'MOD.BB'],
   '22-27': ['MOD.BABY', 'MOD.BB'],
+  '21-26': ['MOD.BABY', 'MOD.BB'],
   '29-34': ['MOD.JUNIOR', 'MOD.JUN'],
   '27-32': ['MOD.JUNIOR', 'MOD.JUN'],
   '28-34': ['MOD.JUNIOR', 'MOD.JUN'],
@@ -3122,6 +3123,7 @@ function configurarEventos() {
     });
 
   document.getElementById('btnExportarAlta').addEventListener('click', exportarAlta);
+  document.getElementById('formEditarInformacionProducto')?.addEventListener('submit', guardarInformacionProducto);
   document.getElementById('btnEliminarFamiliasSeleccionadas')?.addEventListener('click', eliminarFamiliasSeleccionadas);
   document.getElementById('seleccionarTodasFamilias')?.addEventListener('change', manejarSeleccionTodasFamilias);
 
@@ -4302,6 +4304,20 @@ function pintarDetalle() {
 
     let botonEliminar = '';
 
+    const botonEditarInformacion =
+      puedeEditar && esPrincipal && idDetalle
+        ? `
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            data-accion="editar-informacion"
+            data-id-detalle="${escapar(idDetalle)}"
+          >
+            Editar información
+          </button>
+        `
+        : '';
+
     if (puedeEliminar) {
       const texto =
         tipoDetalle === 'MODULO'
@@ -4323,10 +4339,11 @@ function pintarDetalle() {
     }
 
     const accion =
-      (botonFamilia || botonEliminar)
+      (botonFamilia || botonEditarInformacion || botonEliminar)
         ? `
           <div class="alta-family-actions">
             ${botonFamilia}
+            ${botonEditarInformacion}
             ${botonEliminar}
           </div>
         `
@@ -4862,6 +4879,15 @@ async function manejarAccionesDetalle(event) {
     alternarFamilia(
       botonFamilia
     );
+    return;
+  }
+
+  const botonEditar = event.target.closest(
+    '[data-accion="editar-informacion"]'
+  );
+
+  if (botonEditar) {
+    abrirEdicionInformacionProducto(botonEditar.dataset.idDetalle);
     return;
   }
 
@@ -5612,6 +5638,93 @@ async function descargarImagenesAlta() {
     actualizarControlesEstado();
   }
 
+}
+
+function valorDetalle(fila, campo) {
+  const valor = fila?.[campo];
+  return valor === null || valor === undefined ? '' : String(valor);
+}
+
+function abrirEdicionInformacionProducto(idDetalle) {
+  if (estadoAlta() !== 'BORRADOR') {
+    mostrarAlerta('La información solamente puede editarse mientras el Alta esté en BORRADOR.', 'warning');
+    return;
+  }
+
+  const fila = buscarFilaDetallePorId(idDetalle);
+  if (!fila || esValorVerdadero(fila.GENERADO_AUTOMATICO)) return;
+
+  document.getElementById('idDetalleInformacionProducto').value = String(idDetalle);
+  document.getElementById('codigoInformacionProducto').textContent =
+    `${fila.CODIGO_ALFA ?? '-'} · ${fila.DETALLE_PRODUCTO ?? '-'}`;
+
+  const campos = {
+    editarCoNew: 'CO_NEW',
+    editarMuestra: 'MUESTRA',
+    editarComentario: 'COMENTARIO',
+    editarCorrecciones: 'CORRECCIONES',
+    editarMaterialCalzado: 'MATERIAL_CALZADO',
+    editarMaterialSuela: 'MATERIAL_SUELA',
+    editarTipoAjuste: 'TIPO_AJUSTE',
+    editarFlow: 'FLOW',
+    editarDescripcion: 'DESCRIPCION'
+  };
+
+  Object.entries(campos).forEach(([id, campo]) => {
+    document.getElementById(id).value = valorDetalle(fila, campo);
+  });
+
+  bootstrap.Modal
+    .getOrCreateInstance(document.getElementById('modalInformacionProducto'))
+    .show();
+}
+
+async function guardarInformacionProducto(event) {
+  event.preventDefault();
+
+  const idDetalle = document.getElementById('idDetalleInformacionProducto').value;
+  const boton = document.getElementById('btnGuardarInformacionProducto');
+
+  const body = {
+    coNew: valor('editarCoNew'),
+    muestra: valor('editarMuestra'),
+    comentario: valor('editarComentario'),
+    correcciones: valor('editarCorrecciones'),
+    materialCalzado: valor('editarMaterialCalzado'),
+    materialSuela: valor('editarMaterialSuela'),
+    tipoAjuste: valor('editarTipoAjuste'),
+    flow: valor('editarFlow'),
+    descripcion: valor('editarDescripcion')
+  };
+
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Guardando...';
+
+    const respuesta = extraerDatos(await apiJson(
+      `/api/altas/${ID_ALTA}/detalle/${idDetalle}/informacion`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }
+    ));
+
+    bootstrap.Modal
+      .getOrCreateInstance(document.getElementById('modalInformacionProducto'))
+      .hide();
+
+    await cargarAlta();
+    mostrarAlerta(
+      `Información actualizada en ${respuesta?.cantidadActualizada ?? 1} producto(s) de la familia.`,
+      'success'
+    );
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  } finally {
+    boton.disabled = false;
+    boton.textContent = 'Guardar cambios';
+  }
 }
 
 function actualizarAccionFamiliasSeleccionadas() {

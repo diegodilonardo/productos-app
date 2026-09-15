@@ -118,6 +118,14 @@
         <a href="/pedidos/nuevo" class="btn btn-sm btn-primary">Nuevo Pedido</a>
       </div>
     </div>
+    <div class="dashboard-pedidos-filtros" aria-label="Filtros de Pedidos recientes">
+      <select id="filtroProveedorPedidoDashboard" class="form-select form-select-sm" aria-label="Filtrar Pedidos por proveedor"><option value="">Todos los proveedores</option></select>
+      <select id="filtroRubroPedidoDashboard" class="form-select form-select-sm" aria-label="Filtrar Pedidos por rubro"><option value="">Todos los rubros</option></select>
+      <select id="filtroAnoPedidoDashboard" class="form-select form-select-sm" aria-label="Filtrar Pedidos por año"><option value="">Todos los años</option></select>
+      <select id="filtroTemporadaPedidoDashboard" class="form-select form-select-sm" aria-label="Filtrar Pedidos por temporada"><option value="">Todas las temporadas</option></select>
+      <button id="limpiarFiltrosPedidosDashboard" class="btn btn-sm btn-light border" type="button">Limpiar filtros</button>
+      <span id="resultadoFiltrosPedidosDashboard" class="text-secondary small"></span>
+    </div>
     <div id="pedidosRecientes" class="p-3 dashboard-pedidos-recientes-grid">
       <div class="text-center py-5 text-secondary dashboard-pedidos-loading">Cargando pedidos...</div>
     </div>
@@ -145,6 +153,14 @@
         <a href="/altas" class="btn btn-sm btn-outline-primary">Ver todas las Altas</a>
       </div>
     </div>
+    <div class="dashboard-altas-filtros" aria-label="Filtros de Altas recientes">
+      <select id="filtroProveedorAltaDashboard" class="form-select form-select-sm" aria-label="Filtrar Altas por proveedor"><option value="">Todos los proveedores</option></select>
+      <select id="filtroRubroAltaDashboard" class="form-select form-select-sm" aria-label="Filtrar Altas por rubro"><option value="">Todos los rubros</option></select>
+      <select id="filtroAnoAltaDashboard" class="form-select form-select-sm" aria-label="Filtrar Altas por año"><option value="">Todos los años</option></select>
+      <select id="filtroTemporadaAltaDashboard" class="form-select form-select-sm" aria-label="Filtrar Altas por temporada"><option value="">Todas las temporadas</option></select>
+      <button id="limpiarFiltrosAltasDashboard" class="btn btn-sm btn-light border" type="button">Limpiar filtros</button>
+      <span id="resultadoFiltrosAltasDashboard" class="text-secondary small"></span>
+    </div>
     <div id="tarjetasAltasDashboard" class="dashboard-altas-grid" aria-live="polite"><div class="dashboard-altas-message">Cargando información...</div></div>
     <div id="listaAltasDashboard" class="table-responsive d-none">
       <table class="table table-hover align-middle mb-0">
@@ -168,11 +184,13 @@
 .dashboard-pedidos-list{background:#fff}.dashboard-pedido-list-row{display:grid;grid-template-columns:minmax(210px,1.5fr) minmax(160px,1fr) repeat(3,minmax(85px,.55fr)) auto;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid #edf0f3}.dashboard-pedido-list-row:first-child{border-top:0}.dashboard-pedido-list-row:hover{background:#fbfcfd}.dashboard-pedido-list-main{min-width:0}.dashboard-pedido-list-main strong,.dashboard-pedido-list-main span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dashboard-pedido-list-main strong{font-size:.79rem}.dashboard-pedido-list-main span{color:#7c8996;font-size:.7rem}.dashboard-pedido-list-cell span{display:block;color:#8a96a2;font-size:.62rem;font-weight:750;text-transform:uppercase}.dashboard-pedido-list-cell strong{font-size:.76rem}.dashboard-pedido-list-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.dashboard-pedidos-list-message{padding:40px 16px;color:#7b8794;text-align:center}
 .dashboard-view-switch{display:inline-flex;padding:3px;border:1px solid #dfe5eb;border-radius:9px;background:#f5f7f9}.dashboard-view-btn{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 9px;border:0;border-radius:7px;background:transparent;color:#697684;font-size:.7rem;font-weight:700}.dashboard-view-btn.is-active{background:#fff;color:#176bc9;box-shadow:0 1px 4px rgba(24,39,55,.12)}.dashboard-view-btn:focus-visible{outline:2px solid rgba(13,110,253,.42);outline-offset:2px}.dashboard-altas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;padding:16px;background:#f7f9fb}.dashboard-altas-message{grid-column:1/-1;padding:36px 12px;color:#7b8794;text-align:center}.dashboard-alta-card{position:relative;overflow:hidden;min-width:0;padding:14px;border:1px solid #e0e6ec;border-radius:12px;background:#fff;transition:.15s ease}.dashboard-alta-card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#8c98a4}.dashboard-alta-generado-ok-en-erp::before{background:#2e9a58}.dashboard-alta-parcial-erp::before{background:#d49a2e}.dashboard-alta-exportado::before{background:#377bc4}.dashboard-alta-error-erp::before{background:#cf4a4a}.dashboard-alta-card:hover{transform:translateY(-2px);border-color:#cbd8ea;box-shadow:0 6px 16px rgba(15,23,42,.07)}.dashboard-alta-top,.dashboard-alta-footer{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.dashboard-alta-title{min-width:0}.dashboard-alta-title strong{display:block;overflow:hidden;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}.dashboard-alta-title small{color:#8793a0}.dashboard-alta-brand{display:flex;flex-direction:column;margin:12px 0;padding-bottom:10px;border-bottom:1px solid #edf0f3}.dashboard-alta-brand strong{font-size:.88rem}.dashboard-alta-brand span{color:#7c8996;font-size:.72rem}.dashboard-alta-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}.dashboard-alta-meta>div>span:first-child{display:block;margin-bottom:3px;color:#8a96a2;font-size:.63rem;font-weight:750;text-transform:uppercase}.dashboard-alta-meta strong{color:#465463;font-size:.76rem}.dashboard-alta-progress{height:7px;margin-top:6px}.dashboard-alta-file{margin-top:10px;overflow:hidden;padding:7px 9px;border-radius:7px;background:#f5f7f9;color:#697684;font-size:.67rem;text-overflow:ellipsis;white-space:nowrap}.dashboard-alta-footer{align-items:center;margin-top:11px;color:#748190;font-size:.7rem}
 .dashboard-cancel-switch{display:flex;align-items:center;gap:.4rem;min-height:34px;margin:0;padding:.3rem .65rem .3rem 2.65rem;border:1px solid #dfe5eb;border-radius:9px;background:#f8fafc;white-space:nowrap}.dashboard-cancel-switch .form-check-label{color:#637181;font-size:.72rem;font-weight:700}
+.dashboard-altas-filtros,.dashboard-pedidos-filtros{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr)) auto auto;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #e8edf2;background:#fbfcfd}.dashboard-altas-filtros .form-select,.dashboard-pedidos-filtros .form-select{min-width:0}.dashboard-altas-filtros>span,.dashboard-pedidos-filtros>span{white-space:nowrap}
 @media(max-width:1199.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:repeat(auto-fill,minmax(320px,440px))}}
 @media(max-width:767.98px){.dashboard-pedidos-recientes-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:991.98px){.dashboard-pedido-list-row{grid-template-columns:minmax(0,1fr) auto}.dashboard-pedido-list-cell{display:none}}
-@media(max-width:575.98px){.dashboard-pedido-stats{grid-template-columns:1fr 1fr}.dashboard-pedido-stat:last-child{grid-column:1/-1}.dashboard-view-switch{order:3;width:100%}.dashboard-view-btn{flex:1}.dashboard-altas-grid{grid-template-columns:minmax(0,1fr);padding:12px}}
+@media(max-width:991.98px){.dashboard-altas-filtros,.dashboard-pedidos-filtros{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-altas-filtros>button,.dashboard-altas-filtros>span,.dashboard-pedidos-filtros>button,.dashboard-pedidos-filtros>span{justify-self:start}}
+@media(max-width:575.98px){.dashboard-pedido-stats{grid-template-columns:1fr 1fr}.dashboard-pedido-stat:last-child{grid-column:1/-1}.dashboard-view-switch{order:3;width:100%}.dashboard-view-btn{flex:1}.dashboard-altas-grid{grid-template-columns:minmax(0,1fr);padding:12px}.dashboard-altas-filtros,.dashboard-pedidos-filtros{grid-template-columns:1fr}}
 .dashboard-pedido-stat-emphasis strong{color:#263b52!important;font-size:1rem!important;font-weight:800!important;letter-spacing:-.015em}
 </style>
 
-<script src="/js/dashboard.js?v=12"></script>
+<script src="/js/dashboard.js?v=14"></script>

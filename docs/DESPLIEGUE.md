@@ -7,7 +7,7 @@
 5. Limpiar datos de prueba solo con autorización y backup.
 6. Instalar dependencias con lockfile.
 7. Configurar `.env` de producción.
-8. Iniciar un único proceso web; verificar jobs y `/api/status`.
+8. Iniciar un único supervisor con `npm start`; verificar jobs y `/api/status`.
 9. Ejecutar una prueba controlada por empresa sin sobrescribir archivos reales.
 
 Nunca desplegar `.env`, `salidas/`, `tmp/` ni credenciales en Git.

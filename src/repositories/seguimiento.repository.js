@@ -76,6 +76,10 @@ async function listarAltasSeguimiento({
             A.MOTIVO_ANULACION,
 
             L.LICENCIA_ALTA,
+            MAX(PR.PROVEEDORES_ALTA) AS PROVEEDORES_ALTA,
+
+            COALESCE(C.CANTIDAD_PARES, 0) AS CANTIDAD_PARES,
+            COALESCE(C.CANTIDAD_MODULOS, 0) AS CANTIDAD_MODULOS,
 
             COUNT(E.ID_ALTA) AS CANTIDAD_EXPORTADOS,
 
@@ -107,6 +111,38 @@ async function listarAltasSeguimiento({
                 D.ID_DETALLE
         ) L
 
+        OUTER APPLY (
+            SELECT STUFF((
+                SELECT DISTINCT
+                    '||' + LTRIM(RTRIM(DP.DETALLE_PROVEEDOR))
+                FROM dbo.ALTAS_PRODUCTOS_DETALLE DP
+                WHERE DP.ID_ALTA = A.ID_ALTA
+                  AND DP.ID_EMPRESA = A.ID_EMPRESA
+                  AND ISNULL(DP.GENERADO_AUTOMATICO, 0) = 0
+                  AND NULLIF(LTRIM(RTRIM(DP.DETALLE_PROVEEDOR)), '') IS NOT NULL
+                FOR XML PATH(''), TYPE
+            ).value('.', 'nvarchar(max)'), 1, 2, '') AS PROVEEDORES_ALTA
+        ) PR
+
+        OUTER APPLY (
+            SELECT
+                COUNT(CASE
+                    WHEN UPPER(LTRIM(RTRIM(ISNULL(D.TIPO_PRODUCTO_DETALLE, '')))) = 'MODULO'
+                    THEN 1
+                END) AS CANTIDAD_MODULOS,
+                COALESCE(SUM(
+                    CASE
+                        WHEN UPPER(LTRIM(RTRIM(ISNULL(D.TIPO_PRODUCTO_DETALLE, '')))) = 'MODULO'
+                            THEN ISNULL(D.PARES, 0)
+                        ELSE 1
+                    END
+                ), 0) AS CANTIDAD_PARES
+            FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+            WHERE D.ID_ALTA = A.ID_ALTA
+              AND D.ID_EMPRESA = A.ID_EMPRESA
+              AND ISNULL(D.GENERADO_AUTOMATICO, 0) = 0
+        ) C
+
         LEFT JOIN dbo.ALTAS_PRODUCTOS_EXPORTADOS E
             ON E.ID_ALTA = A.ID_ALTA
            AND E.ID_EMPRESA = A.ID_EMPRESA
@@ -137,7 +173,9 @@ async function listarAltasSeguimiento({
             A.FECHA_ANULACION,
             A.USUARIO_ANULACION,
             A.MOTIVO_ANULACION,
-            L.LICENCIA_ALTA
+            L.LICENCIA_ALTA,
+            C.CANTIDAD_PARES,
+            C.CANTIDAD_MODULOS
 
         ORDER BY A.ID_ALTA DESC;
     `);

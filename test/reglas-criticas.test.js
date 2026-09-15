@@ -55,7 +55,7 @@ test('las curvas conocidas sugieren por defecto su tipo de módulo', () => {
   const reglas = {
     '21-34': 'MOD.KIDS', '24-30': 'MOD.KIDS',
     '31-37': 'MOD.YOUTH', '33-37': 'MOD.YOUTH',
-    '21-27': 'MOD.BABY', '22-27': 'MOD.BABY',
+    '21-27': 'MOD.BABY', '22-27': 'MOD.BABY', '21-26': 'MOD.BABY',
     '29-34': 'MOD.JUNIOR', '27-32': 'MOD.JUNIOR', '28-34': 'MOD.JUNIOR',
     '35-40': 'MOD.MUJER',
     '40-45': 'MOD.HOMBRE', '38-43': 'MOD.HOMBRE', '40-43': 'MOD.HOMBRE',
@@ -70,7 +70,20 @@ test('el backend determina la clasificación de cada curva sin depender de Edad'
   assert.deepEqual(clasificacionesPorCurva({ DESCRIPCION_CURVA:'35 AL 40 X 12' }), ['MOD.MUJER', 'MOD.MUJ']);
   assert.deepEqual(clasificacionesPorCurva({ DETALLE_MODULO:'40 al 45 (4,5,2,1)' }), ['MOD.HOMBRE', 'MOD.HOM']);
   assert.deepEqual(clasificacionesPorCurva({ DESCRIPCION_CURVA:'21/22/23/24/25/26/27' }), ['MOD.BABY', 'MOD.BB']);
+  assert.deepEqual(clasificacionesPorCurva({ CODIGO_MODULO:'R9', DETALLE_MODULO:'21 AL 26 X 15 PARES 1 2 3 3 3 3' }), ['MOD.BABY', 'MOD.BB']);
   assert.equal(clasificacionesPorCurva({ DESCRIPCION_CURVA:'36 AL 41' }), null);
+});
+
+test('una curva sin regla automática conserva la clasificación elegida por el usuario', () => {
+  const backend = fs.readFileSync(path.join(__dirname, '../src/services/altas.service.js'), 'utf8');
+  const bloque = backend.slice(
+    backend.indexOf('let clasificacionAplicada = clasificacionPrincipal'),
+    backend.indexOf('const rubroFactPrincipal', backend.indexOf('let clasificacionAplicada = clasificacionPrincipal'))
+  );
+
+  assert.match(bloque, /if \(detallesClasificacion\)/);
+  assert.doesNotMatch(bloque, /no tiene una clasificación configurada por rango/);
+  assert.match(bloque, /clasificacionAplicada conserva la opción elegida por el usuario/);
 });
 
 test('una combinación Edad/Sexo desconocida queda bloqueada', () => {

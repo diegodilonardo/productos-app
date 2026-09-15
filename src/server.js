@@ -15,6 +15,10 @@ const {
     iniciarSchedulerProductosErp
 } = require('./jobs/productosErpSync.scheduler');
 
+const {
+    iniciarMonitorEventLoop
+} = require('./observability/eventLoopMonitor');
+
 
 const PORT =
     process.env.PORT ||
@@ -85,6 +89,8 @@ async function iniciarServidor() {
         app.listen(
             PORT,'0.0.0.0',
             () => {
+
+                iniciarMonitorEventLoop();
 
                 console.log(
                     `Servidor activo en puerto ${PORT}`

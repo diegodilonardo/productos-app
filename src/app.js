@@ -14,6 +14,7 @@ const usuariosRoutes = require("./routes/usuarios.routes");
 const perfilRoutes = require("./routes/perfil.routes");
 const altasMaestrosRoutes = require('./routes/altasMaestros.routes');
 const sesionesActivasService = require('./services/sesionesActivas.service');
+const { obtenerEstadoEventLoop } = require('./observability/eventLoopMonitor');
 
 const { configurarHandlebars } = require("./config/handlebars");
 
@@ -113,6 +114,9 @@ app.get(
       ok: true,
       aplicacion: "PRODUCTOS_APP",
       fecha: new Date(),
+      uptimeSegundos: Math.round(process.uptime()),
+      memoriaMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      eventLoop: obtenerEstadoEventLoop(),
     });
   },
 );

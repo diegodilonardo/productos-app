@@ -236,6 +236,20 @@ async function listarAltas(idEmpresa) {
                 ) AS CANTIDAD_MODULOS
 
                 ,(
+                    SELECT COALESCE(SUM(
+                        CASE
+                            WHEN UPPER(LTRIM(RTRIM(ISNULL(DP.TIPO_PRODUCTO_DETALLE, '')))) = 'MODULO'
+                                THEN ISNULL(DP.PARES, 0)
+                            ELSE 1
+                        END
+                    ), 0)
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DP
+                    WHERE
+                        DP.ID_ALTA = A.ID_ALTA
+                        AND ISNULL(DP.GENERADO_AUTOMATICO, 0) = 0
+                ) AS CANTIDAD_PARES
+
+                ,(
                     SELECT COUNT(DISTINCT PI.CODIGO_ALFA)
                     FROM dbo.ALTAS_PRODUCTOS_DETALLE DI
                     INNER JOIN dbo.PRODUCTOS PI
@@ -1320,6 +1334,68 @@ async function obtenerDetallePorId(idAlta, idDetalle) {
 }
 
 /* ============================================================
+   ACTUALIZAR INFORMACION ADICIONAL DE UNA FAMILIA
+   ============================================================ */
+
+async function actualizarInformacionFamilia(
+  idAlta,
+  idDetallePadre,
+  informacion
+) {
+  const pool = await getConnection();
+
+  const resultado = await pool
+    .request()
+    .input("ID_ALTA", sql.BigInt, idAlta)
+    .input("ID_DETALLE_PADRE", sql.BigInt, idDetallePadre)
+    .input("CO_NEW", sql.NVarChar(50), informacion.CO_NEW)
+    .input("MUESTRA", sql.NVarChar(50), informacion.MUESTRA)
+    .input("COMENTARIO", sql.NVarChar(255), informacion.COMENTARIO)
+    .input("CORRECCIONES", sql.NVarChar(255), informacion.CORRECCIONES)
+    .input("MATERIAL_CALZADO", sql.NVarChar(100), informacion.MATERIAL_CALZADO)
+    .input("MATERIAL_SUELA", sql.NVarChar(100), informacion.MATERIAL_SUELA)
+    .input("TIPO_AJUSTE", sql.NVarChar(100), informacion.TIPO_AJUSTE)
+    .input("DESCRIPCION", sql.NVarChar(500), informacion.DESCRIPCION)
+    .input("FLOW", sql.NVarChar(100), informacion.FLOW)
+    .query(`
+      UPDATE D
+      SET
+        CO_NEW = @CO_NEW,
+        MUESTRA = @MUESTRA,
+        COMENTARIO = @COMENTARIO,
+        CORRECCIONES = @CORRECCIONES,
+        MATERIAL_CALZADO = @MATERIAL_CALZADO,
+        MATERIAL_SUELA = @MATERIAL_SUELA,
+        TIPO_AJUSTE = @TIPO_AJUSTE,
+        DESCRIPCION = @DESCRIPCION,
+        FLOW = @FLOW
+      OUTPUT INSERTED.ID_DETALLE
+      FROM dbo.ALTAS_PRODUCTOS_DETALLE AS D
+      WHERE
+        D.ID_ALTA = @ID_ALTA
+        AND
+        (
+          D.ID_DETALLE = @ID_DETALLE_PADRE
+          OR EXISTS
+          (
+            SELECT 1
+            FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE AS R
+            WHERE
+              R.ID_ALTA = @ID_ALTA
+              AND R.ID_DETALLE_PADRE = @ID_DETALLE_PADRE
+              AND R.ID_DETALLE_HIJO = D.ID_DETALLE
+          )
+          OR D.ID_DETALLE_PADRE = @ID_DETALLE_PADRE
+        );
+    `);
+
+  return {
+    cantidad: resultado.recordset.length,
+    idsDetalle: resultado.recordset.map(item => Number(item.ID_DETALLE))
+  };
+}
+
+/* ============================================================
    ELIMINAR DETALLE Y SUS HIJOS
    ============================================================ */
 
@@ -1626,6 +1702,7 @@ module.exports = {
 
   crearDetalles,
   obtenerDetallePorId,
+  actualizarInformacionFamilia,
   eliminarDetalle,
   buscarDuplicadosAlta,
   marcarAltaValidada,

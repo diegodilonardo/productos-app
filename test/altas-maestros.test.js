@@ -20,6 +20,30 @@ test('sugiere el primer código libre sin repetir maestro ni solicitud', async (
   finally { repository.codigosOcupados = original; }
 });
 
+test('un código de maestro anulado puede reutilizarse conservando su historial', () => {
+  const repositorySource = fs.readFileSync(
+    path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'),
+    'utf8'
+  );
+
+  assert.match(
+    repositorySource,
+    /AND ESTADO='ANULADO'[\s\S]*SET @REACTIVADO = 1/
+  );
+  assert.match(
+    repositorySource,
+    /'ANULADO','PENDIENTE_ENVIO'[\s\S]*Código reutilizado mediante una nueva solicitud/
+  );
+  assert.match(
+    repositorySource,
+    /ARCHIVO_DBI=NULL[\s\S]*FECHA_CONFIRMACION_ERP=NULL/
+  );
+  assert.match(
+    repositorySource,
+    /IF NOT EXISTS \(SELECT 1 FROM @RESULTADO\)[\s\S]*INSERT dbo\.ALTAS_MAESTROS/
+  );
+});
+
 test('los módulos de todas las empresas comienzan en A0 y continúan la serie alfanumérica', async () => {
   const original = repository.codigosOcupados;
   try {

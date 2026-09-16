@@ -4176,6 +4176,15 @@ function obtenerIdsPadresFamilia(fila) {
 }
 
 
+function productoInhabilitadoPresea(fila) {
+  return (
+    fila?.INHABILITADO_PRESEA === true ||
+    Number(fila?.INHABILITADO_PRESEA) === 1 ||
+    String(fila?.C_ESTADIO || '').trim() === '9'
+  );
+}
+
+
 function pintarDetalle() {
   const detalle = Array.isArray(altaActual.detalle)
     ? altaActual.detalle
@@ -4284,6 +4293,20 @@ function pintarDetalle() {
           ).length
         : 0;
 
+    const cantidadHijosInhabilitados =
+      esPrincipal && idDetalle
+        ? (
+            hijosPorPadre.get(
+              String(idDetalle)
+            ) || []
+          ).filter(productoInhabilitadoPresea).length
+        : 0;
+
+    const avisoFamiliaInhabilitada =
+      cantidadHijosInhabilitados > 0
+        ? `<span class="badge rounded-pill text-bg-danger alta-family-disabled-badge">${cantidadHijosInhabilitados} INHABILITADO${cantidadHijosInhabilitados === 1 ? '' : 'S'}</span>`
+        : '';
+
     const botonFamilia =
       cantidadHijos > 0
         ? `
@@ -4299,6 +4322,7 @@ function pintarDetalle() {
             <span class="alta-family-toggle-icon" aria-hidden="true">▸</span>
             <span class="alta-family-toggle-text">Ver familia (${cantidadHijos})</span>
           </button>
+          ${avisoFamiliaInhabilitada}
         `
         : '';
 
@@ -4352,10 +4376,19 @@ function pintarDetalle() {
     const estadoValidacion =
       String(fila.ESTADO_VALIDACION || 'VALIDO').toUpperCase();
 
+    const inhabilitadoPresea =
+      productoInhabilitadoPresea(fila);
+
     const badgeEstado =
-      estadoValidacion === 'EXISTE_ERP'
-        ? '<span class="badge rounded-pill text-bg-warning px-3 py-2">YA EXISTE EN PRESEA</span>'
-        : '<span class="badge rounded-pill text-bg-success px-3 py-2">NUEVO</span>';
+      `<div class="d-flex flex-column align-items-start gap-1">${
+        estadoValidacion === 'EXISTE_ERP'
+          ? '<span class="badge rounded-pill text-bg-warning px-3 py-2">YA EXISTE EN PRESEA</span>'
+          : '<span class="badge rounded-pill text-bg-success px-3 py-2">NUEVO</span>'
+      }${
+        inhabilitadoPresea
+          ? '<span class="badge rounded-pill text-bg-danger px-3 py-2">INHABILITADO EN PRESEA</span>'
+          : ''
+      }</div>`;
 
     const tr =
       document.createElement('tr');
@@ -4396,6 +4429,15 @@ function pintarDetalle() {
         'Ya existe en Presea';
     }
 
+    if (inhabilitadoPresea) {
+      tr.classList.add(
+        'alta-row-inhabilitado'
+      );
+
+      tr.title =
+        'Producto inhabilitado en Presea (C_ESTADIO 9)';
+    }
+
     const origenFiltro =
       esPrincipal
         ? 'PRINCIPAL'
@@ -4412,11 +4454,14 @@ function pintarDetalle() {
       fila.DETALLE_COLOR ?? fila.CODIGO_COLOR ?? '',
       fila.DETALLE_CLASIFICACION ?? fila.CODIGO_CLASIFICACION ?? '',
       fila.DETALLE_MODULO ?? fila.DETALLE_TALLE ??
-        fila.CODIGO_MODULO ?? fila.CODIGO_TALLE ?? ''
+        fila.CODIGO_MODULO ?? fila.CODIGO_TALLE ?? '',
+      inhabilitadoPresea ? 'INHABILITADO PRESEA' : ''
     ].join(' '));
 
     tr.dataset.filtroEstado =
-      estadoFiltro;
+      inhabilitadoPresea
+        ? 'INHABILITADO'
+        : estadoFiltro;
 
     tr.dataset.filtroTipo =
       normalizarTipo(tipoDetalle);

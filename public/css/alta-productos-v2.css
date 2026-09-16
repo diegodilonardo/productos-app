@@ -297,6 +297,21 @@
   box-shadow: inset 4px 0 0 #ffc107;
 }
 
+.alta-products-table .alta-row-inhabilitado td {
+  background: #fff5f5;
+  color: #842029;
+}
+
+.alta-products-table .alta-row-inhabilitado.alta-row-principal td:first-child {
+  box-shadow: inset 4px 0 0 #dc3545;
+}
+
+.alta-family-disabled-badge {
+  font-size: 0.62rem;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
 .alta-child-detail {
   display: flex;
   align-items: center;

@@ -810,7 +810,11 @@ function armarRegistrosMODELOS(alta, detalles) {
    - Usa los CODIGO_ALFA y DETALLE_PRODUCTO ya generados por el Alta.
    - Solo contempla productos NUEVOS / VALIDO.
    - Empareja PRIMERA (clasificación 1) con SEGUNDA (clasificación 2)
-     del mismo modelo + color + talle + sexo.
+     usando la estructura real de CODIGO_ALFA y quitando solamente
+     el dígito de clasificación.
+   - Esto mantiene separadas las familias de curvas combinadas que
+     comparten modelo + color + talle + sexo, pero usan un segmento
+     de rubro distinto (por ejemplo MOD.MUJ y MOD.HOM).
    ============================================================ */
 
 const camposPRIMERAS_SEGUNDAS = [
@@ -864,11 +868,42 @@ const camposPRIMERAS_SEGUNDAS = [
   },
 ];
 
+function normalizarTalleCodigoAlfaRelacion(detalleTalle) {
+  const talle = texto(detalleTalle).toUpperCase();
+  const equivalencias = {
+    S: "0S",
+    M: "0M",
+    L: "0L",
+    "2XL": "2X",
+    "3XL": "3X",
+  };
+
+  return equivalencias[talle] || talle;
+}
+
 function clavePrimeraSegunda(detalle) {
+  const codigoAlfa = texto(detalle.CODIGO_ALFA).toUpperCase();
+  const clasificacion = texto(detalle.CODIGO_CLASIFICACION);
+  const color = texto(detalle.CODIGO_COLOR).toUpperCase();
+  const talle = normalizarTalleCodigoAlfaRelacion(detalle.CODIGO_TALLE);
+  const sufijo = `${clasificacion}${color}${talle}`;
+
+  if (codigoAlfa && sufijo && codigoAlfa.endsWith(sufijo)) {
+    const baseCodigoAlfa = codigoAlfa.slice(0, -sufijo.length);
+
+    return [
+      baseCodigoAlfa,
+      color,
+      talle,
+      texto(detalle.SEXO).toUpperCase(),
+    ].join("|");
+  }
+
+  /* Compatibilidad defensiva con registros históricos incompletos. */
   return [
     texto(detalle.CODIGO_MODELO),
-    texto(detalle.CODIGO_COLOR),
-    texto(detalle.CODIGO_TALLE),
+    color,
+    talle,
     texto(detalle.SEXO).toUpperCase(),
   ].join("|");
 }
@@ -1755,4 +1790,6 @@ module.exports = {
   exportar,
 
   regenerarArchivosAlta,
+
+  armarRegistrosPRIMERAS_SEGUNDAS,
 };

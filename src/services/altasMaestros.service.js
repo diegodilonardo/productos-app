@@ -401,6 +401,35 @@ const definicionesDbi = {
   }
 };
 
+function segmentoRutaMaestro(valor, campo) {
+  const segmento = normalizar(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_');
+  if (!/^[A-Z0-9_]+$/.test(segmento)) throw Object.assign(new Error(`El ${campo} no permite resolver una carpeta FTP segura.`), { status: 409 });
+  return segmento;
+}
+
+function agruparArchivosMaestros(registros, rutaEmpresa) {
+  const grupos = new Map();
+  for (const registro of registros) {
+    const tipo = normalizar(registro.TIPO);
+    if (!definicionesDbi[tipo]) throw new Error(`Tipo de maestro no admitido: ${tipo}.`);
+    let ruta = rutaEmpresa;
+    if (tipo === 'MODELO') {
+      const marca = segmentoRutaMaestro(registro.MARCA, 'marca');
+      const rubro = segmentoRutaMaestro(registro.RUBRO, 'rubro');
+      const licencia = normalizarLicencia(registro.LICENCIA);
+      const aliases = { SL: 'SAN_LORENZO', VS: 'VELEZ_SARSFIELD', TA: 'TALLERES', VELEZ: 'VELEZ_SARSFIELD' };
+      ruta += `/${marca}`;
+      if (licencia && licencia !== 'SIN LICENCIA') ruta += `/LICENCIAS/${aliases[licencia] || segmentoRutaMaestro(licencia, 'licencia')}`;
+      ruta += `/${rubro}`;
+    }
+    const clave = `${tipo}|${ruta}`;
+    if (!grupos.has(clave)) grupos.set(clave, { tipo, ruta, filas: [] });
+    grupos.get(clave).filas.push(registro);
+  }
+  const orden = { COLOR: 0, MODULO: 1, MODELO: 2 };
+  return [...grupos.values()].sort((a, b) => orden[a.tipo] - orden[b.tipo] || a.ruta.localeCompare(b.ruta));
+}
+
 async function enviarPresea({ idEmpresa, usuario }) {
   const datos = await repository.obtenerPendientesYConfiguracion(idEmpresa);
   const rutaDestino = resolverRutaDestinoMaestros(datos.rutaDestino);
@@ -409,16 +438,23 @@ async function enviarPresea({ idEmpresa, usuario }) {
   const carpetaLocal = path.join(process.env.EXPORT_PATH || path.join(process.cwd(), 'salidas'), 'altas-maestros', String(idEmpresa));
   fs.mkdirSync(carpetaLocal, { recursive: true });
   const archivos = [];
-  for (const tipo of ['COLOR', 'MODELO', 'MODULO']) {
-    const filas = datos.registros.filter(x => x.TIPO === tipo);
-    if (!filas.length) continue;
+  const grupos = agruparArchivosMaestros(datos.registros, rutaDestino);
+  for (const { tipo, ruta, filas } of grupos) {
     const def = definicionesDbi[tipo];
-    const destinoLocal = path.join(carpetaLocal, def.archivo);
+    const carpetaGrupo = path.join(carpetaLocal, ...ruta.split('/').filter(Boolean));
+    fs.mkdirSync(carpetaGrupo, { recursive: true });
+    const destinoLocal = path.join(carpetaGrupo, def.archivo);
     escribirDBFGenerico(destinoLocal, filas.map(def.map), def.campos);
-    const resultadoFTP = await ftpService.subirArchivo(destinoLocal, def.archivo, def.archivo, rutaDestino);
-    archivos.push({ nombre: def.archivo, registros: filas.length, ruta: resultadoFTP.rutaRemota || `${rutaDestino}/${def.archivo}` });
+    try {
+      const resultadoFTP = await ftpService.subirArchivo(destinoLocal, def.archivo, def.archivo, ruta);
+      const archivo = { nombre: def.archivo, registros: filas.length, ruta: resultadoFTP.rutaRemota || `${ruta}/${def.archivo}` };
+      await repository.marcarEnviados(idEmpresa, filas.map(x => x.ID_ALTA_MAESTRO), [archivo], usuario || 'SISTEMA');
+      archivos.push(archivo);
+    } catch (error) {
+      error.message = `No se completó el envío de ${ruta}/${def.archivo}. ${archivos.length} archivo(s) anteriores enviados y registrados. ${error.message}`;
+      throw error;
+    }
   }
-  await repository.marcarEnviados(idEmpresa, datos.registros.map(x => x.ID_ALTA_MAESTRO), archivos, usuario || 'SISTEMA');
   return { archivos, registros: datos.registros.length, rutaDestino };
 }
 
@@ -437,4 +473,4 @@ async function eliminarReglaEan({ idEmpresa, idRegla, usuario }) {
 
 function etiquetasTallesModuloExport(campo) { return etiquetasTallesModulo[campo] || campo; }
 
-module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarReglaEan, eliminarReglaEan };
+module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarReglaEan, eliminarReglaEan, agruparArchivosMaestros };

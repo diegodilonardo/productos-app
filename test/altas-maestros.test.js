@@ -13,6 +13,28 @@ test('genera códigos alfanuméricos con el largo del maestro', () => {
   assert.equal(service.codigoBase36(36, 2), '10');
 });
 
+test('la conciliación confirma colores y curvas además de modelos', () => {
+  const fuente = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
+  assert.match(fuente, /A\.TIPO='COLOR' AND EXISTS[\s\S]*MAESTRO_COLORES/);
+  assert.match(fuente, /A\.TIPO='MODULO' AND EXISTS[\s\S]*MAESTRO_TALLES_MODULOS/);
+  assert.match(fuente, /C\.ID_EMPRESA=A\.ID_EMPRESA/);
+  assert.match(fuente, /T\.ID_EMPRESA=A\.ID_EMPRESA/);
+});
+
+test('un color guarda marca y rubro sólo como referencia sin modificar el DBI', async () => {
+  const original = repository.crear;
+  repository.crear = async datos => datos;
+  try {
+    const registro = await service.crear({ idEmpresa:1, usuario:'DIEGO', cuerpo:{tipo:'COLOR',codigo:'0F',nombre:'ORQUIDEA',marca:'ATOMIK',rubro:'CALZADO'} });
+    assert.equal(registro.marca, 'ATOMIK');
+    assert.equal(registro.rubro, 'CALZADO');
+    const sinReferencia = await service.crear({ idEmpresa:1, usuario:'DIEGO', cuerpo:{tipo:'COLOR',codigo:'0G',nombre:'OTRO'} });
+    assert.equal(sinReferencia.marca, '');
+    assert.equal(sinReferencia.rubro, '');
+    assert.deepEqual(service.definicionesDbi.COLOR.map({CODIGO:'0F',NOMBRE:'ORQUIDEA',MARCA:'ATOMIK',RUBRO:'CALZADO'}), {CODIGO:'0F',DET_COLOR:'ORQUIDEA'});
+  } finally { repository.crear = original; }
+});
+
 test('sugiere el primer código libre sin repetir maestro ni solicitud', async () => {
   const original = repository.codigosOcupados;
   repository.codigosOcupados = async () => ['00', '01', '02'];

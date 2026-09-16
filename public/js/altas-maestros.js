@@ -179,6 +179,8 @@ async function cargarCatalogosModelo() {
   const [marcas, rubros, proveedores, disciplinas] = await Promise.all([api('/api/maestros/marcas'), api('/api/maestros/rubros'), api('/api/maestros/proveedores'), api('/api/maestros/deportes')]);
   $('marcaModelo').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca...');
   $('rubroModelo').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Seleccione rubro...');
+  $('marcaReferenciaColor').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Sin referencia de marca');
+  $('rubroReferenciaColor').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Sin referencia de rubro');
   $('marcaReglaEan').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca...');
   $('rubroReglaEan').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Seleccione rubro...');
   const proveedoresPresea = proveedores.datos.map(x => ({
@@ -305,6 +307,14 @@ function cuerpoSolicitudMaestro() {
   if (!$('codigoMaestro').value.trim()) throw new Error(`Primero debe sugerir o ingresar el código de ${tipo.toLowerCase()}.`);
   if (tipo !== 'MODULO' && !$('nombreMaestro').value.trim()) throw new Error('Debe indicar el nombre o descripción.');
   const cuerpo = { tipo, codigo: $('codigoMaestro').value, nombre: $('nombreMaestro').value, cProveedor: $('proveedorModelo').value, licencia: esLicenciaNueva() ? $('detalleLicenciaNueva').value : $('licenciaModelo').value, marca: $('marcaModelo').value, rubro: $('rubroModelo').value, disciplina: $('disciplinaModelo').value, prefijoDisciplina: $('prefijoDisciplina').value };
+  if (tipo === 'COLOR') {
+    cuerpo.marca = $('marcaReferenciaColor').value;
+    cuerpo.rubro = $('rubroReferenciaColor').value;
+    cuerpo.licencia = '';
+    cuerpo.cProveedor = '';
+    cuerpo.disciplina = '';
+    cuerpo.prefijoDisciplina = '';
+  }
   if (tipo === 'MODELO' && (!cuerpo.marca || !cuerpo.rubro || !cuerpo.licencia || !cuerpo.disciplina || !cuerpo.cProveedor)) throw new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.');
   if (tipo === 'MODULO') {
     cuerpo.rubro = $('rubroModulo').value;
@@ -328,6 +338,7 @@ function mostrarConfirmacionSolicitudMaestro(cuerpo) {
     ['Código', cuerpo.codigo],
     ['Descripción', cuerpo.nombre]
   ];
+  if (cuerpo.tipo === 'COLOR') filas.push(['Marca de referencia', cuerpo.marca], ['Rubro de referencia', cuerpo.rubro]);
   if (cuerpo.tipo === 'MODELO') filas.push(
     ['Marca', cuerpo.marca],
     ['Rubro', cuerpo.rubro],
@@ -476,6 +487,7 @@ async function iniciar() {
   $('btnSiguienteConsultaMaestros').addEventListener('click', () => { paginaConsultaMaestros += 1; renderConsultaMaestros(); });
   $('btnExportarConsultaMaestros').addEventListener('click', exportarConsultaMaestros);
   $('tipoMaestro').addEventListener('change', ajustarCampos);
+  $('tipoMaestro').addEventListener('change', () => $('referenciasColor').classList.toggle('d-none', $('tipoMaestro').value !== 'COLOR'));
   $('rubroModulo').addEventListener('change', renderEditorModulo);
   $('tallesModuloEditor').addEventListener('input', actualizarTotalModulo);
   $('marcaModelo').addEventListener('change', cargarLicencias);

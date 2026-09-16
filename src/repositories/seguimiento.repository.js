@@ -80,6 +80,7 @@ async function listarAltasSeguimiento({
 
             COALESCE(C.CANTIDAD_PARES, 0) AS CANTIDAD_PARES,
             COALESCE(C.CANTIDAD_MODULOS, 0) AS CANTIDAD_MODULOS,
+            MAX(I.CANTIDAD_PRODUCTOS_INHABILITADOS) AS CANTIDAD_PRODUCTOS_INHABILITADOS,
 
             COUNT(E.ID_ALTA) AS CANTIDAD_EXPORTADOS,
 
@@ -142,6 +143,19 @@ async function listarAltasSeguimiento({
               AND D.ID_EMPRESA = A.ID_EMPRESA
               AND ISNULL(D.GENERADO_AUTOMATICO, 0) = 0
         ) C
+
+        OUTER APPLY (
+            SELECT COUNT(*) AS CANTIDAD_PRODUCTOS_INHABILITADOS
+            FROM dbo.ALTAS_PRODUCTOS_DETALLE DI
+            WHERE DI.ID_ALTA = A.ID_ALTA
+              AND DI.ID_EMPRESA = A.ID_EMPRESA
+              AND EXISTS (
+                SELECT 1 FROM dbo.PRODUCTOS PI
+                WHERE PI.ID_EMPRESA = DI.ID_EMPRESA
+                  AND PI.CODIGO_ALFA = DI.CODIGO_ALFA
+                  AND LTRIM(RTRIM(ISNULL(PI.C_ESTADIO, ''))) = '9'
+              )
+        ) I
 
         LEFT JOIN dbo.ALTAS_PRODUCTOS_EXPORTADOS E
             ON E.ID_ALTA = A.ID_ALTA

@@ -589,6 +589,7 @@ function pintarTarjetasAltasDashboard(altas) {
         return `<article class="dashboard-alta-card dashboard-alta-${estado.toLowerCase().replaceAll('_','-')}">
           <div class="dashboard-alta-top"><div class="dashboard-alta-title"><strong>${escaparHtml(alta.CODIGO_ALTA || '-')}</strong><small>ID ${escaparHtml(alta.ID_ALTA)}</small></div>${badgeEstado(estado)}</div>
           <div class="dashboard-alta-brand"><strong>${escaparHtml(alta.DETALLE_MARCA || alta.CODIGO_MARCA || '-')}</strong><span>${escaparHtml(alta.DETALLE_RUBRO || alta.CODIGO_RUBRO || '-')}</span></div>
+          ${badgeProductosInhabilitadosDashboard(alta)}
           <div class="dashboard-alta-meta"><div><span>Campaña</span>${formatearAnoTemporada(alta)}</div><div><span>Tipo</span><strong>${escaparHtml(alta.TIPO_PRODUCTO || '-')}</strong></div><div><span>Licencia</span>${badgeLicencia(alta.LICENCIA_ALTA)}</div><div><span>Pares</span><strong>${cantidadPares.toLocaleString('es-AR')}</strong></div><div><span>Módulos</span><strong>${cantidadModulos.toLocaleString('es-AR')}</strong></div><div><span>ERP</span><strong>${confirmados}/${total} · ${porcentajeTexto}</strong></div></div>
           <div class="progress dashboard-alta-progress"><div class="progress-bar" style="width:${porcentaje}%"></div></div>
           <div class="dashboard-alta-file" title="${escaparHtml(alta.ARCHIVO_EXPORTADO || '-')}">${escaparHtml(alta.ARCHIVO_EXPORTADO || 'Sin archivo informado')}</div>
@@ -874,6 +875,7 @@ function pintarPedidosRecientes(pedidos) {
                             </div>
                         </div>
 
+                        ${badgeProductosInhabilitadosDashboard(pedido)}
                         ${estado === 'ANULADO' && pedido.MOTIVO_ANULACION ? `<div class="dashboard-pedido-cancel">${escaparHtml(pedido.MOTIVO_ANULACION)}</div>` : ''}
 
                         <div class="dashboard-pedido-footer">
@@ -973,6 +975,13 @@ function pintarListaPedidosDashboard(lista) {
     }).join('');
 }
 
+
+function badgeProductosInhabilitadosDashboard(item) {
+    const cantidad = Number(item.CANTIDAD_PRODUCTOS_INHABILITADOS || 0);
+    return cantidad > 0
+        ? `<div class="my-2"><span class="badge text-bg-danger">${cantidad} producto${cantidad === 1 ? '' : 's'} inhabilitado${cantidad === 1 ? '' : 's'} en Presea</span></div>`
+        : '';
+}
 
 function badgeEstadoPedidoDashboard(estado) {
 

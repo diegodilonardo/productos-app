@@ -2877,6 +2877,29 @@ function seleccionarTalleConEnter(event) {
 }
 
 
+async function actualizarColoresDisponibles() {
+  const seleccionados = new Set(
+    [...document.querySelectorAll('.color-check:checked')].map(check => check.value)
+  );
+  const lista = await obtenerListado(['/api/maestros/colores']);
+  colores = lista;
+  pintarColores(colores);
+  document.querySelectorAll('.color-check').forEach(check => {
+    check.checked = seleccionados.has(check.value);
+  });
+  actualizarCantidadColores();
+  filtrarColores();
+}
+
+async function actualizarAltaYColores() {
+  try {
+    await cargarAlta();
+    await actualizarColoresDisponibles();
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  }
+}
+
 function pintarColores(lista) {
   const contenedor = document.getElementById('listaColores');
   contenedor.innerHTML = '';
@@ -3100,7 +3123,7 @@ function configurarEventos() {
   document.getElementById('buscarTalle')?.addEventListener('keydown', seleccionarTalleConEnter);
   document.getElementById('buscarColor').addEventListener('input', filtrarColores);
   document.getElementById('buscarColor').addEventListener('keydown', seleccionarColorConEnter);
-  document.getElementById('btnActualizarAlta').addEventListener('click', cargarAlta);
+  document.getElementById('btnActualizarAlta').addEventListener('click', actualizarAltaYColores);
   document.getElementById('btnVolverAltas').addEventListener('click', volverAAltas);
   document.getElementById('btnAnularAlta')?.addEventListener('click', anularAlta);
   document.getElementById('btnBorradorExcel')?.addEventListener('click', exportarBorradorExcel);

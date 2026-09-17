@@ -398,7 +398,7 @@ async function buscarModelo(codigoModelo, marca, rubro, idEmpresa) {
                 AND ACTIVO = 1;
         `);
 
-  return resultado.recordset[0] || null;
+  return resultado.recordset[0] || await require('../services/maestrosPendientes.service').buscar(idEmpresa, 'MODELO', codigoModelo, marca, rubro);
 }
 
 
@@ -618,7 +618,7 @@ async function buscarColor(codigo, idEmpresa) {
                 AND ACTIVO = 1;
         `);
 
-  return resultado.recordset[0] || null;
+  return resultado.recordset[0] || await require('../services/maestrosPendientes.service').buscar(idEmpresa, 'COLOR', codigo);
 }
 
 async function buscarPais(codigo, idEmpresa) {
@@ -700,7 +700,7 @@ async function buscarModulo(codigo, idEmpresa) {
                 AND ES_CONSISTENTE = 1;
         `);
 
-  return resultado.recordset[0] || null;
+  return resultado.recordset[0] || await require('../services/maestrosPendientes.service').buscar(idEmpresa, 'MODULO', codigo);
 }
 
 /* ============================================================

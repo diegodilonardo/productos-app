@@ -8,10 +8,19 @@ test('modelos se separan por marca, licencia y rubro en todas las empresas', () 
     const grupos = agruparArchivosMaestros([
       { TIPO:'MODELO', MARCA:marca, RUBRO:'CALZADO', LICENCIA:'SIN LICENCIA' },
       { TIPO:'MODELO', MARCA:marca, RUBRO:'INDUMENTARIA', LICENCIA:'' },
-      { TIPO:'COLOR' }, { TIPO:'MODULO' }
+      { TIPO:'COLOR' }, { TIPO:'MODULO', MARCA:marca, RUBRO:'CALZADO' }
     ], ruta);
-    assert.deepEqual(grupos.map(g => g.ruta), [ruta, ruta, `${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/INDUMENTARIA`]);
+    assert.deepEqual(grupos.map(g => g.ruta), [ruta, `${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/INDUMENTARIA`]);
   }
+});
+
+test('módulos se separan por marca y rubro sin heredar licencias de modelos', () => {
+  const grupos = agruparArchivosMaestros([
+    { TIPO:'MODULO', MARCA:'ATOMIK', RUBRO:'CALZADO', LICENCIA:'SL' },
+    { TIPO:'MODULO', MARCA:'ATOMIK', RUBRO:'INDUMENTARIA' }
+  ], '/ALTAS_MAESTROS/VICBOR');
+  assert.deepEqual(grupos.map(g => g.ruta), ['/ALTAS_MAESTROS/VICBOR/ATOMIK/CALZADO', '/ALTAS_MAESTROS/VICBOR/ATOMIK/INDUMENTARIA']);
+  assert.throws(() => agruparArchivosMaestros([{ TIPO:'MODULO', RUBRO:'CALZADO' }], '/ALTAS_MAESTROS/VICBOR'), /marca/);
 });
 
 test('licencias se normalizan y los modelos del mismo destino comparten archivo', () => {

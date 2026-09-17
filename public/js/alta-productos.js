@@ -374,6 +374,9 @@ async function cargarMaestros() {
 
   colores = listaColores;
   pintarColores(colores);
+  if ([...modelos, ...colores].some(fila => fila.PENDIENTE_MAESTRO)) {
+    mostrarAlerta('Hay modelos o colores pendientes de registrar en Presea. Podés usarlos para cargar el alta, pero su DBI no podrá enviarse hasta que existan activos en los maestros sincronizados.', 'warning');
+  }
 
   if (normalizarTipo(altaActual.TIPO_PRODUCTO) === 'MODULO') {
     modulos = await obtenerListado([
@@ -389,6 +392,7 @@ async function cargarMaestros() {
     modulos.sort(compararModulos);
     modulosFiltrados = modulos.slice();
     pintarModulos(modulosFiltrados);
+    if (modulos.some(fila => fila.PENDIENTE_MAESTRO)) mostrarAlerta('Hay curvas pendientes de registrar en Presea. La carga está permitida; el envío del DBI se bloqueará hasta que los maestros estén sincronizados.', 'warning');
   } else {
     const talles = await obtenerListado([
       '/api/maestros/talles'
@@ -542,6 +546,7 @@ function pintarModelos(lista) {
       <div class="alta-model-main">
         <div class="alta-model-name">
           ${resaltarCoincidencia(modelo.detalle || modelo.codigo, busquedaActual)}
+          ${fila.PENDIENTE_MAESTRO ? '<span class="badge text-bg-warning">PENDIENTE EN PRESEA</span>' : ''}
         </div>
         ${
           modelo.licencia
@@ -1814,6 +1819,7 @@ function pintarModulos(lista) {
 
     boton.type = 'button';
     boton.className = 'alta-module-item';
+    if (fila.PENDIENTE_MAESTRO) boton.title = 'Pendiente en Presea: no se podrá enviar el DBI hasta sincronizar este módulo.';
 
     const seleccionado =
       codigosModulosSeleccionados.includes(
@@ -1836,6 +1842,7 @@ function pintarModulos(lista) {
       </div>
 
       <div class="alta-module-main">
+        ${fila.PENDIENTE_MAESTRO ? '<span class="badge text-bg-warning">PENDIENTE EN PRESEA</span>' : ''}
         <div class="alta-module-head">
           <strong class="alta-module-range">
             ${resaltarCoincidencia(modulo.rango || modulo.detalle || 'Sin rango', busqueda)}
@@ -2928,7 +2935,7 @@ function pintarColores(lista) {
     const label = document.createElement('label');
     label.className = 'form-check-label';
     label.htmlFor = input.id;
-    label.textContent = detalle ? `${codigo} - ${detalle}` : String(codigo);
+    label.textContent = (detalle ? `${codigo} - ${detalle}` : String(codigo)) + (fila.PENDIENTE_MAESTRO ? ' — PENDIENTE EN PRESEA' : '');
 
     div.append(input, label);
     contenedor.appendChild(div);

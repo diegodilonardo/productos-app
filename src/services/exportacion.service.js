@@ -1261,6 +1261,7 @@ async function exportarPreviewExcel(idAlta) {
    ============================================================ */
 
 async function exportar(idAlta, datosEntrada = {}) {
+  await require('./maestrosPendientes.service').comprobarAlta(idAlta);
   const usuario = texto(datosEntrada.usuario) || "SISTEMA";
 
   const preparacion = await prepararExportacion(idAlta);

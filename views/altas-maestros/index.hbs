@@ -250,6 +250,12 @@
                   maxlength="2"
                   placeholder="2 caracteres para la numeración de esta disciplina"
                 /></div></div>
+            <div id="camposModuloPrevios" class="vstack gap-2 d-none">
+              <label for="marcaModulo" class="form-label mb-0">Marca del módulo</label>
+              <select id="marcaModulo" class="form-select"></select>
+              <label for="rubroModulo" class="form-label mb-0">Rubro del módulo</label>
+              <select id="rubroModulo" class="form-select"><option value="">Seleccione rubro del módulo...</option><option value="CALZADO">Calzado</option><option value="INDUMENTARIA">Indumentaria</option></select>
+            </div>
             <div class="input-group"><input
                 id="codigoMaestro"
                 class="form-control text-uppercase"
@@ -273,7 +279,7 @@
                 >Seleccione proveedor...</option></select></div><div
               id="editorModulo"
               class="d-none"
-            ><select id="rubroModulo" class="form-select mb-3"><option value="">Seleccione rubro del módulo...</option><option value="CALZADO">Calzado</option><option value="INDUMENTARIA">Indumentaria</option></select><div id="tallesModuloEditor" class="row g-2"></div><div class="alert alert-info mt-3 mb-0 d-flex justify-content-between"><span>Total del módulo</span><strong><span id="paresModuloTotal">0</span> pares/unidades</strong></div></div><button class="btn btn-primary" type="submit">Guardar
+            ><div id="tallesModuloEditor" class="row g-2"></div><div class="alert alert-info mt-3 mb-0 d-flex justify-content-between"><span>Total del módulo</span><strong><span id="paresModuloTotal">0</span> pares/unidades</strong></div></div><button class="btn btn-primary" type="submit">Guardar
               solicitud</button>
           </form></div></div></div>
     <div class="col-xl-8"><div class="card shadow-sm"><div class="card-body"><h2

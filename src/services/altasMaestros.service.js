@@ -413,13 +413,13 @@ function agruparArchivosMaestros(registros, rutaEmpresa) {
     const tipo = normalizar(registro.TIPO);
     if (!definicionesDbi[tipo]) throw new Error(`Tipo de maestro no admitido: ${tipo}.`);
     let ruta = rutaEmpresa;
-    if (tipo === 'MODELO') {
+    if (tipo === 'MODELO' || tipo === 'MODULO') {
       const marca = segmentoRutaMaestro(registro.MARCA, 'marca');
       const rubro = segmentoRutaMaestro(registro.RUBRO, 'rubro');
       const licencia = normalizarLicencia(registro.LICENCIA);
       const aliases = { SL: 'SAN_LORENZO', VS: 'VELEZ_SARSFIELD', TA: 'TALLERES', VELEZ: 'VELEZ_SARSFIELD' };
       ruta += `/${marca}`;
-      if (licencia && licencia !== 'SIN LICENCIA') ruta += `/LICENCIAS/${aliases[licencia] || segmentoRutaMaestro(licencia, 'licencia')}`;
+      if (tipo === 'MODELO' && licencia && licencia !== 'SIN LICENCIA') ruta += `/LICENCIAS/${aliases[licencia] || segmentoRutaMaestro(licencia, 'licencia')}`;
       ruta += `/${rubro}`;
     }
     const clave = `${tipo}|${ruta}`;

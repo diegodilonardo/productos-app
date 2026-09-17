@@ -284,12 +284,13 @@ async function obtenerTemporadas({ idEmpresa }) {
 
 
 async function obtenerColores({ idEmpresa }) {
-  return simple(
+  const registros = await simple(
     idEmpresa,
     'MAESTRO_COLORES',
     ['CODIGO_COLOR', 'DETALLE_COLOR'],
     'DETALLE_COLOR'
   );
+  return require('./maestrosPendientes.service').combinar(registros, idEmpresa, 'COLOR');
 }
 
 
@@ -614,7 +615,7 @@ async function buscarModelos({
    * controlar sobre los resultados.
    */
 
-  const datos =
+  const datosSinPendientes =
     await repository.buscarModelos({
       idEmpresa,
       marca,
@@ -623,6 +624,12 @@ async function buscarModelos({
       licencia,
       sinLimite
     });
+
+  const norm = v => String(v ?? '').trim().toUpperCase();
+  const datos = await require('./maestrosPendientes.service').combinar(datosSinPendientes, idEmpresa, 'MODELO', s =>
+    (!marca || norm(s.MARCA) === norm(marca)) && (!rubro || norm(s.RUBRO) === norm(rubro)) &&
+    (!texto || norm(`${s.CODIGO} ${s.NOMBRE}`).includes(norm(texto))) &&
+    (!licencia || normalizarLicencia(s.LICENCIA) === normalizarLicencia(licencia)));
 
   return datos.filter(
     item => {
@@ -720,6 +727,12 @@ async function obtenerLicenciasModelos({
       rubro
     });
 
+  const modelosDisponibles = await buscarModelos({ idEmpresa, acceso, marca, rubro, sinLimite: true });
+  for (const modelo of modelosDisponibles.filter(m => m.PENDIENTE_MAESTRO)) {
+    const licencia = normalizarLicencia(modelo.LICENCIA);
+    if (!datos.some(l => normalizarLicencia(l.CODIGO_LICENCIA) === licencia)) datos.push({ CODIGO_LICENCIA: licencia, DETALLE_LICENCIA: licencia });
+  }
+
   if (acceso.todasLicencias) {
     return datos;
   }
@@ -814,7 +827,8 @@ async function obtenerTallesModulos({ idEmpresa }) {
       idEmpresa
     );
 
-  return registros.map(
+  const disponibles = await require('./maestrosPendientes.service').combinar(registros, idEmpresa, 'MODULO');
+  return disponibles.map(
     modulo => ({
       ...modulo,
       DESCRIPCION_CURVA:

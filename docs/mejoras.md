@@ -40,3 +40,10 @@ Unidades combinadas colores en MARCEL (MODULOS Y PARES SUELTOS)
 
 (19 20 21 22 23 24)
 
+En deV
+
+& C:\productos-app\scripts\publicar-dev.ps1 -Mensaje "Correcion de visualizacion de colores"
+
+En servidor
+
+& C:\productos-app\scripts\actualizar-produccion.ps1

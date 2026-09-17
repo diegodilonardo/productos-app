@@ -180,6 +180,7 @@ async function cargarCatalogosModelo() {
   $('marcaModelo').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca...');
   $('rubroModelo').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Seleccione rubro...');
   $('marcaReferenciaColor').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Sin referencia de marca');
+  $('marcaModulo').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca del módulo...');
   $('rubroReferenciaColor').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Sin referencia de rubro');
   $('marcaReglaEan').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca...');
   $('rubroReglaEan').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Seleccione rubro...');
@@ -317,6 +318,12 @@ function cuerpoSolicitudMaestro() {
   }
   if (tipo === 'MODELO' && (!cuerpo.marca || !cuerpo.rubro || !cuerpo.licencia || !cuerpo.disciplina || !cuerpo.cProveedor)) throw new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.');
   if (tipo === 'MODULO') {
+    cuerpo.marca = $('marcaModulo').value;
+    cuerpo.licencia = '';
+    cuerpo.cProveedor = '';
+    cuerpo.disciplina = '';
+    cuerpo.prefijoDisciplina = '';
+    if (!cuerpo.marca) throw new Error('Seleccione la marca del módulo.');
     cuerpo.rubro = $('rubroModulo').value;
     const activos = [...document.querySelectorAll('.cantidad-talle-modulo')].filter(input => Number(input.value) > 0).map(input => ({ campo: input.dataset.campoTalle, talle: input.previousElementSibling?.textContent || input.dataset.campoTalle, cantidad: Number(input.value) }));
     cuerpo.datos = { distribucion: Object.fromEntries(activos.map(item => [item.campo, item.cantidad])) };
@@ -346,7 +353,7 @@ function mostrarConfirmacionSolicitudMaestro(cuerpo) {
     ['Disciplina', cuerpo.disciplina === '__SIN_DISCIPLINA__' ? 'SIN DISCIPLINA' : cuerpo.disciplina],
     ['Proveedor', $('proveedorModelo').selectedOptions[0]?.textContent || cuerpo.cProveedor]
   );
-  if (cuerpo.tipo === 'MODULO') filas.push(['Rubro', cuerpo.rubro], ['Distribución', cuerpo.nombre], ['Total', `${Object.values(cuerpo.datos.distribucion).reduce((total, cantidad) => total + cantidad, 0)} pares/unidades`]);
+  if (cuerpo.tipo === 'MODULO') filas.push(['Marca', cuerpo.marca], ['Rubro', cuerpo.rubro], ['Distribución', cuerpo.nombre], ['Total', `${Object.values(cuerpo.datos.distribucion).reduce((total, cantidad) => total + cantidad, 0)} pares/unidades`]);
   $('detalleConfirmarSolicitudMaestro').innerHTML = filas.map(([etiqueta, valor]) => filaConfirmacionMaestro(etiqueta, valor)).join('');
   bootstrap.Modal.getOrCreateInstance($('modalConfirmarSolicitudMaestro')).show();
 }
@@ -487,6 +494,7 @@ async function iniciar() {
   $('btnSiguienteConsultaMaestros').addEventListener('click', () => { paginaConsultaMaestros += 1; renderConsultaMaestros(); });
   $('btnExportarConsultaMaestros').addEventListener('click', exportarConsultaMaestros);
   $('tipoMaestro').addEventListener('change', ajustarCampos);
+  $('tipoMaestro').addEventListener('change', () => $('camposModuloPrevios').classList.toggle('d-none', $('tipoMaestro').value !== 'MODULO'));
   $('tipoMaestro').addEventListener('change', () => $('referenciasColor').classList.toggle('d-none', $('tipoMaestro').value !== 'COLOR'));
   $('rubroModulo').addEventListener('change', renderEditorModulo);
   $('tallesModuloEditor').addEventListener('input', actualizarTotalModulo);

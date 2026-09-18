@@ -6,6 +6,50 @@ const {
 const JOIN_MAESTRO_MODULO_POR_EMPRESA =
     'M.ID_EMPRESA = P.ID_EMPRESA AND M.CODIGO_MODULO = P.CODIGO_MODULO';
 
+async function completarRelacionesReutilizadas(idAlta, relaciones, prueba = false) {
+    const pool = await getConnection();
+    const talles = [...Array.from({ length: 36 }, (_, i) => String(i + 15)), '38.5', '39.5', '40.5', '41.5', '42.5', '43.5', '44.5', '45.5', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+    const valores = talles.map(talle => {
+        const columna = /^\d+(\.\d+)?$/.test(talle) ? `T${talle.replace('.', '')}` : `T_${talle}`;
+        return `('${talle}', '${columna}', M.${columna})`;
+    }).join(',');
+    const resultado = await pool.request().input('ID_ALTA', sql.Int, idAlta).query(`
+        SELECT P.ID_DETALLE ID_MODULO, P.CODIGO_ALFA COD_ALFA_MODULO,
+            P.DETALLE_PRODUCTO DETALLE_PRODUCTO_MODULO, P.CODIGO_MODULO,
+            H.ID_DETALLE ID_INSUMO, H.CODIGO_ALFA COD_ALFA_INSUMO,
+            H.DETALLE_PRODUCTO DETALLE_PRODUCTO_INSUMO,
+            H.CODIGO_TALLE CODIGO_TALLE_INSUMO, H.DETALLE_TALLE DETALLE_TALLE_INSUMO,
+            H.ESTADO_VALIDACION ESTADO_INSUMO, M.*
+        FROM dbo.ALTAS_PRODUCTOS_DETALLE P
+        JOIN dbo.ALTAS_PRODUCTOS A ON A.ID_ALTA=P.ID_ALTA
+        JOIN dbo.MAESTRO_TALLES_MODULOS M ON ${JOIN_MAESTRO_MODULO_POR_EMPRESA}
+        CROSS APPLY (VALUES ${valores}) T(TALLE,COLUMNA,CANTIDAD)
+        CROSS APPLY (
+            SELECT TOP 1 D.* FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+            JOIN dbo.ALTAS_PRODUCTOS AH ON AH.ID_ALTA=D.ID_ALTA
+            WHERE D.ID_ALTA<>P.ID_ALTA AND D.ID_EMPRESA=P.ID_EMPRESA
+              AND AH.CODIGO_MARCA=A.CODIGO_MARCA AND AH.CODIGO_RUBRO=A.CODIGO_RUBRO
+              AND AH.CODIGO_ANO=A.CODIGO_ANO AND AH.CODIGO_TEMPORADA=A.CODIGO_TEMPORADA
+              AND AH.ESTADO<>'ANULADO'
+              AND D.CODIGO_MODELO=P.CODIGO_MODELO AND D.CODIGO_COLOR=P.CODIGO_COLOR
+              AND D.CODIGO_CLASIFICACION='1'
+              AND UPPER(REPLACE(ISNULL(D.TIPO_PRODUCTO_DETALLE,''),' ','_'))='PAR_SUELTO'
+              AND (D.CODIGO_TALLE IN (T.TALLE,T.COLUMNA) OR D.DETALLE_TALLE=T.TALLE)
+              AND D.ESTADO_VALIDACION IN ('EXISTE_ERP','EXPORTADO')
+            ORDER BY CASE WHEN D.ESTADO_VALIDACION='EXISTE_ERP' THEN 0 ELSE 1 END, D.ID_DETALLE
+        ) H
+        WHERE P.ID_ALTA=@ID_ALTA AND T.CANTIDAD>0
+          AND UPPER(REPLACE(ISNULL(P.TIPO_PRODUCTO_DETALLE,''),' ','_'))='MODULO'
+          ${prueba ? '' : "AND P.ESTADO_VALIDACION='VALIDO'"}
+        ORDER BY P.ID_DETALLE,H.ID_DETALLE;`);
+    const claves = new Set(relaciones.map(r => `${r.COD_ALFA_MODULO}|${r.COD_ALFA_INSUMO}`));
+    for (const relacion of resultado.recordset) {
+        const clave = `${relacion.COD_ALFA_MODULO}|${relacion.COD_ALFA_INSUMO}`;
+        if (!claves.has(clave)) { relaciones.push(relacion); claves.add(clave); }
+    }
+    return relaciones;
+}
+
 
 /* ============================================================
    OBTENER ALTA PARA EXPORTACION
@@ -912,7 +956,7 @@ async function obtenerRelacionesModuloPrimera(
             `);
 
 
-    return resultado.recordset;
+    return completarRelacionesReutilizadas(idAlta, resultado.recordset);
 }
 
 
@@ -1007,7 +1051,7 @@ async function obtenerRelacionesModuloPrimeraPrueba(
             `);
 
 
-    return resultado.recordset;
+    return completarRelacionesReutilizadas(idAlta, resultado.recordset, true);
 }
 
 

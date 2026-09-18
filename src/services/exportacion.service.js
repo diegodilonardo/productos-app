@@ -1261,6 +1261,10 @@ async function exportarPreviewExcel(idAlta) {
    ============================================================ */
 
 async function exportar(idAlta, datosEntrada = {}) {
+  return require('./controlExportacionAlta.service').ejecutar(idAlta, () => exportarConControl(idAlta, datosEntrada));
+}
+
+async function exportarConControl(idAlta, datosEntrada = {}) {
   await require('./maestrosPendientes.service').comprobarAlta(idAlta);
   const usuario = texto(datosEntrada.usuario) || "SISTEMA";
 
@@ -1492,7 +1496,9 @@ async function exportar(idAlta, datosEntrada = {}) {
       // La generación posterior dará un error descriptivo.
     }
 
-    definicion.reutilizandoArchivoLocal = archivoLocalValido(
+    // Recalcular relaciones también al reintentar: un DBI previo puede
+    // haber omitido insumos reutilizados de otras Altas.
+    definicion.reutilizandoArchivoLocal = definicion.clave !== 'RELACION' && archivoLocalValido(
       definicion.rutaDBI,
     );
   }

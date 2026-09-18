@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const {
     maestros,
@@ -31,7 +32,7 @@ const columnasTalles = [
     'T30','T31','T32','T33','T34','T35','T36','T37','T38','T385','T39','T395',
     'T40','T405','T41','T415','T42','T425','T43','T435','T44','T445','T45','T455',
     'T46','T47','T48','T49','T50',
-    'T_XS','T_S','T_L','T_M','T_XL','T_2XL','T_3XL'
+    'T_XS','T_S','T_M','T_L','T_XL','T_2XL','T_3XL'
 ];
 
 const columnasArchivo = [
@@ -260,10 +261,15 @@ async function importarTallesModulos(
                 rutaArchivo
             );
 
-        const hash =
+        const hashArchivo =
             await calcularHashArchivo(
                 rutaArchivo
             );
+        // La interpretación cambió: reprocesar también archivos cuyo
+        // contenido no cambió, manteniendo el hash de control de 64 caracteres.
+        const hash = crypto.createHash('sha256')
+            .update(`TALLES_MODULOS:XS-S-M-L:v2:${hashArchivo}`)
+            .digest('hex');
 
         const ultimoHash =
             await obtenerUltimoHashOK(

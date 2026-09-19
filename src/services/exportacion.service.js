@@ -452,7 +452,9 @@ const mapaColumnaModuloPorTalle = {
   M: "T_M",
   L: "T_L",
   XL: "T_XL",
+  "2X": "T_2XL",
   "2XL": "T_2XL",
+  "3X": "T_3XL",
   "3XL": "T_3XL",
 };
 

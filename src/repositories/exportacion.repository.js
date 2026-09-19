@@ -34,7 +34,10 @@ async function completarRelacionesReutilizadas(idAlta, relaciones, prueba = fals
               AND D.CODIGO_MODELO=P.CODIGO_MODELO AND D.CODIGO_COLOR=P.CODIGO_COLOR
               AND D.CODIGO_CLASIFICACION='1'
               AND UPPER(REPLACE(ISNULL(D.TIPO_PRODUCTO_DETALLE,''),' ','_'))='PAR_SUELTO'
-              AND (D.CODIGO_TALLE IN (T.TALLE,T.COLUMNA) OR D.DETALLE_TALLE=T.TALLE)
+              AND (D.CODIGO_TALLE IN (T.TALLE,T.COLUMNA,
+                   CASE T.TALLE WHEN '2XL' THEN '2X' WHEN '3XL' THEN '3X' END)
+                   OR D.DETALLE_TALLE IN (T.TALLE,
+                   CASE T.TALLE WHEN '2XL' THEN '2X' WHEN '3XL' THEN '3X' END))
               AND D.ESTADO_VALIDACION IN ('EXISTE_ERP','EXPORTADO')
             ORDER BY CASE WHEN D.ESTADO_VALIDACION='EXISTE_ERP' THEN 0 ELSE 1 END, D.ID_DETALLE
         ) H

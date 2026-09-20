@@ -66,6 +66,13 @@ test('un código de maestro anulado puede reutilizarse conservando su historial'
   );
 });
 
+test('los códigos inactivos en Presea y anulados en la app quedan disponibles', () => {
+  const repositorySource = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
+  assert.match(repositorySource, /SELECT \$\{def\.codigo\} CODIGO FROM dbo\.\$\{def\.tabla\} WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1/);
+  assert.match(repositorySource, /FROM dbo\.MAESTRO_MODELOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1/);
+  assert.match(repositorySource, /TIPO=@TIPO AND ESTADO <> 'ANULADO'/);
+});
+
 test('los módulos de todas las empresas comienzan en A0 y continúan la serie alfanumérica', async () => {
   const original = repository.codigosOcupados;
   try {

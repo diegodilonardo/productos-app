@@ -9,7 +9,7 @@
     >Actualizar</button><button
       id="btnEnviarMaestros"
       class="btn btn-primary"
-    >Enviar DBI a Presea</button></div>
+    >Exportar Datos a Presea</button></div>
 </div>
 
 <div
@@ -107,16 +107,58 @@
 <div id="alertaAltasMaestros" class="alert d-none"></div>
 <div id="panelReglasEan" class="d-none">
   <div class="card shadow-sm mb-4"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3"><div><h2 class="h5 mb-1">Reglas de EAN</h2><p class="text-secondary mb-0">Definí si una combinación de marca, rubro y licencia requiere gestión de EAN.</p></div><span class="badge text-bg-light border">Por defecto: requiere EAN</span></div>
-    <div id="formReglaEan" class="row g-2 align-items-end">
-      <div class="col-md-3"><label class="form-label" for="marcaReglaEan">Marca</label><select id="marcaReglaEan" class="form-select"><option value="">Seleccione...</option></select></div>
-      <div class="col-md-3"><label class="form-label" for="rubroReglaEan">Rubro</label><select id="rubroReglaEan" class="form-select"><option value="">Seleccione...</option></select></div>
-      <div class="col-md-3"><label class="form-label" for="licenciaReglaEan">Licencia</label><select id="licenciaReglaEan" class="form-select" disabled><option value="">Sin licencia</option></select></div>
-      <div class="col-md-2"><label class="form-label" for="requiereReglaEan">Gestión EAN</label><select id="requiereReglaEan" class="form-select"><option value="true">Requiere EAN</option><option value="false">No requiere EAN</option></select></div>
-      <div class="col-md-1"><button id="btnGuardarReglaEan" class="btn btn-primary w-100" type="button">Guardar</button></div>
-    </div>
-    <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0"><thead><tr><th>Marca</th><th>Rubro</th><th>Licencia</th><th>Estado</th><th>Actualización</th><th></th></tr></thead><tbody id="tablaReglasEan"><tr><td colspan="6" class="text-center text-secondary">Cargando...</td></tr></tbody></table></div>
-  </div></div>
+      <div
+        class="d-flex justify-content-between align-items-start gap-3 mb-3"
+      ><div><h2 class="h5 mb-1">Reglas de EAN</h2><p
+            class="text-secondary mb-0"
+          >Definí si una combinación de marca, rubro y licencia requiere gestión
+            de EAN.</p></div><span class="badge text-bg-light border">Por
+          defecto: requiere EAN</span></div>
+      <div id="formReglaEan" class="row g-2 align-items-end">
+        <div class="col-md-3"><label
+            class="form-label"
+            for="marcaReglaEan"
+          >Marca</label><select id="marcaReglaEan" class="form-select"><option
+              value=""
+            >Seleccione...</option></select></div>
+        <div class="col-md-3"><label
+            class="form-label"
+            for="rubroReglaEan"
+          >Rubro</label><select id="rubroReglaEan" class="form-select"><option
+              value=""
+            >Seleccione...</option></select></div>
+        <div class="col-md-3"><label
+            class="form-label"
+            for="licenciaReglaEan"
+          >Licencia</label><select
+            id="licenciaReglaEan"
+            class="form-select"
+            disabled
+          ><option value="">Sin licencia</option></select></div>
+        <div class="col-md-2"><label
+            class="form-label"
+            for="requiereReglaEan"
+          >Gestión EAN</label><select
+            id="requiereReglaEan"
+            class="form-select"
+          ><option value="true">Requiere EAN</option><option value="false">No
+              requiere EAN</option></select></div>
+        <div class="col-md-1"><button
+            id="btnGuardarReglaEan"
+            class="btn btn-primary w-100"
+            type="button"
+          >Guardar</button></div>
+      </div>
+      <div class="table-responsive mt-3"><table
+          class="table table-sm align-middle mb-0"
+        ><thead><tr><th>Marca</th><th>Rubro</th><th>Licencia</th><th
+              >Estado</th><th>Actualización</th><th></th></tr></thead><tbody
+            id="tablaReglasEan"
+          ><tr><td
+                colspan="6"
+                class="text-center text-secondary"
+              >Cargando...</td></tr></tbody></table></div>
+    </div></div>
 </div>
 <div id="panelGestionMaestros">
   <div class="card shadow-sm mb-4"><div class="card-body">
@@ -209,10 +251,13 @@
                 value="MODULO"
               >Módulo</option></select>
             <div id="referenciasColor" class="vstack gap-2">
-              <div class="small text-secondary">Referencia opcional. El color se comparte por empresa.</div>
-              <label for="marcaReferenciaColor" class="form-label mb-0">Marca de referencia</label>
+              <div class="small text-secondary">Referencia opcional. El color se
+                comparte por empresa.</div>
+              <label for="marcaReferenciaColor" class="form-label mb-0">Marca de
+                referencia</label>
               <select id="marcaReferenciaColor" class="form-select"></select>
-              <label for="rubroReferenciaColor" class="form-label mb-0">Rubro de referencia</label>
+              <label for="rubroReferenciaColor" class="form-label mb-0">Rubro de
+                referencia</label>
               <select id="rubroReferenciaColor" class="form-select"></select>
             </div>
             <div id="camposModeloPrevios" class="vstack gap-3 d-none"><select
@@ -254,7 +299,13 @@
               <label for="marcaModulo" class="form-label mb-0">Marca del módulo</label>
               <select id="marcaModulo" class="form-select"></select>
               <label for="rubroModulo" class="form-label mb-0">Rubro del módulo</label>
-              <select id="rubroModulo" class="form-select"><option value="">Seleccione rubro del módulo...</option><option value="CALZADO">Calzado</option><option value="INDUMENTARIA">Indumentaria</option></select>
+              <select id="rubroModulo" class="form-select"><option
+                  value=""
+                >Seleccione rubro del módulo...</option><option
+                  value="CALZADO"
+                >Calzado</option><option
+                  value="INDUMENTARIA"
+                >Indumentaria</option></select>
             </div>
             <div class="input-group"><input
                 id="codigoMaestro"
@@ -279,15 +330,23 @@
                 >Seleccione proveedor...</option></select></div><div
               id="editorModulo"
               class="d-none"
-            ><div id="tallesModuloEditor" class="row g-2"></div><div class="alert alert-info mt-3 mb-0 d-flex justify-content-between"><span>Total del módulo</span><strong><span id="paresModuloTotal">0</span> pares/unidades</strong></div></div><button class="btn btn-primary" type="submit">Guardar
-              solicitud</button>
+            ><div id="tallesModuloEditor" class="row g-2"></div><div
+                class="alert alert-info mt-3 mb-0 d-flex justify-content-between"
+              ><span>Total del módulo</span><strong><span
+                    id="paresModuloTotal"
+                  >0</span>
+                  pares/unidades</strong></div></div><button
+              class="btn btn-primary"
+              type="submit"
+            >Guardar solicitud</button>
           </form></div></div></div>
     <div class="col-xl-8"><div class="card shadow-sm"><div class="card-body"><h2
             class="h5"
           >Solicitudes</h2><div class="table-responsive"><table
               class="table align-middle"
             ><thead><tr><th>Tipo</th><th>Código</th><th>Descripción</th><th
-                  >Marca</th><th>Rubro</th><th>Usuario</th><th>Estado</th><th>Fecha</th><th
+                  >Marca</th><th>Rubro</th><th>Usuario</th><th>Estado</th><th
+                  >Fecha</th><th
                     class="text-end"
                   >Acciones</th></tr></thead><tbody
                 id="tablaAltasMaestros"
@@ -338,7 +397,8 @@
             class="form-select d-none mt-2"
           ><option value="TODOS">Habilitados e inhabilitados</option><option
               value="HABILITADO"
-            >Habilitados</option><option value="INHABILITADO">Inhabilitados en Presea</option></select></div></div><div
+            >Habilitados</option><option value="INHABILITADO">Inhabilitados en
+              Presea</option></select></div></div><div
         id="filtrosModelosConsulta"
         class="row g-2 mt-1"
       ><div class="col-md-4"><select

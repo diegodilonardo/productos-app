@@ -64,7 +64,7 @@ async function codigosOcupados(idEmpresa, tipo) {
   const def = maestros[tipo];
   const pool = await getConnection();
   const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).input('TIPO', sql.VarChar(20), tipo).query(`
-    SELECT ${def.codigo} CODIGO FROM dbo.${def.tabla} WHERE ID_EMPRESA=@ID_EMPRESA
+    SELECT ${def.codigo} CODIGO FROM dbo.${def.tabla} WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
     UNION SELECT CODIGO FROM dbo.ALTAS_MAESTROS WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO=@TIPO AND ESTADO <> 'ANULADO'`);
   return r.recordset.map(x => String(x.CODIGO || '').trim().toUpperCase());
 }
@@ -73,7 +73,7 @@ async function listarModelosParaSugerencia(idEmpresa) {
   const pool = await getConnection();
   const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
     SELECT CODIGO_MODELO CODIGO, MARCA_MODELO MARCA, RUBRO_MODELO RUBRO, LICENCIA
-    FROM dbo.MAESTRO_MODELOS WHERE ID_EMPRESA=@ID_EMPRESA
+    FROM dbo.MAESTRO_MODELOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
     UNION ALL
     SELECT CODIGO, MARCA, RUBRO, LICENCIA FROM dbo.ALTAS_MAESTROS
     WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO='MODELO' AND ESTADO <> 'ANULADO'`);

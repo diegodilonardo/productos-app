@@ -6177,7 +6177,7 @@ function pintarPreview(preview) {
 
   if (!thead || !tbody) {
     throw new Error(
-      'No se encontró la tabla del Preview DBI.'
+      'No se encontró la tabla del Preview Archivos a Exportar.'
     );
   }
 
@@ -6490,7 +6490,7 @@ async function exportarAlta() {
   } catch (error) {
     mostrarAlerta(
       error.message +
-      ' Si los DBI locales ya fueron generados, podés volver a presionar Exportar DBI para reintentar el envío.',
+      ' Si los DBI locales ya fueron generados, podés volver a presionar Exportar Archivos a Presea para reintentar el envío.',
       'danger'
     );
   } finally {

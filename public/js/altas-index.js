@@ -264,7 +264,9 @@ function pintarAltasFiltradas() {
         item.CODIGO_TEMPORADA,
         item.LICENCIA_ALTA,
         item.LICENCIA,
-        item.USUARIO_CREACION
+        item.USUARIO_CREACION,
+        item.PRODUCTOS_BUSQUEDA,
+        item.productosBusqueda
       ]
         .filter(Boolean)
         .join(' ')

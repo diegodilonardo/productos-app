@@ -260,7 +260,25 @@ async function listarAltas(idEmpresa) {
                       AND LTRIM(RTRIM(ISNULL(PI.C_ESTADIO, ''))) = '9'
                 ) AS CANTIDAD_PRODUCTOS_INHABILITADOS
 
+                ,PB.PRODUCTOS_BUSQUEDA
+
             FROM dbo.ALTAS_PRODUCTOS A
+            OUTER APPLY (
+                SELECT STUFF((
+                    SELECT ' ' + CONCAT(
+                        ISNULL(CONVERT(VARCHAR(80), DB.CODIGO_ALFA), ''), ' ',
+                        ISNULL(CONVERT(VARCHAR(80), DB.CODIGO_MODELO), ''), ' ',
+                        ISNULL(DB.DETALLE_MODELO, ''), ' ',
+                        ISNULL(CONVERT(VARCHAR(80), DB.CODIGO_COLOR), ''), ' ',
+                        ISNULL(DB.DETALLE_COLOR, ''), ' ',
+                        ISNULL(DB.DETALLE_PRODUCTO, '')
+                    )
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DB
+                    WHERE DB.ID_EMPRESA = A.ID_EMPRESA
+                      AND DB.ID_ALTA = A.ID_ALTA
+                    FOR XML PATH(''), TYPE
+                ).value('.', 'VARCHAR(MAX)'), 1, 1, '') AS PRODUCTOS_BUSQUEDA
+            ) PB
             WHERE A.ID_EMPRESA = @ID_EMPRESA
 
             ORDER BY

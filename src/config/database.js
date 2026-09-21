@@ -10,7 +10,11 @@ const config = {
 
     options: {
         encrypt: process.env.DB_ENCRYPT === 'true',
-        trustServerCertificate: process.env.DB_TRUST_CERT === 'true'
+        trustServerCertificate: process.env.DB_TRUST_CERT === 'true',
+        // Presea y la aplicación guardan DATETIME con la hora local del servidor.
+        // Evita que tedious interprete esos valores como UTC y les reste tres
+        // horas al mostrarlos en navegadores de Argentina.
+        useUTC: false
     },
 
     pool: {

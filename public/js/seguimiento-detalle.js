@@ -311,7 +311,7 @@ function formatearFecha(valor) {
   if (!valor) return '-';
 
   const texto = String(valor);
-  const fecha = new Date(texto.endsWith('Z') ? texto.slice(0, -1) : texto);
+  const fecha = new Date(texto);
   if (Number.isNaN(fecha.getTime())) return texto;
 
   return fecha.toLocaleString('es-AR', { hour12: false });

@@ -24,4 +24,12 @@ test('SQL posee límites para conexión y consultas', () => {
   const database = fs.readFileSync(path.join(raiz, 'src/config/database.js'), 'utf8');
   assert.match(database, /connectionTimeout/);
   assert.match(database, /requestTimeout/);
+  assert.match(database, /useUTC:\s*false/);
+});
+
+test('las fechas locales de SQL no reciben una conversión UTC adicional en el navegador', () => {
+  const pedido = fs.readFileSync(path.join(raiz, 'public/js/pedido-detalle.js'), 'utf8');
+  const seguimiento = fs.readFileSync(path.join(raiz, 'public/js/seguimiento-detalle.js'), 'utf8');
+  assert.doesNotMatch(pedido, /endsWith\('Z'\).*slice\(0,-1\)/);
+  assert.doesNotMatch(seguimiento, /endsWith\('Z'\).*slice\(0, -1\)/);
 });

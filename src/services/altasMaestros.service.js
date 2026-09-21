@@ -491,7 +491,17 @@ async function enviarPresea({ idEmpresa, usuario }) {
   return { archivos, registros: datos.registros.length, rutaDestino };
 }
 
-async function listarReglasEan(idEmpresa) { return repository.listarReglasEan(idEmpresa); }
+async function listarReglasEan(idEmpresa) {
+  const [reglas, configuracion] = await Promise.all([
+    repository.listarReglasEan(idEmpresa),
+    repository.obtenerConfiguracionEanEmpresa(idEmpresa),
+  ]);
+  return { reglas, configuracion };
+}
+async function guardarConfiguracionEanEmpresa({ idEmpresa, usuario, cuerpo }) {
+  if (typeof cuerpo.requiereEan !== 'boolean') throw new Error('Debe indicar si la empresa requiere gestión de EAN.');
+  return repository.guardarConfiguracionEanEmpresa({ idEmpresa, requiereEan: cuerpo.requiereEan, usuario: usuario || 'SISTEMA' });
+}
 async function guardarReglaEan({ idEmpresa, usuario, cuerpo }) {
   const marca = normalizar(cuerpo.marca), rubro = normalizar(cuerpo.rubro);
   const licencia = normalizarLicencia(cuerpo.licencia) === 'SIN LICENCIA' ? '' : normalizar(cuerpo.licencia);
@@ -506,4 +516,4 @@ async function eliminarReglaEan({ idEmpresa, idRegla, usuario }) {
 
 function etiquetasTallesModuloExport(campo) { return etiquetasTallesModulo[campo] || campo; }
 
-module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarReglaEan, eliminarReglaEan, agruparArchivosMaestros };
+module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, agruparArchivosMaestros };

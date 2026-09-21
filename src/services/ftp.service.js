@@ -924,6 +924,35 @@ async function subirArchivo(
     }
 }
 
+async function existeArchivo(rutaRemota, nombreRemoto) {
+    const config = obtenerConfiguracion();
+    const carpetaRemota = (texto(rutaRemota) || config.remotePath).replace(/\\+/g, '/').replace(/\/+$/g, '');
+    const archivoRemoto = texto(nombreRemoto) || config.remoteFilename;
+    const rutaArchivo = [carpetaRemota, archivoRemoto].filter(Boolean).join('/');
+    return ejecutarConCircuitBreaker(
+        config,
+        async () => ejecutarConRetry(
+            `Consulta ${rutaArchivo}`,
+            async () => {
+                const cliente = new ftp.Client(config.timeout);
+                cliente.ftp.verbose = booleano(process.env.FTP_VERBOSE);
+                try {
+                    await cliente.access({ host: config.host, port: config.port, user: config.user, password: config.password, secure: config.secure });
+                    try {
+                        await cliente.size(rutaArchivo);
+                        return true;
+                    } catch (error) {
+                        if (Number(error?.code) === 550) return false;
+                        throw error;
+                    }
+                } finally {
+                    cliente.close();
+                }
+            }
+        )
+    );
+}
+
 
 async function limpiarCarpeta(rutaRemota) {
 
@@ -1163,6 +1192,7 @@ async function descargarArchivos(
 
 module.exports = {
     subirArchivo,
+    existeArchivo,
     limpiarCarpeta,
     descargarArchivos
 };

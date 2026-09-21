@@ -374,7 +374,7 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 D.GENERADO_AUTOMATICO,
                 D.FAMILIAS_MODULO,
                 D.LICENCIA AS LICENCIA_ALTA,
-                CASE WHEN RE.ID_REGLA_EAN IS NOT NULL THEN RE.REQUIERE_EAN ELSE CONVERT(BIT,1) END AS REQUIERE_EAN,
+                COALESCE(RE.REQUIERE_EAN, CONVERT(BIT,1)) AS REQUIERE_EAN,
                 G.NOMBRE_IMAGEN AS NOMBRE_IMAGEN_GS1,
                 G.URL_IMAGEN AS URL_IMAGEN_GS1,
                 G.FECHA_ACTUALIZACION AS FECHA_URL_GS1
@@ -489,11 +489,20 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                AND TM.CODIGO_MODULO = D.CODIGO_MODULO
                AND ISNULL(TM.ACTIVO, 1) = 1
                AND ISNULL(TM.ES_CONSISTENTE, 0) = 1
-            LEFT JOIN dbo.REGLAS_REQUERIMIENTO_EAN RE
-                ON RE.ID_EMPRESA=A.ID_EMPRESA AND RE.ACTIVO=1
-               AND UPPER(LTRIM(RTRIM(RE.MARCA)))=UPPER(LTRIM(RTRIM(A.DETALLE_MARCA)))
-               AND UPPER(LTRIM(RTRIM(RE.RUBRO)))=UPPER(LTRIM(RTRIM(A.DETALLE_RUBRO)))
-               AND UPPER(LTRIM(RTRIM(RE.LICENCIA)))=UPPER(LTRIM(RTRIM(ISNULL(D.LICENCIA,''))))
+            OUTER APPLY (
+                SELECT TOP 1 R.REQUIERE_EAN
+                FROM dbo.REGLAS_REQUERIMIENTO_EAN R
+                WHERE R.ID_EMPRESA=A.ID_EMPRESA AND R.ACTIVO=1
+                  AND (
+                    (R.MARCA='*' AND R.RUBRO='*' AND R.LICENCIA='')
+                    OR (
+                      UPPER(LTRIM(RTRIM(R.MARCA)))=UPPER(LTRIM(RTRIM(A.DETALLE_MARCA)))
+                      AND UPPER(LTRIM(RTRIM(R.RUBRO)))=UPPER(LTRIM(RTRIM(A.DETALLE_RUBRO)))
+                      AND UPPER(LTRIM(RTRIM(R.LICENCIA)))=UPPER(LTRIM(RTRIM(ISNULL(D.LICENCIA,''))))
+                    )
+                  )
+                ORDER BY CASE WHEN R.MARCA='*' AND R.RUBRO='*' THEN 1 ELSE 0 END
+            ) RE
             WHERE E.ID_EMPRESA = @ID_EMPRESA
               AND E.ESTADO_ERP IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
               AND ISNULL(A.ESTADO, '') <> 'ANULADO'

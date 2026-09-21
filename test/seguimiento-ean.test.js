@@ -26,6 +26,22 @@ test('valida el dígito verificador de un EAN13', () => {
   assert.equal(seguimientoService.ean13Valido('7792800716268'), false);
 });
 
+test('valida existencia y permisos de la carpeta de salida GTIN', () => {
+  const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), 'gtin-destino-'));
+  try {
+    assert.doesNotThrow(() => seguimientoService.validarCarpetaDestinoGtin(carpeta));
+    assert.throws(
+      () => seguimientoService.validarCarpetaDestinoGtin(path.join(carpeta, 'no-existe')),
+      /No se encuentra la carpeta de destino de Presea/
+    );
+    const fuente = fs.readFileSync(path.join(__dirname, '../src/services/seguimiento.service.js'), 'utf8');
+    assert.match(fuente, /no tiene permisos de lectura y escritura/);
+    assert.match(fuente, /fs\.constants\.R_OK \| fs\.constants\.W_OK/);
+  } finally {
+    fs.rmSync(carpeta, { recursive: true, force: true });
+  }
+});
+
 test('genera GTIN.DBI con CODIGO entero y GTIN de texto', async () => {
   const original = seguimientoRepository.listarProductosSeguimientoEan;
   seguimientoRepository.listarProductosSeguimientoEan = async () => [{

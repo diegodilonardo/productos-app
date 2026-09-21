@@ -9,6 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { escribirDBFGenerico } = require('./dbfWriterGenerico.service');
+const ftpService = require('./ftp.service');
 
 const EAN_PROVISORIO_GS1 = '7792800015157';
 
@@ -1249,35 +1250,58 @@ async function exportarGtinDbi(clavesEntrada, contexto) {
     }
 }
 
-async function enviarGtinDbiAPresea(clavesEntrada, contexto) {
-    const buffer = await exportarGtinDbi(clavesEntrada, contexto);
-    const carpetaDestino = String(
-        process.env.GTIN_PRESEA_PATH || '\\\\172.24.0.175\\Vicbor2\\Productos\\archivos\\EAN'
-    ).trim();
-    if (!carpetaDestino || !fs.existsSync(carpetaDestino)) {
-        throw new Error(`No se encuentra la carpeta de destino de Presea: ${carpetaDestino}`);
+function validarCarpetaDestinoGtin(carpetaDestino) {
+    if (!carpetaDestino) throw new Error('No está configurada la carpeta de destino de Presea para GTIN.DBI.');
+    try {
+        const estado = fs.statSync(carpetaDestino);
+        if (!estado.isDirectory()) throw Object.assign(new Error('La ruta configurada no corresponde a una carpeta.'), { code: 'ENOTDIR' });
+        fs.accessSync(carpetaDestino, fs.constants.R_OK | fs.constants.W_OK);
+    } catch (error) {
+        if (['EACCES', 'EPERM'].includes(error?.code)) {
+            throw new Error(`La cuenta que ejecuta ProductosApp no tiene permisos de lectura y escritura sobre: ${carpetaDestino}`);
+        }
+        if (['ENOENT', 'ENOTDIR'].includes(error?.code)) {
+            throw new Error(`No se encuentra la carpeta de destino de Presea: ${carpetaDestino}`);
+        }
+        throw new Error(`No se pudo acceder a la carpeta de destino de Presea: ${carpetaDestino}. Detalle: ${error.message}`);
     }
-    const destino = path.join(carpetaDestino, 'GTIN.DBI');
-    if (fs.existsSync(destino)) {
+}
+
+const rutasFtpGtinPorEmpresa = Object.freeze({
+    1: '/EAN/VICBOR',
+    2: '/EAN/MIDING',
+    4: '/EAN/BAGUNZA',
+});
+
+function resolverRutaFtpGtin(idEmpresa) {
+    return rutasFtpGtinPorEmpresa[Number(idEmpresa)] || null;
+}
+
+async function enviarGtinDbiAPresea(clavesEntrada, contexto) {
+    const rutaFtp = resolverRutaFtpGtin(contexto.idEmpresa);
+    if (!rutaFtp) {
+        throw new Error('La empresa seleccionada no tiene gestión de EAN habilitada ni una carpeta FTP configurada.');
+    }
+    const buffer = await exportarGtinDbi(clavesEntrada, contexto);
+    if (await ftpService.existeArchivo(rutaFtp, 'GTIN.DBI')) {
         throw new Error('Ya existe un GTIN.DBI pendiente en Presea. Espere a que sea procesado antes de enviar otro.');
     }
-    const temporal = path.join(
-        carpetaDestino,
-        `GTIN_${process.pid}_${Date.now()}.TMP`
-    );
+    const carpetaTemporal = fs.mkdtempSync(path.join(os.tmpdir(), 'productos-app-gtin-'));
+    const temporal = path.join(carpetaTemporal, 'GTIN.DBI');
     try {
         fs.writeFileSync(temporal, buffer, { flag: 'wx' });
-        fs.renameSync(temporal, destino);
+        await ftpService.subirArchivo(temporal, 'GTIN.DBI', 'GTIN.DBI', rutaFtp);
     } catch (error) {
-        try { if (fs.existsSync(temporal)) fs.unlinkSync(temporal); } catch (_) {}
         throw new Error(`No se pudo enviar GTIN.DBI a Presea. Detalle: ${error.message}`);
+    } finally {
+        try { fs.rmSync(carpetaTemporal, { recursive: true, force: true }); } catch (_) {}
     }
     const marcados = await seguimientoRepository.marcarCodigosEanEnviadosPresea({
         idEmpresa: contexto.idEmpresa,
         claves: clavesEntrada,
         usuario: String(contexto.usuario || 'SISTEMA').trim() || 'SISTEMA',
     });
-    return { archivo: 'GTIN.DBI', ruta: carpetaDestino, registros: buffer.readUInt32LE(4), marcados };
+    return { archivo: 'GTIN.DBI', ruta: rutaFtp, registros: buffer.readUInt32LE(4), marcados };
 }
 
 
@@ -1297,6 +1321,8 @@ module.exports = {
     ean13Valido,
     exportarGtinDbi,
     enviarGtinDbiAPresea,
+    resolverRutaFtpGtin,
+    validarCarpetaDestinoGtin,
     estadoSeguimientoEan,
     extraerCantidadesCurva,
     cantidadesCurvaDesdeMaestro,

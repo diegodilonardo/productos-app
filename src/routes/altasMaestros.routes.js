@@ -71,7 +71,11 @@ router.post('/enviar-presea', requerirEscrituraEmpresa, async (req, res) => {
   catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }
 });
 router.get('/reglas-ean', async (req,res) => {
-  try { res.json({ok:true,datos:await service.listarReglasEan(req.idEmpresa)}); }
+  try { const resultado=await service.listarReglasEan(req.idEmpresa); res.json({ok:true,datos:resultado.reglas,configuracion:resultado.configuracion}); }
+  catch(e){ res.status(e.status||500).json({ok:false,mensaje:e.message}); }
+});
+router.put('/reglas-ean/configuracion', requerirAdminUsuarios, async (req,res) => {
+  try { res.json({ok:true,configuracion:await service.guardarConfiguracionEanEmpresa({idEmpresa:req.idEmpresa,usuario:req.session?.usuario?.usuario,cuerpo:req.body||{}})}); }
   catch(e){ res.status(e.status||500).json({ok:false,mensaje:e.message}); }
 });
 router.post('/reglas-ean', requerirAdminUsuarios, async (req,res) => {

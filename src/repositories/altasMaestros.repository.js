@@ -252,9 +252,23 @@ async function listarReglasEan(idEmpresa) {
   const pool = await getConnection();
   const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
     SELECT ID_REGLA_EAN, MARCA, RUBRO, LICENCIA, REQUIERE_EAN, USUARIO_ACTUALIZACION, FECHA_ACTUALIZACION
-    FROM dbo.REGLAS_REQUERIMIENTO_EAN WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
+    FROM dbo.REGLAS_REQUERIMIENTO_EAN
+    WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1 AND NOT (MARCA='*' AND RUBRO='*')
     ORDER BY MARCA,RUBRO,LICENCIA;`);
   return r.recordset;
+}
+
+async function obtenerConfiguracionEanEmpresa(idEmpresa) {
+  const pool = await getConnection();
+  const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+    SELECT TOP 1 REQUIERE_EAN, USUARIO_ACTUALIZACION, FECHA_ACTUALIZACION
+    FROM dbo.REGLAS_REQUERIMIENTO_EAN
+    WHERE ID_EMPRESA=@ID_EMPRESA AND MARCA='*' AND RUBRO='*' AND LICENCIA='' AND ACTIVO=1;`);
+  return r.recordset[0] || { REQUIERE_EAN: true, USUARIO_ACTUALIZACION: null, FECHA_ACTUALIZACION: null };
+}
+
+async function guardarConfiguracionEanEmpresa({ idEmpresa, requiereEan, usuario }) {
+  return guardarReglaEan({ idEmpresa, marca: '*', rubro: '*', licencia: '', requiereEan, usuario });
 }
 
 async function guardarReglaEan(datos) {
@@ -284,4 +298,4 @@ async function eliminarReglaEan(idEmpresa, idRegla, usuario) {
   return r.recordset[0] || null;
 }
 
-module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, buscarNombreDuplicado, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, guardarReglaEan, eliminarReglaEan };
+module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, buscarNombreDuplicado, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, obtenerConfiguracionEanEmpresa, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan };

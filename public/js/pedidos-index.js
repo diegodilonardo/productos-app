@@ -17,7 +17,6 @@ async function iniciarPedidos() {
   document.getElementById('filtroEstadoPedido')?.addEventListener('change', pintarPedidosFiltrados);
   document.getElementById('filtroExportacionPedido')?.addEventListener('change', pintarPedidosFiltrados);
   document.getElementById('mostrarAnuladosPedido')?.addEventListener('change', cambiarVisibilidadAnuladosPedido);
-  document.getElementById('selectorEmpresaPedido')?.addEventListener('change', cambiarEmpresaPedido);
   document.getElementById('btnVistaTarjetasPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tarjetas'));
   document.getElementById('btnVistaTablaPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tabla'));
   document.getElementById('tarjetasPedidos')?.addEventListener('click', descargarPurchaseOrderTarjeta);
@@ -45,18 +44,6 @@ async function actualizarEmpresaPedidos(event) {
         Number(item.idEmpresa) ===
         idEmpresaPedido
     ) || null;
-
-  const selector =
-    document.getElementById(
-      'selectorEmpresaPedido'
-    );
-
-  if (selector) {
-    selector.value =
-      idEmpresaPedido
-        ? String(idEmpresaPedido)
-        : '';
-  }
 
   if (!idEmpresaPedido) {
     return;
@@ -95,8 +82,7 @@ async function cargarContextoPedido() {
     throw new Error('El usuario no tiene empresas habilitadas.');
   }
 
-  const select = document.getElementById('selectorEmpresaPedido');
-  const guardada = Number(sessionStorage.getItem('pedidos.idEmpresa'));
+  const guardada = Number(sessionStorage.getItem('app.idEmpresa'));
   const guardadaValida = empresas.some(x => Number(x.idEmpresa) === guardada);
 
   if (empresas.length === 1) {
@@ -105,17 +91,6 @@ async function cargarContextoPedido() {
     idEmpresaPedido = guardada;
   } else {
     idEmpresaPedido = null;
-  }
-
-  if (select) {
-    select.innerHTML =
-      '<option value="">Seleccionar empresa...</option>' +
-      empresas.map(x =>
-        `<option value="${esc(x.idEmpresa)}">${esc(x.empresa || x.codigoEmpresa || x.idEmpresa)}</option>`
-      ).join('');
-
-    select.classList.toggle('d-none', empresas.length <= 1);
-    select.value = idEmpresaPedido ? String(idEmpresaPedido) : '';
   }
 
   if (!idEmpresaPedido) {
@@ -131,31 +106,6 @@ async function cargarContextoPedido() {
   sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
   actualizarPermisosVisuales();
   return true;
-}
-
-async function cambiarEmpresaPedido() {
-  const select = document.getElementById('selectorEmpresaPedido');
-  idEmpresaPedido = Number(select?.value || 0) || null;
-
-  if (!idEmpresaPedido) {
-    sessionStorage.removeItem('pedidos.idEmpresa');
-    accesoEmpresaPedido = null;
-    pedidos = [];
-    pintarMetricas();
-    pintarPedidosFiltrados();
-    actualizarPermisosVisuales();
-    mostrarAlerta('Seleccione una empresa para consultar Pedidos.', 'info');
-    return;
-  }
-
-  accesoEmpresaPedido =
-    (contextoUsuario?.empresas || []).find(
-      x => Number(x.idEmpresa) === Number(idEmpresaPedido)
-    ) || null;
-
-  sessionStorage.setItem('pedidos.idEmpresa', String(idEmpresaPedido));
-  actualizarPermisosVisuales();
-  await cargarPedidos();
 }
 
 function puedeEscribirPedido() {

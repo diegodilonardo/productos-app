@@ -169,6 +169,35 @@ router.post('/', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => 
   }
 });
 
+router.get('/:id/altas-disponibles', requerirAccesoPedido, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerAltasAgregablesPedido(req.params.id, req.idEmpresa, req.accesoEmpresa);
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.post('/:id/altas', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.agregarAltaPedido(
+      req.params.id, req.body?.idAlta, req.idEmpresa, req.accesoEmpresa
+    );
+    return res.status(201).json({ ok: true, mensaje: 'Alta agregada al pedido correctamente.', resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.delete('/:id/altas/:idAlta', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.quitarAltaPedido(req.params.id, req.params.idAlta, req.idEmpresa);
+    return res.json({ ok: true, mensaje: 'Alta quitada del pedido correctamente.', resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.get('/:id/detalle', requerirAccesoPedido, async (req, res) => {
   try {
     const datos = await pedidosService.listarDetallePedido(req.params.id, req.idEmpresa);

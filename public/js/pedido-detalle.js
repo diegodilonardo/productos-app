@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', iniciarDetallePedido);
 const ID_PEDIDO = document.getElementById('pedidoDetalleApp')?.dataset.idPedido;
 let pedido=null, detalle=[], disponibles=[], exportaciones=[], destinosExportacion=null, productoModal=null;
 let contextoUsuario=null, accesoEmpresaPedido=null, puedeEscribir=false;
-let modalProducto, modalAnular;
+let modalProducto, modalAnular, modalAgregarAlta;
 let vistaDisponibles='tarjetas', vistaDetalle='tarjetas';
 const cargaListaPedido=new Map();
 
@@ -30,6 +30,7 @@ pintarDetalle = function pintarDetalleConEstadoPresea() {
 async function iniciarDetallePedido(){
   modalProducto=new bootstrap.Modal(document.getElementById('modalProductoPedido'));
   modalAnular=new bootstrap.Modal(document.getElementById('modalAnularPedido'));
+  modalAgregarAlta=new bootstrap.Modal(document.getElementById('modalAgregarAltaPedido'));
   document.getElementById('buscarProductoPedido').addEventListener('input', pintarDisponibles);
   document.getElementById('btnDisponiblesTarjetas')?.addEventListener('click',()=>aplicarVistaProductos('disponibles','tarjetas'));
   document.getElementById('btnDisponiblesLista')?.addEventListener('click',()=>aplicarVistaProductos('disponibles','lista'));
@@ -43,6 +44,8 @@ async function iniciarDetallePedido(){
   document.getElementById('btnValidarPedido').addEventListener('click', validarPedido);
   document.getElementById('btnAnularPedido').addEventListener('click',()=>modalAnular.show());
   document.getElementById('formAnularPedido').addEventListener('submit', anularPedido);
+  document.getElementById('btnAgregarAltaPedido').addEventListener('click', abrirAgregarAltaPedido);
+  document.getElementById('formAgregarAltaPedido').addEventListener('submit', agregarAltaPedido);
   document.getElementById('btnExportarPedidoExcel')?.addEventListener('click',ev=>descargarExportacion(ev,'pedido-excel','Pedido Excel'));
   document.getElementById('btnExportarPurchaseOrder')?.addEventListener('click',ev=>descargarExportacion(ev,'purchase-order','Purchase Order'));
   document.getElementById('btnExportarMasterData')?.addEventListener('click',ev=>descargarExportacion(ev,'master-data-app','Master Data'));
@@ -65,7 +68,41 @@ puedeEscribir=Boolean(contextoUsuario?.superAdmin)||['SUPER_ADMIN','ADMIN','OPER
 const badge=document.getElementById('rolPedido');
 if(badge){const rol=contextoUsuario?.superAdmin?'SUPER_ADMIN':String(accesoEmpresaPedido?.rol||'').toUpperCase();badge.textContent=rol?`Rol: ${rol}`:'';badge.classList.toggle('d-none',!rol);}
 const d=await api(`/api/pedidos/${ID_PEDIDO}/detalle`);detalle=Array.isArray(d?.datos)?d.datos:[];if(estado()==='BORRADOR'&&puedeEscribir){const a=await api('/api/pedidos/altas/productos',{method:'POST',headers:{'Content-Type':'application/json','x-id-empresa':String(pedido.ID_EMPRESA)},body:JSON.stringify({idsAltas:pedido.IDS_ALTAS||[pedido.ID_ALTA],codigoProveedor:pedido.CODIGO_PROVEEDOR})});disponibles=(a.datos||[]).filter(x=>!detalle.some(y=>String(y.ID_PRODUCTO)===String(x.ID_PRODUCTO)));}else{disponibles=[];}if(['VALIDADO','ANULADO'].includes(estado())){const [ex,de]=await Promise.all([api(`/api/pedidos/${ID_PEDIDO}/exportaciones`),api(`/api/pedidos/${ID_PEDIDO}/destinos-exportacion`)]);exportaciones=Array.isArray(ex?.datos)?ex.datos:[];destinosExportacion=de?.resultado||null;}else{exportaciones=[];destinosExportacion=null;}pintarCabecera();pintarDisponibles();pintarDetalle();pintarExportaciones();}catch(e){mostrarAlerta(e.message,'danger');}}
-function pintarCabecera(){setTexto('tituloPedido',pedido.CODIGO_PEDIDO||`Pedido ${pedido.ID_PEDIDO}`);setTexto('subtituloPedido',`${pedido.DETALLE_PROVEEDOR} · Orden ${pedido.NUMERO_ORDEN}`);setTexto('infoCodigoAlta',pedido.CODIGOS_ALTAS||pedido.CODIGO_ALTA);setTexto('infoProveedor',pedido.DETALLE_PROVEEDOR);setTexto('infoOrden',pedido.NUMERO_ORDEN);setTexto('infoMoneda',pedido.MONEDA);document.getElementById('infoEstado').innerHTML=`<span class="badge ${claseEstado(estado())}">${esc(estado())}</span>`;setTexto('infoFecha',fecha(pedido.FECHA_CREACION));document.getElementById('infoObservaciones').textContent=pedido.OBSERVACIONES?`Observaciones: ${pedido.OBSERVACIONES}`:'';document.getElementById('panelProductosDisponibles').classList.toggle('d-none',estado()!=='BORRADOR'||!puedeEscribir);document.getElementById('btnValidarPedido').classList.toggle('d-none',estado()!=='BORRADOR'||!puedeEscribir);document.getElementById('btnAnularPedido').classList.toggle('d-none',!puedeEscribir||!['BORRADOR','VALIDADO'].includes(estado()));actualizarExportaciones();}
+function pintarCabecera(){setTexto('tituloPedido',pedido.CODIGO_PEDIDO||`Pedido ${pedido.ID_PEDIDO}`);setTexto('subtituloPedido',`${pedido.DETALLE_PROVEEDOR} · Orden ${pedido.NUMERO_ORDEN}`);setTexto('infoCodigoAlta',pedido.CODIGOS_ALTAS||pedido.CODIGO_ALTA);setTexto('infoProveedor',pedido.DETALLE_PROVEEDOR);setTexto('infoOrden',pedido.NUMERO_ORDEN);setTexto('infoMoneda',pedido.MONEDA);document.getElementById('infoEstado').innerHTML=`<span class="badge ${claseEstado(estado())}">${esc(estado())}</span>`;setTexto('infoFecha',fecha(pedido.FECHA_CREACION));document.getElementById('infoObservaciones').textContent=pedido.OBSERVACIONES?`Observaciones: ${pedido.OBSERVACIONES}`:'';document.getElementById('panelProductosDisponibles').classList.toggle('d-none',estado()!=='BORRADOR'||!puedeEscribir);document.getElementById('btnAgregarAltaPedido').classList.toggle('d-none',estado()!=='BORRADOR'||!puedeEscribir);document.getElementById('btnValidarPedido').classList.toggle('d-none',estado()!=='BORRADOR'||!puedeEscribir);document.getElementById('btnAnularPedido').classList.toggle('d-none',!puedeEscribir||!['BORRADOR','VALIDADO'].includes(estado()));actualizarExportaciones();}
+
+async function abrirAgregarAltaPedido(){
+  if(estado()!=='BORRADOR'||!puedeEscribir)return;
+  const select=document.getElementById('selectAgregarAltaPedido'),ayuda=document.getElementById('ayudaAgregarAltaPedido'),btn=document.getElementById('btnConfirmarAgregarAlta');
+  renderizarAltasAsociadasPedido();
+  setTexto('proveedorAgregarAltaPedido',pedido.DETALLE_PROVEEDOR||pedido.CODIGO_PROVEEDOR);
+  select.innerHTML='<option value="">Buscando Altas compatibles...</option>';select.disabled=true;btn.disabled=true;ayuda.textContent='';modalAgregarAlta.show();
+  try{
+    const respuesta=await api(`/api/pedidos/${ID_PEDIDO}/altas-disponibles`),altas=Array.isArray(respuesta?.datos)?respuesta.datos:[];
+    select.innerHTML=altas.length?'<option value="">Seleccione un Alta...</option>'+altas.map(alta=>`<option value="${esc(alta.ID_ALTA)}">${esc(alta.CODIGO_ALTA||`Alta ${alta.ID_ALTA}`)} · ${esc(alta.DETALLE_RUBRO||alta.CODIGO_RUBRO||'-')} · ${esc(alta.CODIGO_ANO||'-')} / ${esc(alta.DETALLE_TEMPORADA||alta.CODIGO_TEMPORADA||'-')}</option>`).join(''):'<option value="">No hay Altas compatibles disponibles</option>';
+    select.disabled=!altas.length;btn.disabled=!altas.length;ayuda.textContent=altas.length?`${altas.length} Alta${altas.length===1?'':'s'} disponible${altas.length===1?'':'s'}.`:'Las Altas ya asociadas, de otra marca o sin productos del proveedor no se muestran.';
+  }catch(e){select.innerHTML='<option value="">No se pudieron cargar las Altas</option>';ayuda.textContent=e.message;}
+}
+
+function renderizarAltasAsociadasPedido(){
+  const contenedor=document.getElementById('listaAltasAsociadasPedido'),altas=Array.isArray(pedido?.ALTAS_ASOCIADAS)?pedido.ALTAS_ASOCIADAS:[];
+  contenedor.innerHTML=altas.map(alta=>`<div class="list-group-item d-flex align-items-center justify-content-between gap-3"><div><strong>${esc(alta.CODIGO_ALTA||`Alta ${alta.ID_ALTA}`)}</strong><div class="small text-secondary">${esc(alta.DETALLE_RUBRO||alta.CODIGO_RUBRO||'-')} · ${esc(alta.CODIGO_ANO||'-')} / ${esc(alta.DETALLE_TEMPORADA||alta.CODIGO_TEMPORADA||'-')}</div></div><button class="btn btn-sm btn-outline-danger" type="button" data-quitar-alta="${esc(alta.ID_ALTA)}" ${altas.length<=1?'disabled title="El Pedido debe conservar al menos un Alta"':''}>Quitar</button></div>`).join('')||'<div class="text-secondary">No hay Altas asociadas.</div>';
+  contenedor.querySelectorAll('[data-quitar-alta]').forEach(boton=>boton.addEventListener('click',()=>quitarAltaPedido(boton.dataset.quitarAlta)));
+}
+
+async function quitarAltaPedido(idAlta){
+  if(!confirm('¿Quitar esta Alta del Pedido? Sólo se podrá quitar si no tiene productos cargados.'))return;
+  const boton=document.querySelector(`[data-quitar-alta="${CSS.escape(String(idAlta))}"]`);
+  try{if(boton)boton.disabled=true;await api(`/api/pedidos/${ID_PEDIDO}/altas/${encodeURIComponent(idAlta)}`,{method:'DELETE'});modalAgregarAlta.hide();mostrarAlerta('Alta quitada correctamente del Pedido.','success');await cargarTodo();}
+  catch(e){mostrarAlerta(e.message,'warning');if(boton)boton.disabled=false;}
+}
+
+async function agregarAltaPedido(ev){
+  ev.preventDefault();const idAlta=Number(document.getElementById('selectAgregarAltaPedido').value);if(!idAlta)return;
+  const btn=document.getElementById('btnConfirmarAgregarAlta'),textoOriginal=btn.textContent;
+  try{btn.disabled=true;btn.textContent='Agregando...';await api(`/api/pedidos/${ID_PEDIDO}/altas`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idAlta})});modalAgregarAlta.hide();mostrarAlerta('Alta agregada correctamente. Sus productos ya están disponibles para seleccionar.','success');await cargarTodo();}
+  catch(e){mostrarAlerta(e.message,'danger');}
+  finally{btn.disabled=false;btn.textContent=textoOriginal;}
+}
 function actualizarExportaciones(){const panel=document.getElementById('accionesExportacionPedido');if(!panel)return;const habilitado=estado()==='VALIDADO';panel.classList.toggle('d-none',!habilitado);if(!habilitado)return;document.getElementById('btnExportarPurchaseOrder').href=`/api/pedidos/${encodeURIComponent(ID_PEDIDO)}/exportacion/purchase-order`;document.getElementById('btnExportarPedidoExcel').href=`/api/pedidos/${encodeURIComponent(ID_PEDIDO)}/exportacion/pedido-excel`;document.getElementById('btnExportarMasterData').href=`/api/pedidos/${encodeURIComponent(ID_PEDIDO)}/exportacion/master-data-app`;document.getElementById('btnExportarPrecFob').href=`/api/pedidos/${encodeURIComponent(ID_PEDIDO)}/exportacion/prec-fob`;const destino=document.getElementById('destinoExportacionPedido');if(destino){const rutas=destinosExportacion?.rutas||{};const unicas=[...new Set(Object.values(rutas).filter(Boolean))];const listo=Boolean(destinosExportacion?.configurada);destino.className=`small mt-2 ${listo?'text-success':'text-danger'}`;destino.textContent=listo?`Destino FTP: ${unicas.join(' · ')}`:'Destino FTP sin configuración activa. La exportación será bloqueada.';}}
 async function descargarExportacion(ev,tipo,etiqueta){ev.preventDefault();if(estado()!=='VALIDADO'){mostrarAlerta('Solo se pueden exportar pedidos VALIDADO.','warning');return;}const boton=ev.currentTarget;const url=`/api/pedidos/${encodeURIComponent(ID_PEDIDO)}/exportacion/${tipo}`;const textoOriginal=boton.textContent;try{boton.classList.add('disabled');boton.setAttribute('aria-disabled','true');boton.textContent='Generando...';const r=await fetch(url);if(!r.ok){let mensaje=`Error HTTP ${r.status}`;try{const d=await r.json();mensaje=d?.mensaje||mensaje;}catch{}throw new Error(mensaje);}const blob=await r.blob();const cd=r.headers.get('Content-Disposition')||'';let nombre=`exportacion_${ID_PEDIDO}`;const m=cd.match(/filename="?([^";]+)"?/i);if(m?.[1])nombre=m[1];const objeto=URL.createObjectURL(blob);const a=document.createElement('a');a.href=objeto;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(objeto),1500);mostrarAlerta(`${etiqueta} exportado correctamente: ${nombre}`,'success');await cargarHistorialExportaciones();}catch(e){mostrarAlerta(e.message,'danger');}finally{boton.classList.remove('disabled');boton.removeAttribute('aria-disabled');boton.textContent=textoOriginal;}}
 async function cargarHistorialExportaciones(){if(!['VALIDADO','ANULADO'].includes(estado())){exportaciones=[];pintarExportaciones();return;}try{const ex=await api(`/api/pedidos/${ID_PEDIDO}/exportaciones`);exportaciones=Array.isArray(ex?.datos)?ex.datos:[];pintarExportaciones();}catch(e){mostrarAlerta(`El archivo fue procesado, pero no se pudo actualizar el historial: ${e.message}`,'warning');}}

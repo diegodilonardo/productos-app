@@ -691,6 +691,100 @@ async function obtenerAltasPorPedido(idPedido, idEmpresa) {
   return resultado.recordset;
 }
 
+async function asociarAltaPedido(idPedido, idAlta, idEmpresa) {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+  try {
+    await transaction.begin();
+    const pedidoResult = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .query(`SELECT TOP 1 ESTADO FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;`);
+    const pedido = pedidoResult.recordset[0];
+    if (!pedido) throw new Error('Pedido no encontrado.');
+    if (pedido.ESTADO !== 'BORRADOR') throw new Error(`El pedido está en estado ${pedido.ESTADO}. Solamente se puede modificar en BORRADOR.`);
+
+    await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_ALTA', sql.Int, idAlta)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .query(`
+        IF NOT EXISTS (SELECT 1 FROM dbo.PEDIDOS_ALTAS WITH (UPDLOCK, HOLDLOCK)
+          WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA)
+        BEGIN
+          INSERT dbo.PEDIDOS_ALTAS (ID_EMPRESA, ID_PEDIDO, ID_ALTA)
+          VALUES (@ID_EMPRESA, @ID_PEDIDO, @ID_ALTA);
+        END;
+        UPDATE dbo.PEDIDOS SET FECHA_ACTUALIZACION=SYSDATETIME()
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;`);
+    await transaction.commit();
+    return { ID_PEDIDO: idPedido, ID_ALTA: idAlta };
+  } catch (error) {
+    try { await transaction.rollback(); } catch (_) {}
+    throw error;
+  }
+}
+
+async function quitarAltaPedido(idPedido, idAlta, idEmpresa) {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+  try {
+    await transaction.begin();
+    const pedidoResult = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_ALTA', sql.Int, idAlta)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .query(`
+        SELECT TOP 1 ID_ALTA, ESTADO FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;
+
+        SELECT COUNT(*) CANTIDAD FROM dbo.PEDIDOS_ALTAS WITH (UPDLOCK, HOLDLOCK)
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;
+
+        SELECT COUNT(*) CANTIDAD FROM dbo.PEDIDOS_DETALLE WITH (UPDLOCK, HOLDLOCK)
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA;
+
+        SELECT COUNT(*) CANTIDAD FROM dbo.PEDIDOS_ALTAS
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA;`);
+    const pedido = pedidoResult.recordsets[0]?.[0];
+    const cantidadAltas = Number(pedidoResult.recordsets[1]?.[0]?.CANTIDAD || 0);
+    const productosAlta = Number(pedidoResult.recordsets[2]?.[0]?.CANTIDAD || 0);
+    const asociada = Number(pedidoResult.recordsets[3]?.[0]?.CANTIDAD || 0);
+    if (!pedido) throw new Error('Pedido no encontrado.');
+    if (pedido.ESTADO !== 'BORRADOR') throw new Error(`El pedido está en estado ${pedido.ESTADO}. Solamente se puede modificar en BORRADOR.`);
+    if (!asociada) throw new Error('El Alta no está asociada a este pedido.');
+    if (productosAlta > 0) throw new Error(`No se puede quitar el Alta porque tiene ${productosAlta} producto(s) cargado(s) en el pedido.`);
+    if (cantidadAltas <= 1) throw new Error('El Pedido debe conservar al menos un Alta asociada.');
+
+    await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_ALTA', sql.Int, idAlta)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .query(`
+        DELETE dbo.PEDIDOS_ALTAS
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA;
+
+        IF EXISTS (SELECT 1 FROM dbo.PEDIDOS
+          WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA)
+        BEGIN
+          UPDATE dbo.PEDIDOS
+          SET ID_ALTA=(SELECT TOP 1 ID_ALTA FROM dbo.PEDIDOS_ALTAS
+            WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO ORDER BY ID_ALTA),
+              FECHA_ACTUALIZACION=SYSDATETIME()
+          WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;
+        END
+        ELSE
+          UPDATE dbo.PEDIDOS SET FECHA_ACTUALIZACION=SYSDATETIME()
+          WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;`);
+    await transaction.commit();
+    return { ID_PEDIDO: idPedido, ID_ALTA: idAlta };
+  } catch (error) {
+    try { await transaction.rollback(); } catch (_) {}
+    throw error;
+  }
+}
+
 /* ============================================================
    BUSCAR PRODUCTO DENTRO DEL PEDIDO
    ============================================================ */
@@ -1568,6 +1662,8 @@ module.exports = {
   crearPedido,
   obtenerPedidoPorId,
   obtenerAltasPorPedido,
+  asociarAltaPedido,
+  quitarAltaPedido,
   buscarProductoEnPedido,
   agregarProductoPedido,
   listarDetallePedido,

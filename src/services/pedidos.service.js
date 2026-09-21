@@ -854,6 +854,52 @@ async function validarPedidoBorrador(idPedido, idEmpresa) {
   return pedido;
 }
 
+async function obtenerAltasAgregablesPedido(idPedido, idEmpresa, accesoEmpresa) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  const asociadas = new Set((pedido.IDS_ALTAS || []).map(Number));
+  const marcaPedido = texto(pedido.CODIGO_MARCA).toUpperCase();
+  const candidatas = (await obtenerAltasDisponibles(idEmpresa, accesoEmpresa))
+    .filter(alta => !asociadas.has(Number(alta.ID_ALTA)))
+    .filter(alta => texto(alta.CODIGO_MARCA).toUpperCase() === marcaPedido);
+  const evaluadas = await Promise.all(candidatas.map(async alta => {
+    const proveedores = await pedidosRepository.obtenerProveedoresPorAlta(alta.ID_ALTA, pedido.ID_EMPRESA);
+    return proveedores.some(proveedor => texto(proveedor.CODIGO_PROVEEDOR) === texto(pedido.CODIGO_PROVEEDOR))
+      ? alta
+      : null;
+  }));
+  return evaluadas.filter(Boolean);
+}
+
+async function agregarAltaPedido(idPedido, idAlta, idEmpresa, accesoEmpresa) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  if ((pedido.IDS_ALTAS || []).map(Number).includes(Number(idAlta))) {
+    throw Object.assign(new Error('El Alta ya está asociada a este pedido.'), { status: 409 });
+  }
+  if ((pedido.IDS_ALTAS || []).length >= 50) {
+    throw Object.assign(new Error('El pedido ya alcanzó el máximo de 50 Altas asociadas.'), { status: 409 });
+  }
+  const alta = await validarAltaDisponible(idAlta, pedido.ID_EMPRESA, accesoEmpresa);
+  if (texto(alta.CODIGO_MARCA).toUpperCase() !== texto(pedido.CODIGO_MARCA).toUpperCase()) {
+    throw Object.assign(new Error('El Alta debe pertenecer a la misma marca del pedido para conservar el destino de exportación.'), { status: 409 });
+  }
+  const proveedores = await pedidosRepository.obtenerProveedoresPorAlta(alta.ID_ALTA, pedido.ID_EMPRESA);
+  if (!proveedores.some(proveedor => texto(proveedor.CODIGO_PROVEEDOR) === texto(pedido.CODIGO_PROVEEDOR))) {
+    throw Object.assign(new Error('El Alta no posee productos habilitados para el proveedor del pedido.'), { status: 409 });
+  }
+  await pedidosRepository.asociarAltaPedido(pedido.ID_PEDIDO, alta.ID_ALTA, pedido.ID_EMPRESA);
+  return obtenerPedidoPorId(pedido.ID_PEDIDO, pedido.ID_EMPRESA);
+}
+
+async function quitarAltaPedido(idPedido, idAlta, idEmpresa) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  const altaId = validarIdAlta(idAlta);
+  if (!(pedido.IDS_ALTAS || []).map(Number).includes(altaId)) {
+    throw Object.assign(new Error('El Alta no está asociada a este pedido.'), { status: 404 });
+  }
+  await pedidosRepository.quitarAltaPedido(pedido.ID_PEDIDO, altaId, pedido.ID_EMPRESA);
+  return obtenerPedidoPorId(pedido.ID_PEDIDO, pedido.ID_EMPRESA);
+}
+
 /* ============================================================
    PREPARAR PRODUCTO DEL PEDIDO
 
@@ -2047,6 +2093,9 @@ module.exports = {
   crearPedido,
   obtenerPedidoPorId,
   validarPedidoBorrador,
+  obtenerAltasAgregablesPedido,
+  agregarAltaPedido,
+  quitarAltaPedido,
   prepararProductoPedido,
   agregarProductoPedido,
   listarDetallePedido,

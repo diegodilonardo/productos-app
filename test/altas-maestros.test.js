@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
 
+repository.buscarNombreDuplicado = async () => null;
+
 test('genera códigos alfanuméricos con el largo del maestro', () => {
   assert.equal(service.codigoBase36(0, 2), '00');
   assert.equal(service.codigoBase36(35, 2), '0Z');
@@ -71,6 +73,37 @@ test('los códigos inactivos en Presea y anulados en la app quedan disponibles',
   assert.match(repositorySource, /SELECT \$\{def\.codigo\} CODIGO FROM dbo\.\$\{def\.tabla\} WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1/);
   assert.match(repositorySource, /FROM dbo\.MAESTRO_MODELOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1/);
   assert.match(repositorySource, /TIPO=@TIPO AND ESTADO <> 'ANULADO'/);
+});
+
+test('rechaza nombres de colores y modelos que ya existen', async () => {
+  const originalCrear = repository.crear;
+  const originalBuscar = repository.buscarNombreDuplicado;
+  repository.crear = async datos => datos;
+  repository.buscarNombreDuplicado = async ({ tipo }) => tipo === 'COLOR'
+    ? { CODIGO: '0F', NOMBRE: 'ORQUIDEA', ORIGEN: 'MAESTRO' }
+    : { CODIGO: '150378', NOMBRE: 'WKC550 I27', ORIGEN: 'SOLICITUD' };
+  try {
+    await assert.rejects(
+      () => service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'COLOR', codigo: '0G', nombre: ' Orquidea ' } }),
+      error => error.status === 409 && /maestro sincronizado de Presea/.test(error.message) && /código 0F/.test(error.message)
+    );
+    await assert.rejects(
+      () => service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'MODELO', codigo: '150379', nombre: 'WKC550 I27', marca: 'WAKE', rubro: 'CALZADO', licencia: 'SIN LICENCIA', disciplina: 'SIN DISCIPLINA', cProveedor: 'PB0001' } }),
+      error => error.status === 409 && /Alta de Maestros/.test(error.message) && /WAKE \/ CALZADO/.test(error.message) && /150378/.test(error.message)
+    );
+  } finally {
+    repository.crear = originalCrear;
+    repository.buscarNombreDuplicado = originalBuscar;
+  }
+});
+
+test('la búsqueda de duplicados contempla maestros activos y solicitudes no anuladas', () => {
+  const fuente = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
+  assert.match(fuente, /MAESTRO_COLORES[\s\S]*ACTIVO=1[\s\S]*DETALLE_COLOR/);
+  assert.match(fuente, /MAESTRO_MODELOS[\s\S]*ACTIVO=1[\s\S]*DETALLE_MODELO/);
+  assert.match(fuente, /TIPO='COLOR' AND ESTADO<>'ANULADO'/);
+  assert.match(fuente, /TIPO='MODELO' AND ESTADO<>'ANULADO'/);
+  assert.match(fuente, /MARCA_MODELO[\s\S]*@MARCA[\s\S]*RUBRO_MODELO[\s\S]*@RUBRO/);
 });
 
 test('los módulos de todas las empresas comienzan en A0 y continúan la serie alfanumérica', async () => {
@@ -344,6 +377,28 @@ test('el template asigna códigos distintos a todos los modelos del lote', async
     assert.deepEqual(resultado.filas.map(x => x.codigo), ['135184', '135185']);
     assert.deepEqual(resultado.filas.map(x => x.cProveedor), ['PB0001', 'PB0002']);
   } finally { repository.listarModelosParaSugerencia = original; }
+});
+
+test('la carga masiva rechaza nombres repetidos antes de guardar parcialmente el lote', async () => {
+  const originalCrear = repository.crear;
+  const originalProveedores = maestrosRepository.buscarProveedores;
+  let creados = 0;
+  repository.crear = async datos => { creados += 1; return datos; };
+  maestrosRepository.buscarProveedores = async () => [{ CODIGO: 'PB0001', NVA_RAZON_SOCIAL: 'PROVEEDOR UNO' }];
+  const comunes = { estado: 'LISTO', marca: 'WAKE', rubro: 'CALZADO', licencia: 'SIN LICENCIA', disciplina: 'SIN DISCIPLINA', proveedorNombre: 'PROVEEDOR UNO', cProveedor: 'PB0001' };
+  try {
+    await assert.rejects(
+      () => service.crearModelosMasivos({ idEmpresa: 3, usuario: 'DIEGO', filas: [
+        { ...comunes, fila: 2, codigo: '150400', nombre: 'MODELO REPETIDO' },
+        { ...comunes, fila: 3, codigo: '150401', nombre: ' modelo   repetido ' }
+      ] }),
+      error => error.status === 409 && /repetido dentro del archivo/.test(error.message)
+    );
+    assert.equal(creados, 0);
+  } finally {
+    repository.crear = originalCrear;
+    maestrosRepository.buscarProveedores = originalProveedores;
+  }
 });
 
 test('la pantalla permite descargar, previsualizar y confirmar la carga masiva', () => {

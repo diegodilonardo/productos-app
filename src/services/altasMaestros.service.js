@@ -40,6 +40,13 @@ const seriesModeloLicencia = [
   { aliases: ['VS', 'VELEZ', 'VELEZ SARSFIELD', 'VÉLEZ', 'VÉLEZ SARSFIELD'], prefijo: 'VS', largoCorrelativo: 4, ultimoConfirmado: 93 }
 ];
 function normalizar(v) { return String(v ?? '').trim().toUpperCase(); }
+function normalizarNombre(v) { return normalizar(v).replace(/\s+/g, ' '); }
+function mensajeNombreDuplicado(tipo, nombre, duplicado, marca = '', rubro = '') {
+  const entidad = tipo === 'COLOR' ? 'color' : 'modelo';
+  const alcance = tipo === 'MODELO' ? ` para ${marca} / ${rubro}` : '';
+  const origen = duplicado.ORIGEN === 'SOLICITUD' ? 'en un Alta de Maestros' : 'en el maestro sincronizado de Presea';
+  return `El ${entidad} "${nombre}"${alcance} ya existe ${origen} con el código ${duplicado.CODIGO}.`;
+}
 function normalizarLicencia(v) { const valor = normalizar(v); return valor === '__SIN_LICENCIA__' ? 'SIN LICENCIA' : valor; }
 function normalizarDisciplina(v) { const valor = normalizar(v); return !valor || valor === '__SIN_DISCIPLINA__' ? 'SIN DISCIPLINA' : valor; }
 function validarCodigoProveedor(valor) {
@@ -175,7 +182,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
 
 async function crear({ idEmpresa, usuario, cuerpo }) {
   const tipo = normalizar(cuerpo.tipo);
-  let nombre = normalizar(cuerpo.nombre);
+  let nombre = normalizarNombre(cuerpo.nombre);
   const licenciaModelo = normalizarLicencia(cuerpo.licencia);
   const disciplinaModelo = licenciaModelo === 'SIN LICENCIA' ? normalizarDisciplina(cuerpo.disciplina) : 'SIN DISCIPLINA';
   const codigo = normalizar(cuerpo.codigo) || await sugerirCodigo(idEmpresa, tipo);
@@ -222,6 +229,14 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
     if (repetidoMaestro || repetidoPendiente) throw Object.assign(new Error('Ya existe un módulo con la misma distribución de talles.'), { status: 409 });
   }
   if (!nombre) throw Object.assign(new Error('Debe indicar el nombre o la distribución del módulo.'), { status: 400 });
+  if (['COLOR', 'MODELO'].includes(tipo)) {
+    const marca = normalizar(cuerpo.marca);
+    const rubro = normalizar(cuerpo.rubro);
+    const duplicado = await repository.buscarNombreDuplicado({ idEmpresa, tipo, nombre, codigoExcluir: codigo, marca, rubro });
+    if (duplicado) {
+      throw Object.assign(new Error(mensajeNombreDuplicado(tipo, nombre, duplicado, marca, rubro)), { status: 409 });
+    }
+  }
   const cProveedor = tipo === 'MODELO' ? validarCodigoProveedor(cuerpo.cProveedor) : normalizar(cuerpo.cProveedor);
   const datos = tipo === 'MODELO' ? { ...(cuerpo.datos || {}), disciplina: disciplinaModelo, prefijoDisciplina: normalizar(cuerpo.prefijoDisciplina) || null } : (datosModulo || cuerpo.datos);
   return repository.crear({ idEmpresa, tipo, codigo, nombre, cProveedor, licencia: licenciaModelo, marca: normalizar(cuerpo.marca), rubro: normalizar(cuerpo.rubro), datosJson: datos ? JSON.stringify(datos) : null, usuario: usuario || 'SISTEMA' });
@@ -239,6 +254,7 @@ async function previsualizarModelos({ idEmpresa, buffer, contexto = {}, proveedo
   if (!origen.length) throw Object.assign(new Error('El template no contiene modelos para procesar.'), { status: 400 });
   if (origen.length > 500) throw Object.assign(new Error('El template admite hasta 500 modelos por carga.'), { status: 400 });
   const ocupadosLote = [];
+  const nombresLote = new Set();
   const filas = [];
   const catalogoProveedores = proveedores || await maestrosRepository.buscarProveedores({ idEmpresa });
   const proveedoresPorNombre = new Map();
@@ -269,6 +285,11 @@ async function previsualizarModelos({ idEmpresa, buffer, contexto = {}, proveedo
     };
     try {
       if (!datos.nombre) throw Object.assign(new Error('Complete el nombre del modelo.'), { status: 400 });
+      datos.nombre = normalizarNombre(datos.nombre);
+      const claveNombre = `${datos.marca}|${datos.rubro}|${datos.nombre}`;
+      if (nombresLote.has(claveNombre)) throw Object.assign(new Error('El nombre del modelo está repetido dentro del archivo.'), { status: 409 });
+      const duplicado = await repository.buscarNombreDuplicado({ idEmpresa, tipo: 'MODELO', nombre: datos.nombre, marca: datos.marca, rubro: datos.rubro });
+      if (duplicado) throw Object.assign(new Error(mensajeNombreDuplicado('MODELO', datos.nombre, duplicado, datos.marca, datos.rubro)), { status: 409 });
       if (!datos.proveedorNombre) throw Object.assign(new Error('Seleccione el proveedor de la fila.'), { status: 400 });
       const coincidenciasProveedor = proveedoresPorNombre.get(datos.proveedorNombre) || [];
       if (!coincidenciasProveedor.length) throw Object.assign(new Error('El proveedor no coincide con el nombre exacto del maestro.'), { status: 400 });
@@ -280,6 +301,7 @@ async function previsualizarModelos({ idEmpresa, buffer, contexto = {}, proveedo
       datos.estado = 'LISTO';
       datos.error = '';
       ocupadosLote.push(datos.codigo);
+      nombresLote.add(claveNombre);
     } catch (e) {
       datos.codigo = '';
       datos.estado = 'REVISAR';
@@ -316,6 +338,17 @@ async function generarTemplateModelos(idEmpresa) {
 async function crearModelosMasivos({ idEmpresa, usuario, filas }) {
   if (!Array.isArray(filas) || !filas.length) throw Object.assign(new Error('No hay modelos para guardar.'), { status: 400 });
   if (filas.some(x => x.estado !== 'LISTO' || !x.codigo)) throw Object.assign(new Error('Hay filas pendientes de revisión.'), { status: 400 });
+  const nombresLote = new Set();
+  for (const fila of filas) {
+    const nombre = normalizarNombre(fila.nombre);
+    const marca = normalizar(fila.marca);
+    const rubro = normalizar(fila.rubro);
+    const claveNombre = `${marca}|${rubro}|${nombre}`;
+    if (nombresLote.has(claveNombre)) throw Object.assign(new Error(`El nombre del modelo de la fila ${fila.fila || '-'} está repetido dentro del archivo.`), { status: 409 });
+    nombresLote.add(claveNombre);
+    const duplicado = await repository.buscarNombreDuplicado({ idEmpresa, tipo: 'MODELO', nombre, codigoExcluir: normalizar(fila.codigo), marca, rubro });
+    if (duplicado) throw Object.assign(new Error(`Fila ${fila.fila || '-'}: ${mensajeNombreDuplicado('MODELO', nombre, duplicado, marca, rubro)}`), { status: 409 });
+  }
   const catalogoProveedores = await maestrosRepository.buscarProveedores({ idEmpresa });
   for (const fila of filas) {
     const coincide = catalogoProveedores.some(proveedor =>

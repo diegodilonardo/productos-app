@@ -726,6 +726,9 @@ async function mostrarProductosAlta(idAlta) {
   modalProductosAlta ||= new bootstrap.Modal(document.getElementById('modalProductosAlta'));
   setTexto('tituloProductosAlta', alta.CODIGO_ALTA || `Alta ${idAlta}`);
   setTexto('cantidadProductosAlta', '');
+  document.getElementById('filtroModeloProductosAlta').value = '';
+  document.getElementById('filtroColorProductosAlta').value = '';
+  document.getElementById('filtrosProductosAlta').classList.add('d-none');
   document.getElementById('estadoProductosAlta').classList.remove('d-none');
   document.getElementById('estadoProductosAlta').textContent = 'Cargando productos...';
   document.getElementById('contenidoProductosAlta').classList.add('d-none');
@@ -757,35 +760,55 @@ async function mostrarProductosAlta(idAlta) {
       return;
     }
 
-    document.getElementById('tablaProductosAlta').innerHTML = filas.map(item => {
-      const tipo = String(item.TIPO_PRODUCTO_DETALLE || alta.TIPO_PRODUCTO || '').trim().toUpperCase();
-      const curvaTalle = tipo === 'MODULO'
-        ? (item.DETALLE_MODULO || item.CODIGO_MODULO || '-')
-        : (item.DETALLE_TALLE || item.CODIGO_TALLE || '-');
-      const cantidad = tipo === 'MODULO'
-        ? `${Number(item.PARES || 0).toLocaleString('es-AR')} pares`
-        : '1 unidad';
-      const inhabilitado = item.INHABILITADO_PRESEA === true || Number(item.INHABILITADO_PRESEA) === 1 || String(item.C_ESTADIO || '').trim() === '9';
+    const textoBusqueda = valor => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const coincide = (item, modelo, color) => {
+      const textoModelo = textoBusqueda(`${item.CODIGO_MODELO || ''} ${item.DETALLE_MODELO || ''}`);
+      const textoColor = textoBusqueda(`${item.CODIGO_COLOR || ''} ${item.DETALLE_COLOR || ''}`);
+      return (!modelo || textoModelo.includes(modelo)) && (!color || textoColor.includes(color));
+    };
+    const renderizarProductos = () => {
+      const modelo = textoBusqueda(document.getElementById('filtroModeloProductosAlta').value);
+      const color = textoBusqueda(document.getElementById('filtroColorProductosAlta').value);
+      const visibles = filas.filter(item => coincide(item, modelo, color));
+      const registrosVisibles = detalle.filter(item => coincide(item, modelo, color));
 
-      return `
-        <tr class="${inhabilitado ? 'table-danger' : ''}">
-          <td><strong>${escapar(item.DETALLE_MODELO || item.CODIGO_MODELO || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_MODELO || '')}</div></td>
-          <td>${escapar(item.DETALLE_COLOR || item.CODIGO_COLOR || '-')}</td>
-          <td>${escapar(curvaTalle)}</td>
-          <td>${escapar(tipo.replaceAll('_', ' ') || '-')}</td>
-          <td><span class="badge ${inhabilitado ? 'text-bg-danger' : 'text-bg-success'}">${inhabilitado ? 'INHABILITADO' : 'HABILITADO'}</span></td>
-          <td>${escapar(item.DETALLE_CLASIFICACION || item.CODIGO_CLASIFICACION || '-')}</td>
-          <td><strong>${escapar(cantidad)}</strong></td>
-        </tr>
-      `;
-    }).join('');
+      document.getElementById('tablaProductosAlta').innerHTML = visibles.length ? visibles.map(item => {
+        const tipo = String(item.TIPO_PRODUCTO_DETALLE || alta.TIPO_PRODUCTO || '').trim().toUpperCase();
+        const curvaTalle = tipo === 'MODULO'
+          ? (item.DETALLE_MODULO || item.CODIGO_MODULO || '-')
+          : (item.DETALLE_TALLE || item.CODIGO_TALLE || '-');
+        const cantidad = tipo === 'MODULO'
+          ? `${Number(item.PARES || 0).toLocaleString('es-AR')} pares`
+          : '1 unidad';
+        const inhabilitado = item.INHABILITADO_PRESEA === true || Number(item.INHABILITADO_PRESEA) === 1 || String(item.C_ESTADIO || '').trim() === '9';
+
+        return `
+          <tr class="${inhabilitado ? 'table-danger' : ''}">
+            <td><strong>${escapar(item.DETALLE_MODELO || item.CODIGO_MODELO || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_MODELO || '')}</div></td>
+            <td>${escapar(item.DETALLE_COLOR || item.CODIGO_COLOR || '-')}</td>
+            <td>${escapar(curvaTalle)}</td>
+            <td>${escapar(tipo.replaceAll('_', ' ') || '-')}</td>
+            <td><span class="badge ${inhabilitado ? 'text-bg-danger' : 'text-bg-success'}">${inhabilitado ? 'INHABILITADO' : 'HABILITADO'}</span></td>
+            <td>${escapar(item.DETALLE_CLASIFICACION || item.CODIGO_CLASIFICACION || '-')}</td>
+            <td><strong>${escapar(cantidad)}</strong></td>
+          </tr>
+        `;
+      }).join('') : '<tr><td colspan="7" class="py-4 text-center text-secondary">No hay productos que coincidan con los filtros.</td></tr>';
+
+      const filtrando = Boolean(modelo || color);
+      setTexto(
+        'cantidadProductosAlta',
+        `${visibles.length}${filtrando ? ` de ${filas.length}` : ''} combinación${visibles.length === 1 ? '' : 'es'} principal${visibles.length === 1 ? '' : 'es'} · ${registrosVisibles.length}${filtrando ? ` de ${detalle.length}` : ''} registro${registrosVisibles.length === 1 ? '' : 's'} total${registrosVisibles.length === 1 ? '' : 'es'}`
+      );
+    };
+
+    document.getElementById('filtroModeloProductosAlta').oninput = renderizarProductos;
+    document.getElementById('filtroColorProductosAlta').oninput = renderizarProductos;
+    renderizarProductos();
 
     document.getElementById('estadoProductosAlta').classList.add('d-none');
+    document.getElementById('filtrosProductosAlta').classList.remove('d-none');
     document.getElementById('contenidoProductosAlta').classList.remove('d-none');
-    setTexto(
-      'cantidadProductosAlta',
-      `${filas.length} combinación${filas.length === 1 ? '' : 'es'} principal${filas.length === 1 ? '' : 'es'} · ${detalle.length} registro${detalle.length === 1 ? '' : 's'} total${detalle.length === 1 ? '' : 'es'}`
-    );
   } catch (error) {
     document.getElementById('estadoProductosAlta').textContent = error.message;
   }

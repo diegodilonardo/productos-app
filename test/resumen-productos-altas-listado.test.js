@@ -8,6 +8,10 @@ test('las tarjetas y la tabla de Altas permiten consultar el detalle de producto
   const cliente = fs.readFileSync(path.join(__dirname, '../public/js/altas-index.js'), 'utf8');
 
   assert.match(vista, /id="modalProductosAlta"/);
+  assert.match(vista, /id="filtroModeloProductosAlta"/);
+  assert.match(vista, /id="filtroColorProductosAlta"/);
+  assert.match(cliente, /textoModelo\.includes\(modelo\)/);
+  assert.match(cliente, /textoColor\.includes\(color\)/);
   assert.match(vista, />Modelo</);
   assert.match(vista, />Color</);
   assert.match(vista, />Curva \/ Talle</);

@@ -243,6 +243,16 @@
       </div>
       <div class="modal-body p-0">
         <div id="estadoProductosAlta" class="p-4 text-center text-secondary">Cargando productos...</div>
+        <div id="filtrosProductosAlta" class="altas-products-filters d-none">
+          <div>
+            <label for="filtroModeloProductosAlta" class="form-label">Modelo</label>
+            <input type="search" id="filtroModeloProductosAlta" class="form-control" placeholder="Código o nombre del modelo..." autocomplete="off">
+          </div>
+          <div>
+            <label for="filtroColorProductosAlta" class="form-label">Color</label>
+            <input type="search" id="filtroColorProductosAlta" class="form-control" placeholder="Código o nombre del color..." autocomplete="off">
+          </div>
+        </div>
         <div id="contenidoProductosAlta" class="table-responsive d-none">
           <table class="table align-middle mb-0 altas-products-table">
             <thead>
@@ -268,4 +278,4 @@
   </div>
 </div>
 
-<script src="/js/altas-index.js?v=9"></script>
+<script src="/js/altas-index.js?v=10"></script>

@@ -80,6 +80,60 @@ async function listarModelosParaSugerencia(idEmpresa) {
   return r.recordset;
 }
 
+async function buscarNombreDuplicado({ idEmpresa, tipo, nombre, codigoExcluir = '', marca = '', rubro = '' }) {
+  if (!['COLOR', 'MODELO'].includes(tipo)) return null;
+  const pool = await getConnection();
+  const r = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('TIPO', sql.VarChar(20), tipo)
+    .input('NOMBRE', sql.VarChar(100), nombre)
+    .input('CODIGO_EXCLUIR', sql.VarChar(20), codigoExcluir)
+    .input('MARCA', sql.VarChar(20), marca)
+    .input('RUBRO', sql.VarChar(20), rubro)
+    .query(`
+      DECLARE @NOMBRE_NORMALIZADO VARCHAR(100) = UPPER(LTRIM(RTRIM(@NOMBRE)));
+
+      IF @TIPO='COLOR'
+      BEGIN
+        SELECT TOP 1 CODIGO, NOMBRE, ORIGEN
+        FROM (
+          SELECT CODIGO_COLOR CODIGO, DETALLE_COLOR NOMBRE, 'MAESTRO' ORIGEN
+          FROM dbo.MAESTRO_COLORES
+          WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
+            AND UPPER(LTRIM(RTRIM(DETALLE_COLOR)))=@NOMBRE_NORMALIZADO
+            AND UPPER(LTRIM(RTRIM(CODIGO_COLOR)))<>UPPER(LTRIM(RTRIM(@CODIGO_EXCLUIR)))
+          UNION ALL
+          SELECT CODIGO, NOMBRE, 'SOLICITUD' ORIGEN
+          FROM dbo.ALTAS_MAESTROS
+          WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO='COLOR' AND ESTADO<>'ANULADO'
+            AND UPPER(LTRIM(RTRIM(NOMBRE)))=@NOMBRE_NORMALIZADO
+            AND UPPER(LTRIM(RTRIM(CODIGO)))<>UPPER(LTRIM(RTRIM(@CODIGO_EXCLUIR)))
+        ) DUPLICADOS;
+      END
+      ELSE
+      BEGIN
+        SELECT TOP 1 CODIGO, NOMBRE, ORIGEN
+        FROM (
+          SELECT CODIGO_MODELO CODIGO, DETALLE_MODELO NOMBRE, 'MAESTRO' ORIGEN
+          FROM dbo.MAESTRO_MODELOS
+          WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
+            AND UPPER(LTRIM(RTRIM(DETALLE_MODELO)))=@NOMBRE_NORMALIZADO
+            AND UPPER(LTRIM(RTRIM(MARCA_MODELO)))=UPPER(LTRIM(RTRIM(@MARCA)))
+            AND UPPER(LTRIM(RTRIM(RUBRO_MODELO)))=UPPER(LTRIM(RTRIM(@RUBRO)))
+            AND UPPER(LTRIM(RTRIM(CODIGO_MODELO)))<>UPPER(LTRIM(RTRIM(@CODIGO_EXCLUIR)))
+          UNION ALL
+          SELECT CODIGO, NOMBRE, 'SOLICITUD' ORIGEN
+          FROM dbo.ALTAS_MAESTROS
+          WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO='MODELO' AND ESTADO<>'ANULADO'
+            AND UPPER(LTRIM(RTRIM(NOMBRE)))=@NOMBRE_NORMALIZADO
+            AND UPPER(LTRIM(RTRIM(MARCA)))=UPPER(LTRIM(RTRIM(@MARCA)))
+            AND UPPER(LTRIM(RTRIM(RUBRO)))=UPPER(LTRIM(RTRIM(@RUBRO)))
+            AND UPPER(LTRIM(RTRIM(CODIGO)))<>UPPER(LTRIM(RTRIM(@CODIGO_EXCLUIR)))
+        ) DUPLICADOS;
+      END`);
+  return r.recordset[0] || null;
+}
+
 async function crear(datos) {
   const pool = await getConnection();
   const r = await pool.request()
@@ -230,4 +284,4 @@ async function eliminarReglaEan(idEmpresa, idRegla, usuario) {
   return r.recordset[0] || null;
 }
 
-module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, guardarReglaEan, eliminarReglaEan };
+module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, buscarNombreDuplicado, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, guardarReglaEan, eliminarReglaEan };

@@ -9,6 +9,7 @@ let secuenciaBusquedaModelo = 0;
 let modulos = [];
 let modulosFiltrados = [];
 let codigosModulosSeleccionados = [];
+let zonaImagenPegadoActiva = null;
 let tallesParSuelto = [];
 let clasificacionesMaestro = [];
 let familiasSeleccionadas = new Set();
@@ -3186,6 +3187,12 @@ function configurarEventos() {
     .addEventListener('drop', manejarDropImagenDetalle);
 
   document
+    .getElementById('tablaProductosAlta')
+    .addEventListener('click', activarZonaPegadoImagen);
+
+  document.addEventListener('paste', manejarPegadoImagenDetalle);
+
+  document
     .getElementById('filtroProductosTexto')
     ?.addEventListener('input', aplicarFiltrosProductos);
 
@@ -3587,7 +3594,8 @@ function htmlImagenFamilia(
       class="alta-family-image${editable ? ' alta-family-image--editable' : ''}"
       data-id-imagen="${escapar(id)}"
       data-imagen-editable="${editable ? 'true' : 'false'}"
-      title="${escapar(nombre)}.JPG / PNG${editable ? ' · También podés arrastrar la imagen aquí' : ''}"
+      ${editable ? 'tabindex="0"' : ''}
+      title="${escapar(nombre)}.JPG / PNG${editable ? ' · Arrastrá o pegá con Ctrl+V' : ''}"
     >
       <div class="alta-family-image-preview">
         <div
@@ -3640,6 +3648,10 @@ function htmlImagenFamilia(
                   )}"
                 >
               </label>
+
+              <small class="text-secondary d-block mt-1">
+                Arrastrá o pegá con Ctrl+V
+              </small>
 
             </div>
           `
@@ -3998,6 +4010,39 @@ async function manejarDropImagenDetalle(
     { target: input },
     archivo
   );
+}
+
+
+function activarZonaPegadoImagen(event) {
+  const zona = zonaArrastreImagenDetalle(event);
+  if (!zona) return;
+  zonaImagenPegadoActiva = zona;
+  zona.focus({ preventScroll: true });
+}
+
+
+async function manejarPegadoImagenDetalle(event) {
+  const editableTexto = event.target.closest?.('input, textarea, [contenteditable="true"]');
+  if (editableTexto && !event.target.closest?.('.alta-family-image')) return;
+
+  const zona = event.target.closest?.('.alta-family-image[data-imagen-editable="true"]') || zonaImagenPegadoActiva;
+  if (!zona || !document.body.contains(zona)) return;
+
+  const imagenes = [...(event.clipboardData?.items || [])]
+    .filter(item => item.kind === 'file' && ['image/jpeg', 'image/png'].includes(item.type))
+    .map(item => item.getAsFile())
+    .filter(Boolean);
+
+  if (!imagenes.length) return;
+  event.preventDefault();
+
+  if (imagenes.length > 1) {
+    mostrarAlerta('Se pegaron varias imágenes. Se utilizará solamente la primera.', 'warning');
+  }
+
+  const input = zona.querySelector('[data-accion="seleccionar-imagen-familia"]');
+  if (!input) return;
+  await manejarCambioImagenDetalle({ target: input }, imagenes[0]);
 }
 
 

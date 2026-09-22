@@ -251,6 +251,21 @@ test('otras marcas continúan el máximo de la serie correspondiente a marca y r
   } finally { repository.listarModelosParaSugerencia = original; }
 });
 
+test('prioriza un modelo anulado disponible antes de continuar la numeración', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  repository.listarModelosParaSugerencia = async () => [
+    { CODIGO: 'MC1305', MARCA: 'MASSIMO', RUBRO: 'CALZADO', LICENCIA: 'SIN LICENCIA' },
+    { CODIGO: 'MC1307', MARCA: 'MASSIMO', RUBRO: 'CALZADO', LICENCIA: 'SIN LICENCIA' },
+    { CODIGO: 'MC1308', MARCA: 'MASSIMO', RUBRO: 'CALZADO', LICENCIA: 'SIN LICENCIA' },
+    { CODIGO: 'MC1306', MARCA: 'MASSIMO', RUBRO: 'CALZADO', LICENCIA: 'SIN LICENCIA', DATOS_JSON: '{}', REUTILIZABLE: true }
+  ];
+  try {
+    assert.equal(await service.sugerirCodigoModelo(3, { marca: 'MASSIMO', rubro: 'CALZADO', licencia: 'SIN LICENCIA' }), 'MC1306');
+  } finally {
+    repository.listarModelosParaSugerencia = original;
+  }
+});
+
 test('una licencia nueva exige dos caracteres todavía no utilizados', async () => {
   const original = repository.listarModelosParaSugerencia;
   repository.listarModelosParaSugerencia = async () => [{ CODIGO: 'AB0000', MARCA: 'ATOMIK', RUBRO: '01', LICENCIA: 'MARVEL' }];

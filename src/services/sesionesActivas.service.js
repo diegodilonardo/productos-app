@@ -9,17 +9,27 @@ function registrar(req) {
   if (!usuario || !idSesion) return;
   const ahora = new Date();
   const anterior = sesiones.get(idSesion);
-  const idEmpresa = Number(req.get?.('x-id-empresa')) || null;
-  const acceso = idEmpresa
-    ? (usuario.empresas || []).find(item => Number(item.idEmpresa) === idEmpresa)
+  const empresas = Array.isArray(usuario.empresas) ? usuario.empresas : [];
+  const idEmpresaSolicitada = Number(req.get?.('x-id-empresa')) || null;
+  const accesoSolicitado = idEmpresaSolicitada
+    ? empresas.find(item => Number(item.idEmpresa) === idEmpresaSolicitada)
     : null;
+  const accesoUnico = empresas.length === 1 ? empresas[0] : null;
+  const empresaAnterior = texto(anterior?.empresa);
+  const empresaResuelta = texto(
+    accesoSolicitado?.empresa ||
+    accesoSolicitado?.codigoEmpresa ||
+    empresaAnterior ||
+    accesoUnico?.empresa ||
+    accesoUnico?.codigoEmpresa
+  );
   sesiones.set(idSesion, {
     idSesion,
     idUsuario: Number(usuario.idUsuario) || null,
     usuario: texto(usuario.usuario),
     nombre: texto(usuario.nombre) || texto(usuario.usuario),
     superAdmin: Boolean(usuario.superAdmin),
-    empresa: texto(acceso?.empresa || acceso?.codigoEmpresa),
+    empresa: empresaResuelta,
     fechaInicio: anterior?.fechaInicio || ahora,
     ultimaActividad: ahora
   });

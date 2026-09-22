@@ -119,19 +119,33 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   const prefijoDisciplina = normalizar(filtros.prefijoDisciplina);
   if (!marca || !rubro || !licencia || !disciplina) throw Object.assign(new Error('Seleccione marca, rubro, licencia y disciplina antes de sugerir el modelo.'), { status: 400 });
   const modelos = await repository.listarModelosParaSugerencia(idEmpresa);
-  const ocupados = new Set([...modelos.map(x => normalizar(x.CODIGO)), ...(filtros.ocupadosAdicionales || []).map(normalizar)]);
-  if (marca !== 'ATOMIK') return sugerirPorMarcaYRubro(modelos, ocupados, marca, rubro);
+  const modelosVigentes = modelos.filter(x => x.REUTILIZABLE !== true && x.REUTILIZABLE !== 1);
+  const anuladosDisponibles = modelos.filter(x => x.REUTILIZABLE === true || x.REUTILIZABLE === 1);
+  const ocupados = new Set([...modelosVigentes.map(x => normalizar(x.CODIGO)), ...(filtros.ocupadosAdicionales || []).map(normalizar)]);
+  const codigoAnulado = anuladosDisponibles.find(item => {
+    if (normalizar(item.MARCA) !== marca || normalizar(item.RUBRO) !== rubro) return false;
+    if (normalizarLicencia(item.LICENCIA) !== licencia || ocupados.has(normalizar(item.CODIGO))) return false;
+    if (licencia !== 'SIN LICENCIA') return true;
+    try {
+      const datos = JSON.parse(item.DATOS_JSON || '{}');
+      return normalizarDisciplina(datos.disciplina) === disciplina;
+    } catch (_) {
+      return disciplina === 'SIN DISCIPLINA';
+    }
+  });
+  if (codigoAnulado) return normalizar(codigoAnulado.CODIGO);
+  if (marca !== 'ATOMIK') return sugerirPorMarcaYRubro(modelosVigentes, ocupados, marca, rubro);
   let prefijo;
   let largoCorrelativo = 4;
   let ultimoConfirmado = -1;
   let correlativoSoloNumerico = false;
   if (nuevaLicencia) {
     if (!/^[A-Z0-9]{2}$/.test(prefijoNuevo)) throw Object.assign(new Error('Para una licencia nueva indique sus 2 primeros caracteres.'), { status: 400 });
-    if (modelos.some(x => normalizar(x.CODIGO).startsWith(prefijoNuevo))) throw Object.assign(new Error(`Los primeros caracteres ${prefijoNuevo} ya están utilizados por otra licencia.`), { status: 409 });
+    if (modelosVigentes.some(x => normalizar(x.CODIGO).startsWith(prefijoNuevo))) throw Object.assign(new Error(`Los primeros caracteres ${prefijoNuevo} ya están utilizados por otra licencia.`), { status: 409 });
     prefijo = prefijoNuevo;
     correlativoSoloNumerico = true;
   } else {
-    const mismaLicencia = modelos.filter(x => normalizar(x.LICENCIA || 'SIN LICENCIA') === licencia);
+    const mismaLicencia = modelosVigentes.filter(x => normalizar(x.LICENCIA || 'SIN LICENCIA') === licencia);
     if (licencia === 'SIN LICENCIA') {
       const serieConfirmada = marca === 'ATOMIK' ? seriesModeloSinLicencia[`${rubro}|${disciplina}`] : null;
       if (serieConfirmada) { ({ prefijo, largoCorrelativo, ultimoConfirmado } = serieConfirmada); correlativoSoloNumerico = true; }

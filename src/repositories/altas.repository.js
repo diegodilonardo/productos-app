@@ -262,6 +262,10 @@ async function listarAltas(idEmpresa) {
 
                 ,PB.PRODUCTOS_BUSQUEDA
 
+                ,CASE WHEN FE.ID_ENVIO IS NULL THEN CONVERT(BIT, 0) ELSE CONVERT(BIT, 1) END AS FOTOS_EN_PRESEA
+                ,FE.FECHA_ENVIO AS FECHA_FOTOS_PRESEA
+                ,FE.CANTIDAD_FOTOS AS CANTIDAD_FOTOS_PRESEA
+
             FROM dbo.ALTAS_PRODUCTOS A
             OUTER APPLY (
                 SELECT STUFF((
@@ -279,6 +283,16 @@ async function listarAltas(idEmpresa) {
                     FOR XML PATH(''), TYPE
                 ).value('.', 'VARCHAR(MAX)'), 1, 1, '') AS PRODUCTOS_BUSQUEDA
             ) PB
+            OUTER APPLY (
+                SELECT TOP 1
+                    E.ID_ENVIO,
+                    E.FECHA_ENVIO,
+                    E.CANTIDAD_COPIADAS + E.CANTIDAD_SIN_CAMBIOS AS CANTIDAD_FOTOS
+                FROM dbo.ALTAS_PRODUCTOS_FOTOS_ERP_ENVIOS E
+                WHERE E.ID_EMPRESA = A.ID_EMPRESA
+                  AND E.ID_ALTA = A.ID_ALTA
+                ORDER BY E.ID_ENVIO DESC
+            ) FE
             WHERE A.ID_EMPRESA = @ID_EMPRESA
 
             ORDER BY

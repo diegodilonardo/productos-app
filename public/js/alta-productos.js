@@ -5775,9 +5775,22 @@ async function descargarImagenesAlta() {
 async function enviarFotosErp() {
   const btn = document.getElementById('btnEnviarFotosErp');
   if (!confirm('¿Enviar las fotos de esta Alta a la carpeta de ERP correspondiente a su empresa y marca?')) return;
+  let seguirConsultando = true;
+  const consultarProgreso = async () => {
+    while (seguirConsultando) {
+      try {
+        const respuesta = await fetch(`/api/altas/${ID_ALTA}/fotos-erp/estado`, { headers: { Accept: 'application/json' } });
+        const datos = await respuesta.json();
+        if (respuesta.ok) pintarProgresoFotosErp(datos.resultado || {});
+      } catch (_) {}
+      if (seguirConsultando) await new Promise(resolve => setTimeout(resolve, 350));
+    }
+  };
   try {
     btn.disabled = true;
     btn.textContent = 'Enviando fotos...';
+    mostrarProgresoFotosErp();
+    const sondeo = consultarProgreso();
     const respuesta = await fetch(`/api/altas/${ID_ALTA}/fotos-erp`, {
       method: 'POST',
       headers: { Accept: 'application/json' }
@@ -5787,17 +5800,52 @@ async function enviarFotosErp() {
       throw new Error(datos?.mensaje || `No se pudieron enviar las fotos (${respuesta.status}).`);
     }
     const resultado = datos.resultado || {};
+    seguirConsultando = false;
+    await sondeo;
+    pintarProgresoFotosErp({
+      estado: 'COMPLETADO', total: resultado.cantidad, procesadas: resultado.cantidad,
+      copiadas: resultado.copiadas, sinCambios: resultado.sinCambios, porcentaje: 100
+    });
+    const copiadas = Number(resultado.copiadas || 0);
+    const existentes = Number(resultado.sinCambios || 0);
+    const resumen = [
+      copiadas ? `${copiadas} ${copiadas === 1 ? 'foto copiada' : 'fotos copiadas'}` : '',
+      existentes ? `${existentes} ${existentes === 1 ? 'foto ya existía' : 'fotos ya existían'} en destino` : ''
+    ].filter(Boolean).join(' y ');
     mostrarAlerta(
-      `Fotos enviadas a ERP: ${Number(resultado.copiadas || 0)} copiadas y ` +
-      `${Number(resultado.sinCambios || 0)} sin cambios. Destino: ${resultado.rutaDestino || '-'}.`,
+      `Fotos enviadas a ERP: ${resumen || 'no se procesaron fotos'}. ` +
+      `Destino: ${resultado.rutaDestino || '-'}.`,
       'success'
     );
   } catch (error) {
+    seguirConsultando = false;
     mostrarAlerta(error.message, 'danger');
   } finally {
+    seguirConsultando = false;
     btn.textContent = 'Enviar fotos a ERP';
     actualizarControlesEstado();
   }
+}
+
+function mostrarProgresoFotosErp() {
+  document.getElementById('progresoFotosErp')?.classList.remove('d-none');
+  pintarProgresoFotosErp({ estado: 'EN_CURSO', total: 0, procesadas: 0, porcentaje: 0 });
+}
+
+function pintarProgresoFotosErp(progreso) {
+  const porcentaje = Math.max(0, Math.min(100, Number(progreso.porcentaje || 0)));
+  const total = Number(progreso.total || 0);
+  const procesadas = Number(progreso.procesadas || 0);
+  const barra = document.getElementById('barraProgresoFotosErp');
+  const contenedor = document.getElementById('progresoFotosErp');
+  if (!barra || !contenedor) return;
+  contenedor.classList.remove('d-none');
+  barra.style.width = `${porcentaje}%`;
+  barra.classList.toggle('progress-bar-animated', progreso.estado === 'EN_CURSO');
+  document.getElementById('porcentajeFotosErp').textContent = `${porcentaje}%`;
+  document.getElementById('textoProgresoFotosErp').textContent = total
+    ? `${procesadas} de ${total} fotos procesadas`
+    : 'Preparando fotos...';
 }
 
 function valorDetalle(fila, campo) {

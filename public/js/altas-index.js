@@ -26,6 +26,11 @@ async function iniciarPantallaAltas() {
     .getElementById('filtroEstadoAlta')
     .addEventListener('change', pintarAltasFiltradas);
 
+  ['filtroAnoAlta', 'filtroTemporadaAlta', 'filtroRubroAlta', 'filtroLicenciaAlta']
+    .forEach(id => document.getElementById(id)?.addEventListener('change', pintarAltasFiltradas));
+
+  document.getElementById('btnLimpiarFiltrosAltas')?.addEventListener('click', limpiarFiltrosAltas);
+
   document
     .getElementById('mostrarAnuladasAlta')
     .addEventListener('change', cambiarVisibilidadAnuladasAlta);
@@ -105,6 +110,7 @@ async function cargarAltas() {
     altasCargadas =
       normalizarListaAltas(data);
 
+    completarFiltrosAltas();
     pintarContadores();
     pintarAltasFiltradas();
 
@@ -222,6 +228,11 @@ function pintarAltasFiltradas() {
       .trim()
       .toUpperCase();
 
+  const anoFiltro = valorFiltroAlta('filtroAnoAlta');
+  const temporadaFiltro = valorFiltroAlta('filtroTemporadaAlta');
+  const rubroFiltro = valorFiltroAlta('filtroRubroAlta');
+  const licenciaFiltro = valorFiltroAlta('filtroLicenciaAlta');
+
   const mostrarAnuladas =
     document
       .getElementById('mostrarAnuladasAlta')
@@ -250,6 +261,12 @@ function pintarAltasFiltradas() {
         return false;
       }
 
+      if (anoFiltro && normalizarFiltroAlta(item.CODIGO_ANO) !== anoFiltro) return false;
+      if (temporadaFiltro && normalizarFiltroAlta(item.CODIGO_TEMPORADA) !== temporadaFiltro) return false;
+      if (rubroFiltro && normalizarFiltroAlta(item.CODIGO_RUBRO) !== rubroFiltro) return false;
+      const licencia = normalizarFiltroAlta(normalizarLicenciaAlta(item) || 'SIN LICENCIA');
+      if (licenciaFiltro && licencia !== licenciaFiltro) return false;
+
       if (!texto) {
         return true;
       }
@@ -277,6 +294,60 @@ function pintarAltasFiltradas() {
 
   pintarTarjetasAltas(filtradas);
   pintarTablaAltas(filtradas);
+}
+
+function normalizarFiltroAlta(valor) {
+  return String(valor ?? '').trim().toUpperCase();
+}
+
+function valorFiltroAlta(id) {
+  return normalizarFiltroAlta(document.getElementById(id)?.value);
+}
+
+function completarFiltrosAltas() {
+  poblarFiltroAlta('filtroAnoAlta', 'Todos los años', altasCargadas.map(alta => ({
+    valor: alta.CODIGO_ANO,
+    etiqueta: alta.CODIGO_ANO
+  })));
+  poblarFiltroAlta('filtroTemporadaAlta', 'Todas las temporadas', altasCargadas.map(alta => ({
+    valor: alta.CODIGO_TEMPORADA,
+    etiqueta: alta.DETALLE_TEMPORADA || alta.CODIGO_TEMPORADA
+  })));
+  poblarFiltroAlta('filtroRubroAlta', 'Todos los rubros', altasCargadas.map(alta => ({
+    valor: alta.CODIGO_RUBRO,
+    etiqueta: alta.DETALLE_RUBRO || alta.CODIGO_RUBRO
+  })));
+  poblarFiltroAlta('filtroLicenciaAlta', 'Todas las licencias', altasCargadas.map(alta => ({
+    valor: normalizarLicenciaAlta(alta) || 'SIN LICENCIA',
+    etiqueta: normalizarLicenciaAlta(alta) || 'SIN LICENCIA'
+  })));
+}
+
+function poblarFiltroAlta(id, opcionTodos, opciones) {
+  const select = document.getElementById(id);
+  if (!select) return;
+  const seleccionado = normalizarFiltroAlta(select.value);
+  const unicas = new Map();
+  for (const opcion of opciones) {
+    const valor = normalizarFiltroAlta(opcion.valor);
+    if (valor && !unicas.has(valor)) unicas.set(valor, String(opcion.etiqueta || opcion.valor).trim());
+  }
+  select.innerHTML = `<option value="">${opcionTodos}</option>` +
+    [...unicas.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1], 'es', { numeric: true }))
+      .map(([valor, etiqueta]) => `<option value="${escapar(valor)}">${escapar(etiqueta)}</option>`)
+      .join('');
+  if (seleccionado && unicas.has(seleccionado)) select.value = seleccionado;
+}
+
+function limpiarFiltrosAltas() {
+  document.getElementById('buscarAlta').value = '';
+  document.getElementById('filtroEstadoAlta').value = '';
+  for (const id of ['filtroAnoAlta', 'filtroTemporadaAlta', 'filtroRubroAlta', 'filtroLicenciaAlta']) {
+    const select = document.getElementById(id);
+    if (select) select.value = '';
+  }
+  pintarAltasFiltradas();
 }
 
 function cambiarVisibilidadAnuladasAlta(event) {
@@ -332,6 +403,8 @@ function pintarTarjetasAltas(filas) {
     const cantidad = alta.CANTIDAD_PRODUCTOS ?? alta.cantidadProductos ?? 0;
     const cantidadModulos = alta.CANTIDAD_MODULOS ?? alta.cantidadModulos ?? 0;
     const inhabilitados = Number(alta.CANTIDAD_PRODUCTOS_INHABILITADOS ?? alta.cantidadProductosInhabilitados ?? 0);
+    const fotosEnPresea = alta.FOTOS_EN_PRESEA === true || Number(alta.FOTOS_EN_PRESEA) === 1;
+    const cantidadFotosPresea = Number(alta.CANTIDAD_FOTOS_PRESEA || 0);
     const temporada = alta.DETALLE_TEMPORADA ?? alta.CODIGO_TEMPORADA ?? '-';
     const motivo = alta.MOTIVO_ANULACION ?? alta.motivoAnulacion ?? 'Sin motivo informado';
 
@@ -342,7 +415,10 @@ function pintarTarjetasAltas(filas) {
             <div class="altas-code">${escapar(alta.CODIGO_ALTA ?? '-')}</div>
             <div class="altas-id">ID ${escapar(id ?? '-')}</div>
           </div>
-          <span class="badge ${claseEstado(estado)}">${escapar(estado)}</span>
+          <div class="d-flex flex-column align-items-end gap-1">
+            <span class="badge ${claseEstado(estado)}">${escapar(estado)}</span>
+            ${fotosEnPresea ? `<span class="badge text-bg-primary" title="${escapar(cantidadFotosPresea)} foto${cantidadFotosPresea === 1 ? '' : 's'} enviada${cantidadFotosPresea === 1 ? '' : 's'} a Presea">FOTOS EN PRESEA</span>` : ''}
+          </div>
         </div>
 
         <div class="alta-summary-brand">

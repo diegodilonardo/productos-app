@@ -30,6 +30,17 @@ test('el detalle del Alta ofrece enviar fotos sueltas a ERP y registra el envío
   const repositorio = fs.readFileSync(path.resolve(__dirname, '../src/repositories/imagenesAlta.repository.js'), 'utf8');
   assert.match(vista, /Enviar fotos a ERP/);
   assert.match(frontend, /\/fotos-erp/);
+  assert.match(frontend, /fotos ya existían/);
+  assert.match(frontend, /pintarProgresoFotosErp/);
+  assert.match(vista, /id="barraProgresoFotosErp"/);
   assert.match(rutas, /router\.post\('\/:id\/fotos-erp'/);
   assert.match(repositorio, /ALTAS_PRODUCTOS_FOTOS_ERP_ENVIOS/);
+});
+
+test('las tarjetas de Altas indican cuando las fotos ya fueron enviadas a Presea', () => {
+  const repositorio = fs.readFileSync(path.resolve(__dirname, '../src/repositories/altas.repository.js'), 'utf8');
+  const frontend = fs.readFileSync(path.resolve(__dirname, '../public/js/altas-index.js'), 'utf8');
+  assert.match(repositorio, /AS FOTOS_EN_PRESEA/);
+  assert.match(repositorio, /ALTAS_PRODUCTOS_FOTOS_ERP_ENVIOS/);
+  assert.match(frontend, /FOTOS EN PRESEA/);
 });

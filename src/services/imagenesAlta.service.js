@@ -15,7 +15,7 @@ const ESTADOS_HABILITADOS = new Set([
   'SIN_NOVEDADES_ERP'
 ]);
 const ESTADOS_ENVIO_ERP = new Set(['GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP']);
-const enviosFotosEnCurso = new Set();
+const estadoEnviosFotos = new Map();
 
 function texto(valor) {
   return String(valor ?? '').trim();
@@ -303,9 +303,13 @@ async function listarFamiliasSinImagen(alta, detalle, datos = {}) {
 async function enviarFotosAltaErp(idAlta, datos = {}) {
   const id = Number(idAlta);
   if (!Number.isInteger(id) || id <= 0) throw new Error('ID_ALTA inválido.');
-  if (enviosFotosEnCurso.has(id)) throw new Error('Ya hay un envío de fotos en curso para esta Alta.');
+  if (estadoEnviosFotos.get(id)?.estado === 'EN_CURSO') {
+    throw new Error('Ya hay un envío de fotos en curso para esta Alta.');
+  }
 
-  enviosFotosEnCurso.add(id);
+  estadoEnviosFotos.set(id, {
+    estado: 'EN_CURSO', total: 0, procesadas: 0, copiadas: 0, sinCambios: 0, porcentaje: 0
+  });
   try {
     const alta = await altasRepository.obtenerAltaPorId(id);
     if (!alta) throw new Error('Alta no encontrada.');
@@ -315,6 +319,13 @@ async function enviarFotosAltaErp(idAlta, datos = {}) {
     }
 
     const paquete = await prepararDescargaImagenesAlta(id);
+    const imagenes = paquete.archivos.filter(imagen =>
+      EXTENSIONES.includes(path.extname(imagen.archivo).toLowerCase())
+    );
+    estadoEnviosFotos.set(id, {
+      estado: 'EN_CURSO', total: imagenes.length, procesadas: 0,
+      copiadas: 0, sinCambios: 0, porcentaje: 0
+    });
     const destino = rutaFotosErp(alta);
     await fs.promises.mkdir(destino, { recursive: true });
     await fs.promises.access(destino, fs.constants.W_OK);
@@ -322,7 +333,7 @@ async function enviarFotosAltaErp(idAlta, datos = {}) {
     let copiadas = 0;
     let sinCambios = 0;
     const archivos = [];
-    for (const imagen of paquete.archivos) {
+    for (const imagen of imagenes) {
       const extension = path.extname(imagen.archivo).toLowerCase();
       if (!EXTENSIONES.includes(extension)) continue;
       const nombre = nombreSeguro(path.basename(imagen.archivo));
@@ -336,6 +347,7 @@ async function enviarFotosAltaErp(idAlta, datos = {}) {
       if (igual) {
         sinCambios++;
         archivos.push({ nombre, estado: 'SIN_CAMBIOS' });
+        actualizarProgresoEnvio(id, imagenes.length, archivos.length, copiadas, sinCambios);
         continue;
       }
       await fs.promises.copyFile(imagen.archivo, archivoDestino);
@@ -344,6 +356,7 @@ async function enviarFotosAltaErp(idAlta, datos = {}) {
       }
       copiadas++;
       archivos.push({ nombre, estado: 'COPIADA' });
+      actualizarProgresoEnvio(id, imagenes.length, archivos.length, copiadas, sinCambios);
     }
     if (!archivos.length) throw new Error('El Alta no tiene fotos JPG o PNG para enviar.');
 
@@ -355,15 +368,38 @@ async function enviarFotosAltaErp(idAlta, datos = {}) {
       cantidadSinCambios: sinCambios,
       usuario: texto(datos.usuario) || 'SISTEMA'
     });
-    return { rutaDestino: destino, cantidad: archivos.length, copiadas, sinCambios, archivos };
+    const resultado = { rutaDestino: destino, cantidad: archivos.length, copiadas, sinCambios, archivos };
+    estadoEnviosFotos.set(id, {
+      estado: 'COMPLETADO', total: archivos.length, procesadas: archivos.length,
+      copiadas, sinCambios, porcentaje: 100
+    });
+    return resultado;
   } catch (error) {
+    estadoEnviosFotos.set(id, {
+      ...(estadoEnviosFotos.get(id) || {}), estado: 'ERROR', mensaje: error.message
+    });
     if (['EACCES', 'EPERM', 'ENOENT'].includes(error?.code)) {
       throw new Error(`No se pudo acceder a la carpeta de fotos de Presea. Verificá permisos del servicio ProductosApp. Detalle: ${error.message}`);
     }
     throw error;
   } finally {
-    enviosFotosEnCurso.delete(id);
+    const temporizador = setTimeout(() => estadoEnviosFotos.delete(id), 60000);
+    temporizador.unref?.();
   }
+}
+
+function actualizarProgresoEnvio(idAlta, total, procesadas, copiadas, sinCambios) {
+  estadoEnviosFotos.set(Number(idAlta), {
+    estado: 'EN_CURSO', total, procesadas, copiadas, sinCambios,
+    porcentaje: total > 0 ? Math.round((procesadas * 100) / total) : 0
+  });
+}
+
+function obtenerEstadoEnvioFotosErp(idAlta) {
+  const id = Number(idAlta);
+  return estadoEnviosFotos.get(id) || {
+    estado: 'SIN_PROCESO', total: 0, procesadas: 0, copiadas: 0, sinCambios: 0, porcentaje: 0
+  };
 }
 
 module.exports = {
@@ -372,5 +408,6 @@ module.exports = {
   listarFamiliasSinImagen,
   registrarImagenFamilia,
   enviarFotosAltaErp,
-  rutaFotosErp
+  rutaFotosErp,
+  obtenerEstadoEnvioFotosErp
 };

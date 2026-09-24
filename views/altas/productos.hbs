@@ -669,6 +669,16 @@
                 Enviar fotos a ERP
               </button>
 
+              <div id="progresoFotosErp" class="d-none" aria-live="polite">
+                <div class="d-flex justify-content-between small mb-1">
+                  <span id="textoProgresoFotosErp">Preparando fotos...</span>
+                  <strong id="porcentajeFotosErp">0%</strong>
+                </div>
+                <div class="progress" role="progressbar" aria-label="Progreso del envío de fotos" aria-valuemin="0" aria-valuemax="100">
+                  <div id="barraProgresoFotosErp" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+                </div>
+              </div>
+
               <button
                 id="btnAnularAlta"
                 type="button"

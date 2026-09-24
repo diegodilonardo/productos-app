@@ -432,6 +432,13 @@ router.post('/:id/fotos-erp', requerirAccesoAlta, requerirEscrituraEmpresa, asyn
     }
 });
 
+router.get('/:id/fotos-erp/estado', requerirAccesoAlta, async (req, res) => {
+    return res.json({
+        ok: true,
+        resultado: imagenesAltaService.obtenerEstadoEnvioFotosErp(req.params.id)
+    });
+});
+
 
 /* ============================================================
    BUSCAR MODELOS DEL ALTA

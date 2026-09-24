@@ -196,18 +196,22 @@
         </div>
 
         <div class="altas-filter-row">
-          <select id="filtroAnoAlta" class="form-select form-select-sm" aria-label="Filtrar por año">
-            <option value="">Todos los años</option>
-          </select>
-          <select id="filtroTemporadaAlta" class="form-select form-select-sm" aria-label="Filtrar por temporada">
-            <option value="">Todas las temporadas</option>
-          </select>
-          <select id="filtroRubroAlta" class="form-select form-select-sm" aria-label="Filtrar por rubro">
-            <option value="">Todos los rubros</option>
-          </select>
-          <select id="filtroLicenciaAlta" class="form-select form-select-sm" aria-label="Filtrar por licencia">
-            <option value="">Todas las licencias</option>
-          </select>
+          <div id="filtroAnoAlta" class="dropdown altas-multifilter">
+            <button id="btnFiltroAnoAlta" class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">Todos los años</button>
+            <div id="opcionesFiltroAnoAlta" class="dropdown-menu altas-multifilter-menu"></div>
+          </div>
+          <div id="filtroTemporadaAlta" class="dropdown altas-multifilter">
+            <button id="btnFiltroTemporadaAlta" class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">Todas las temporadas</button>
+            <div id="opcionesFiltroTemporadaAlta" class="dropdown-menu altas-multifilter-menu"></div>
+          </div>
+          <div id="filtroRubroAlta" class="dropdown altas-multifilter">
+            <button id="btnFiltroRubroAlta" class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">Todos los rubros</button>
+            <div id="opcionesFiltroRubroAlta" class="dropdown-menu altas-multifilter-menu"></div>
+          </div>
+          <div id="filtroLicenciaAlta" class="dropdown altas-multifilter">
+            <button id="btnFiltroLicenciaAlta" class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">Todas las licencias</button>
+            <div id="opcionesFiltroLicenciaAlta" class="dropdown-menu altas-multifilter-menu"></div>
+          </div>
           <button id="btnLimpiarFiltrosAltas" class="btn btn-sm btn-light border" type="button">
             Limpiar filtros
           </button>

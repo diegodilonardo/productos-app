@@ -4,6 +4,12 @@ let vistaAltas =
     ? 'tabla'
     : 'tarjetas';
 let modalProductosAlta = null;
+const filtrosMultiplesAltas = {
+  ano: new Set(),
+  temporada: new Set(),
+  rubro: new Set(),
+  licencia: new Set()
+};
 
 document.addEventListener('DOMContentLoaded', iniciarPantallaAltas);
 
@@ -25,9 +31,6 @@ async function iniciarPantallaAltas() {
   document
     .getElementById('filtroEstadoAlta')
     .addEventListener('change', pintarAltasFiltradas);
-
-  ['filtroAnoAlta', 'filtroTemporadaAlta', 'filtroRubroAlta', 'filtroLicenciaAlta']
-    .forEach(id => document.getElementById(id)?.addEventListener('change', pintarAltasFiltradas));
 
   document.getElementById('btnLimpiarFiltrosAltas')?.addEventListener('click', limpiarFiltrosAltas);
 
@@ -228,10 +231,6 @@ function pintarAltasFiltradas() {
       .trim()
       .toUpperCase();
 
-  const anoFiltro = valorFiltroAlta('filtroAnoAlta');
-  const temporadaFiltro = valorFiltroAlta('filtroTemporadaAlta');
-  const rubroFiltro = valorFiltroAlta('filtroRubroAlta');
-  const licenciaFiltro = valorFiltroAlta('filtroLicenciaAlta');
 
   const mostrarAnuladas =
     document
@@ -261,11 +260,11 @@ function pintarAltasFiltradas() {
         return false;
       }
 
-      if (anoFiltro && normalizarFiltroAlta(item.CODIGO_ANO) !== anoFiltro) return false;
-      if (temporadaFiltro && normalizarFiltroAlta(item.CODIGO_TEMPORADA) !== temporadaFiltro) return false;
-      if (rubroFiltro && normalizarFiltroAlta(item.CODIGO_RUBRO) !== rubroFiltro) return false;
+      if (filtrosMultiplesAltas.ano.size && !filtrosMultiplesAltas.ano.has(normalizarFiltroAlta(item.CODIGO_ANO))) return false;
+      if (filtrosMultiplesAltas.temporada.size && !filtrosMultiplesAltas.temporada.has(normalizarFiltroAlta(item.CODIGO_TEMPORADA))) return false;
+      if (filtrosMultiplesAltas.rubro.size && !filtrosMultiplesAltas.rubro.has(normalizarFiltroAlta(item.CODIGO_RUBRO))) return false;
       const licencia = normalizarFiltroAlta(normalizarLicenciaAlta(item) || 'SIN LICENCIA');
-      if (licenciaFiltro && licencia !== licenciaFiltro) return false;
+      if (filtrosMultiplesAltas.licencia.size && !filtrosMultiplesAltas.licencia.has(licencia)) return false;
 
       if (!texto) {
         return true;
@@ -300,53 +299,65 @@ function normalizarFiltroAlta(valor) {
   return String(valor ?? '').trim().toUpperCase();
 }
 
-function valorFiltroAlta(id) {
-  return normalizarFiltroAlta(document.getElementById(id)?.value);
-}
-
 function completarFiltrosAltas() {
-  poblarFiltroAlta('filtroAnoAlta', 'Todos los años', altasCargadas.map(alta => ({
+  poblarFiltroAlta('ano', 'opcionesFiltroAnoAlta', 'btnFiltroAnoAlta', 'Todos los años', 'Año', altasCargadas.map(alta => ({
     valor: alta.CODIGO_ANO,
     etiqueta: alta.CODIGO_ANO
   })));
-  poblarFiltroAlta('filtroTemporadaAlta', 'Todas las temporadas', altasCargadas.map(alta => ({
+  poblarFiltroAlta('temporada', 'opcionesFiltroTemporadaAlta', 'btnFiltroTemporadaAlta', 'Todas las temporadas', 'Temporada', altasCargadas.map(alta => ({
     valor: alta.CODIGO_TEMPORADA,
     etiqueta: alta.DETALLE_TEMPORADA || alta.CODIGO_TEMPORADA
   })));
-  poblarFiltroAlta('filtroRubroAlta', 'Todos los rubros', altasCargadas.map(alta => ({
+  poblarFiltroAlta('rubro', 'opcionesFiltroRubroAlta', 'btnFiltroRubroAlta', 'Todos los rubros', 'Rubro', altasCargadas.map(alta => ({
     valor: alta.CODIGO_RUBRO,
     etiqueta: alta.DETALLE_RUBRO || alta.CODIGO_RUBRO
   })));
-  poblarFiltroAlta('filtroLicenciaAlta', 'Todas las licencias', altasCargadas.map(alta => ({
+  poblarFiltroAlta('licencia', 'opcionesFiltroLicenciaAlta', 'btnFiltroLicenciaAlta', 'Todas las licencias', 'Licencia', altasCargadas.map(alta => ({
     valor: normalizarLicenciaAlta(alta) || 'SIN LICENCIA',
     etiqueta: normalizarLicenciaAlta(alta) || 'SIN LICENCIA'
   })));
 }
 
-function poblarFiltroAlta(id, opcionTodos, opciones) {
-  const select = document.getElementById(id);
-  if (!select) return;
-  const seleccionado = normalizarFiltroAlta(select.value);
+function poblarFiltroAlta(clave, idOpciones, idBoton, opcionTodos, etiquetaCorta, opciones) {
+  const contenedor = document.getElementById(idOpciones);
+  if (!contenedor) return;
   const unicas = new Map();
   for (const opcion of opciones) {
     const valor = normalizarFiltroAlta(opcion.valor);
     if (valor && !unicas.has(valor)) unicas.set(valor, String(opcion.etiqueta || opcion.valor).trim());
   }
-  select.innerHTML = `<option value="">${opcionTodos}</option>` +
-    [...unicas.entries()]
+  for (const valor of [...filtrosMultiplesAltas[clave]]) {
+    if (!unicas.has(valor)) filtrosMultiplesAltas[clave].delete(valor);
+  }
+  contenedor.innerHTML = [...unicas.entries()]
       .sort((a, b) => a[1].localeCompare(b[1], 'es', { numeric: true }))
-      .map(([valor, etiqueta]) => `<option value="${escapar(valor)}">${escapar(etiqueta)}</option>`)
+      .map(([valor, etiqueta], indice) => `<label class="altas-multifilter-option"><input class="form-check-input m-0" type="checkbox" value="${escapar(valor)}" data-filtro-multiple="${clave}" ${filtrosMultiplesAltas[clave].has(valor) ? 'checked' : ''}><span>${escapar(etiqueta)}</span></label>`)
       .join('');
-  if (seleccionado && unicas.has(seleccionado)) select.value = seleccionado;
+  if (!unicas.size) contenedor.innerHTML = '<div class="small text-secondary p-2">Sin opciones disponibles</div>';
+  contenedor.querySelectorAll(`[data-filtro-multiple="${clave}"]`).forEach(input => {
+    input.addEventListener('change', () => {
+      if (input.checked) filtrosMultiplesAltas[clave].add(input.value);
+      else filtrosMultiplesAltas[clave].delete(input.value);
+      actualizarBotonFiltroAlta(clave, idBoton, opcionTodos, etiquetaCorta);
+      pintarAltasFiltradas();
+    });
+  });
+  actualizarBotonFiltroAlta(clave, idBoton, opcionTodos, etiquetaCorta);
+}
+
+function actualizarBotonFiltroAlta(clave, idBoton, opcionTodos, etiquetaCorta) {
+  const boton = document.getElementById(idBoton);
+  if (!boton) return;
+  const cantidad = filtrosMultiplesAltas[clave].size;
+  boton.textContent = cantidad ? `${etiquetaCorta}: ${cantidad} seleccionado${cantidad === 1 ? '' : 's'}` : opcionTodos;
+  boton.classList.toggle('has-selection', cantidad > 0);
 }
 
 function limpiarFiltrosAltas() {
   document.getElementById('buscarAlta').value = '';
   document.getElementById('filtroEstadoAlta').value = '';
-  for (const id of ['filtroAnoAlta', 'filtroTemporadaAlta', 'filtroRubroAlta', 'filtroLicenciaAlta']) {
-    const select = document.getElementById(id);
-    if (select) select.value = '';
-  }
+  Object.values(filtrosMultiplesAltas).forEach(seleccion => seleccion.clear());
+  completarFiltrosAltas();
   pintarAltasFiltradas();
 }
 

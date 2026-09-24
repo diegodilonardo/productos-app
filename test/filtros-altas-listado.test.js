@@ -8,8 +8,10 @@ test('el listado de Altas permite combinar filtros de año, temporada, rubro y l
   const frontend = fs.readFileSync(path.resolve(__dirname, '../public/js/altas-index.js'), 'utf8');
   for (const id of ['filtroAnoAlta', 'filtroTemporadaAlta', 'filtroRubroAlta', 'filtroLicenciaAlta']) {
     assert.match(vista, new RegExp(`id="${id}"`));
-    assert.match(frontend, new RegExp(id));
   }
+  for (const clave of ['ano', 'temporada', 'rubro', 'licencia']) assert.match(frontend, new RegExp(`${clave}: new Set`));
   assert.match(frontend, /completarFiltrosAltas/);
   assert.match(frontend, /limpiarFiltrosAltas/);
+  assert.match(frontend, /filtrosMultiplesAltas/);
+  assert.match(vista, /data-bs-auto-close="outside"/);
 });

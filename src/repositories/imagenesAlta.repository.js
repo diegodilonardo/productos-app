@@ -54,4 +54,25 @@ async function guardarImagenFamilia(datos) {
   return resultado.recordset[0];
 }
 
-module.exports = { listarImagenesAlta, guardarImagenFamilia };
+async function registrarEnvioFotosErp(datos) {
+  const pool = await getConnection();
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, datos.idEmpresa)
+    .input('ID_ALTA', sql.Int, datos.idAlta)
+    .input('RUTA_DESTINO', sql.VarChar(1000), datos.rutaDestino)
+    .input('CANTIDAD_COPIADAS', sql.Int, datos.cantidadCopiadas)
+    .input('CANTIDAD_SIN_CAMBIOS', sql.Int, datos.cantidadSinCambios)
+    .input('USUARIO_ENVIO', sql.VarChar(100), datos.usuario)
+    .query(`
+      INSERT dbo.ALTAS_PRODUCTOS_FOTOS_ERP_ENVIOS
+        (ID_EMPRESA, ID_ALTA, RUTA_DESTINO, CANTIDAD_COPIADAS,
+         CANTIDAD_SIN_CAMBIOS, USUARIO_ENVIO)
+      OUTPUT INSERTED.*
+      VALUES
+        (@ID_EMPRESA, @ID_ALTA, @RUTA_DESTINO, @CANTIDAD_COPIADAS,
+         @CANTIDAD_SIN_CAMBIOS, @USUARIO_ENVIO);
+    `);
+  return resultado.recordset[0];
+}
+
+module.exports = { listarImagenesAlta, guardarImagenFamilia, registrarEnvioFotosErp };

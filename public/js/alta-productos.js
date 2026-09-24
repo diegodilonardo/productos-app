@@ -3136,6 +3136,7 @@ function configurarEventos() {
   document.getElementById('btnAnularAlta')?.addEventListener('click', anularAlta);
   document.getElementById('btnBorradorExcel')?.addEventListener('click', exportarBorradorExcel);
   document.getElementById('btnDescargarImagenesAlta')?.addEventListener('click', descargarImagenesAlta);
+  document.getElementById('btnEnviarFotosErp')?.addEventListener('click', enviarFotosErp);
   document.getElementById('btnValidarAlta').addEventListener('click', validarAlta);
   document.getElementById('btnPreviewAlta').addEventListener('click', mostrarPreview);
   document.getElementById('btnExportarPreviewExcel')?.addEventListener('click', exportarPreviewExcel);
@@ -5403,6 +5404,17 @@ function actualizarControlesEstado() {
     }
   }
 
+  const btnEnviarFotosErp = document.getElementById('btnEnviarFotosErp');
+  if (btnEnviarFotosErp) {
+    const puedeEnviarFotos = ['GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP'].includes(estado) &&
+      detalleActual().some(item => !esValorVerdadero(item?.GENERADO_AUTOMATICO));
+    btnEnviarFotosErp.disabled = !puedeEnviarFotos;
+    btnEnviarFotosErp.classList.toggle('d-none', !puedeEnviarFotos);
+    if (btnEnviarFotosErp.textContent.trim() !== 'Enviando fotos...') {
+      btnEnviarFotosErp.textContent = 'Enviar fotos a ERP';
+    }
+  }
+
   if (btnValidar) {
     btnValidar.disabled = !esBorrador || cantidad === 0;
     btnValidar.classList.toggle('d-none', !esBorrador);
@@ -5758,6 +5770,34 @@ async function descargarImagenesAlta() {
     actualizarControlesEstado();
   }
 
+}
+
+async function enviarFotosErp() {
+  const btn = document.getElementById('btnEnviarFotosErp');
+  if (!confirm('¿Enviar las fotos de esta Alta a la carpeta de ERP correspondiente a su empresa y marca?')) return;
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Enviando fotos...';
+    const respuesta = await fetch(`/api/altas/${ID_ALTA}/fotos-erp`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' }
+    });
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok || datos?.ok === false) {
+      throw new Error(datos?.mensaje || `No se pudieron enviar las fotos (${respuesta.status}).`);
+    }
+    const resultado = datos.resultado || {};
+    mostrarAlerta(
+      `Fotos enviadas a ERP: ${Number(resultado.copiadas || 0)} copiadas y ` +
+      `${Number(resultado.sinCambios || 0)} sin cambios. Destino: ${resultado.rutaDestino || '-'}.`,
+      'success'
+    );
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  } finally {
+    btn.textContent = 'Enviar fotos a ERP';
+    actualizarControlesEstado();
+  }
 }
 
 function valorDetalle(fila, campo) {

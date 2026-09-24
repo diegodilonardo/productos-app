@@ -416,6 +416,22 @@ router.get('/:id/imagenes.zip', requerirAccesoAlta, async (req, res) => {
     }
 });
 
+router.post('/:id/fotos-erp', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const resultado = await imagenesAltaService.enviarFotosAltaErp(
+            req.params.id,
+            { usuario: req.usuario.usuario }
+        );
+        return res.json({
+            ok: true,
+            mensaje: `${resultado.cantidad} fotos procesadas para ERP.`,
+            resultado
+        });
+    } catch (error) {
+        return res.status(400).json({ ok: false, mensaje: error.message });
+    }
+});
+
 
 /* ============================================================
    BUSCAR MODELOS DEL ALTA

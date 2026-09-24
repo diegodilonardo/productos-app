@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const altasRepository = require('../repositories/altas.repository');
 const imagenesAltaRepository = require('../repositories/imagenesAlta.repository');
@@ -13,6 +14,8 @@ const ESTADOS_HABILITADOS = new Set([
   'GENERADO_OK_EN_ERP',
   'SIN_NOVEDADES_ERP'
 ]);
+const ESTADOS_ENVIO_ERP = new Set(['GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP']);
+const enviosFotosEnCurso = new Set();
 
 function texto(valor) {
   return String(valor ?? '').trim();
@@ -40,6 +43,29 @@ function segmentoCarpeta(valor, respaldo) {
     .replace(/[^A-Za-z0-9._-]+/g, '_')
     .replace(/^_+|_+$/g, '');
   return normalizado || respaldo;
+}
+
+function carpetaFotosErpBase() {
+  return texto(process.env.FOTOS_ERP_BASE_PATH) || '\\\\172.24.0.175\\Vicbor2\\FOTOS';
+}
+
+function nombreEmpresaFotosErp(alta) {
+  const empresa = texto(alta.RAZON_SOCIAL).toUpperCase();
+  if (empresa === 'INDUSTRIAS GYD') return 'GYD';
+  return segmentoCarpeta(alta.RAZON_SOCIAL, `EMPRESA_${alta.ID_EMPRESA}`);
+}
+
+function rutaFotosErp(alta) {
+  return path.join(
+    carpetaFotosErpBase(),
+    nombreEmpresaFotosErp(alta),
+    segmentoCarpeta(alta.DETALLE_MARCA || alta.CODIGO_MARCA, 'SIN_MARCA')
+  );
+}
+
+async function hashArchivo(ruta) {
+  const contenido = await fs.promises.readFile(ruta);
+  return crypto.createHash('sha256').update(contenido).digest('hex');
 }
 
 function carpetaOrganizada(alta, producto) {
@@ -274,9 +300,77 @@ async function listarFamiliasSinImagen(alta, detalle, datos = {}) {
   return faltantes;
 }
 
+async function enviarFotosAltaErp(idAlta, datos = {}) {
+  const id = Number(idAlta);
+  if (!Number.isInteger(id) || id <= 0) throw new Error('ID_ALTA inválido.');
+  if (enviosFotosEnCurso.has(id)) throw new Error('Ya hay un envío de fotos en curso para esta Alta.');
+
+  enviosFotosEnCurso.add(id);
+  try {
+    const alta = await altasRepository.obtenerAltaPorId(id);
+    if (!alta) throw new Error('Alta no encontrada.');
+    const estado = texto(alta.ESTADO).toUpperCase();
+    if (!ESTADOS_ENVIO_ERP.has(estado)) {
+      throw new Error('Las fotos solamente pueden enviarse cuando el Alta ya está confirmada en ERP.');
+    }
+
+    const paquete = await prepararDescargaImagenesAlta(id);
+    const destino = rutaFotosErp(alta);
+    await fs.promises.mkdir(destino, { recursive: true });
+    await fs.promises.access(destino, fs.constants.W_OK);
+
+    let copiadas = 0;
+    let sinCambios = 0;
+    const archivos = [];
+    for (const imagen of paquete.archivos) {
+      const extension = path.extname(imagen.archivo).toLowerCase();
+      if (!EXTENSIONES.includes(extension)) continue;
+      const nombre = nombreSeguro(path.basename(imagen.archivo));
+      const archivoDestino = path.join(destino, nombre);
+      let igual = false;
+      try {
+        igual = (await hashArchivo(imagen.archivo)) === (await hashArchivo(archivoDestino));
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+      if (igual) {
+        sinCambios++;
+        archivos.push({ nombre, estado: 'SIN_CAMBIOS' });
+        continue;
+      }
+      await fs.promises.copyFile(imagen.archivo, archivoDestino);
+      if ((await hashArchivo(imagen.archivo)) !== (await hashArchivo(archivoDestino))) {
+        throw new Error(`No se pudo verificar la copia de ${nombre}.`);
+      }
+      copiadas++;
+      archivos.push({ nombre, estado: 'COPIADA' });
+    }
+    if (!archivos.length) throw new Error('El Alta no tiene fotos JPG o PNG para enviar.');
+
+    await imagenesAltaRepository.registrarEnvioFotosErp({
+      idEmpresa: Number(alta.ID_EMPRESA),
+      idAlta: id,
+      rutaDestino: destino,
+      cantidadCopiadas: copiadas,
+      cantidadSinCambios: sinCambios,
+      usuario: texto(datos.usuario) || 'SISTEMA'
+    });
+    return { rutaDestino: destino, cantidad: archivos.length, copiadas, sinCambios, archivos };
+  } catch (error) {
+    if (['EACCES', 'EPERM', 'ENOENT'].includes(error?.code)) {
+      throw new Error(`No se pudo acceder a la carpeta de fotos de Presea. Verificá permisos del servicio ProductosApp. Detalle: ${error.message}`);
+    }
+    throw error;
+  } finally {
+    enviosFotosEnCurso.delete(id);
+  }
+}
+
 module.exports = {
   prepararDescargaImagenesAlta,
   buscarImagenProducto,
   listarFamiliasSinImagen,
-  registrarImagenFamilia
+  registrarImagenFamilia,
+  enviarFotosAltaErp,
+  rutaFotosErp
 };

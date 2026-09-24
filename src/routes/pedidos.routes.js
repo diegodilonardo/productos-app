@@ -198,6 +198,28 @@ router.delete('/:id/altas/:idAlta', requerirAccesoPedido, requerirEscrituraEmpre
   }
 });
 
+router.patch('/:id/altas/:idAlta/modalidad', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.actualizarModoSeleccionAltaPedido(
+      req.params.id, req.params.idAlta, req.body?.modoSeleccion, req.idEmpresa
+    );
+    return res.json({ ok: true, mensaje: 'Modalidad del Alta actualizada correctamente.', resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.get('/:id/productos-disponibles', requerirAccesoPedido, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerProductosDisponiblesPedido(
+      req.params.id, req.idEmpresa, req.accesoEmpresa
+    );
+    return res.json({ ok: true, cantidad: datos.length, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.get('/:id/detalle', requerirAccesoPedido, async (req, res) => {
   try {
     const datos = await pedidosService.listarDetallePedido(req.params.id, req.idEmpresa);

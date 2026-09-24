@@ -219,7 +219,7 @@ function pintarCargaSeguimiento() {
 
   const tarjetas = document.getElementById('tarjetasSeguimiento');
   if (tarjetas) tarjetas.innerHTML = '<div class="seguimiento-cards-loading">Actualizando seguimiento</div>';
-  for (const id of ['eanTotal', 'eanPendientesGs1', 'eanAsignados', 'eanPendientesErp', 'eanConfirmadosErp', 'eanSinEan']) setTexto(id, '—');
+  for (const id of ['eanTotal', 'eanPendientesGs1', 'eanAsignados', 'eanPendientesErp', 'eanConfirmadosErp', 'eanNoRequeridos', 'eanSinEan']) setTexto(id, '—');
   const tablaEan = document.getElementById('tablaSeguimientoEan');
   if (tablaEan) tablaEan.innerHTML = '<tr><td colspan="7" class="text-center py-4">Actualizando seguimiento EAN...</td></tr>';
 }
@@ -230,6 +230,7 @@ function pintarResumenEan(resumen) {
   setTexto('eanAsignados', resumen.asignados ?? 0);
   setTexto('eanPendientesErp', resumen.pendientesErp ?? 0);
   setTexto('eanConfirmadosErp', resumen.confirmadosErp ?? 0);
+  setTexto('eanNoRequeridos', resumen.noRequeridos ?? 0);
   setTexto('eanSinEan', resumen.sinEan ?? 0);
   const aviso = document.getElementById('eanAvisoGs1');
   const pendientes = numero(resumen.pendientesGs1);

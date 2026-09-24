@@ -67,25 +67,27 @@ test('resume productos confirmados según el estado de su EAN', async () => {
     { ID_ALTA: 1, COD_ALFA: 'B', EAN_ERP: '7791234567890', TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA', DETALLE_TALLE: '38', FAMILIAS_MODULO: 'A' },
     { ID_ALTA: 1, COD_ALFA: 'C', EAN_ERP: null, TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA', DETALLE_TALLE: '39' },
     { ID_ALTA: 1, COD_ALFA: 'D', EAN_ERP: '7792800015157', TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'SEGUNDA', DETALLE_TALLE: '39' },
+    { ID_ALTA: 1, COD_ALFA: 'E', EAN_ERP: '7792800015157', REQUIERE_EAN: false, TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', DETALLE_CLASIFICACION: 'PRIMERA', DETALLE_TALLE: '40', FAMILIAS_MODULO: 'A' },
   ];
 
   try {
     const resultado = await seguimientoService.listarSeguimientoEan({ idEmpresa: 1, acceso: accesoTotal });
     assert.deepEqual(resultado.resumen, {
-      total: 3,
+      total: 4,
       pendientesGs1: 1,
       asignados: 1,
       sinEan: 1,
       urlsAsociadas: 0,
       pendientesErp: 0,
       confirmadosErp: 0,
+      noRequeridos: 1,
     });
     assert.equal(resultado.productos[0].TALLE_CURVA, '36-40');
     assert.equal(resultado.productos[1].TALLE_CURVA, '38');
     assert.equal(resultado.productos.some(x => x.COD_ALFA === 'D'), false);
     assert.equal(resultado.grupos.length, 2);
     assert.equal(resultado.grupos[0].tipo, 'MODULO');
-    assert.equal(resultado.grupos[0].primeras.length, 1);
+    assert.equal(resultado.grupos[0].primeras.length, 2);
     assert.equal(resultado.grupos[1].tipo, 'PRIMERA');
   } finally {
     seguimientoRepository.listarProductosSeguimientoEan = original;

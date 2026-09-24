@@ -155,3 +155,21 @@ test('la pantalla permite quitar Altas asociadas y explica el control de product
   assert.match(frontend, /method:'DELETE'/);
   assert.match(rutas, /router\.delete\('\/:id\/altas\/:idAlta'/);
 });
+
+test('cada Alta del Pedido permite elegir módulos o productos sueltos', () => {
+  const frontend = fs.readFileSync(path.resolve(__dirname, '../public/js/pedido-detalle.js'), 'utf8');
+  const rutas = fs.readFileSync(path.resolve(__dirname, '../src/routes/pedidos.routes.js'), 'utf8');
+  const repositorio = fs.readFileSync(path.resolve(__dirname, '../src/repositories/pedidos.repository.js'), 'utf8');
+  const migracion = fs.readFileSync(path.resolve(__dirname, '../sql/27_modo_seleccion_pedido_alta.sql'), 'utf8');
+
+  assert.match(frontend, /data-modo-alta/);
+  assert.match(frontend, /Por módulos/);
+  assert.match(frontend, /Por productos sueltos/);
+  assert.match(rutas, /router\.patch\('\/:id\/altas\/:idAlta\/modalidad'/);
+  assert.match(repositorio, /PA\.MODO_SELECCION = 'MODULO'/);
+  assert.match(repositorio, /PA\.MODO_SELECCION = 'PAR_SUELTO'/);
+  assert.match(repositorio, /AS CANTIDAD_PRODUCTOS_PEDIDO/);
+  assert.match(frontend, /CANTIDAD_PRODUCTOS_PEDIDO/);
+  assert.match(repositorio, /cargados > 0/);
+  assert.match(migracion, /MODO_SELECCION VARCHAR\(20\)/);
+});

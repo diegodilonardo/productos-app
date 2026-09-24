@@ -293,6 +293,49 @@ async function obtenerProductosDisponiblesPorAltas(idsAltas, codigoProveedor, id
   return resultado.recordset;
 }
 
+async function obtenerProductosDisponiblesPedido(idPedido, codigoProveedor, idEmpresa) {
+  const pool = await getConnection();
+  const resultado = await pool.request()
+    .input('ID_PEDIDO', sql.BigInt, idPedido)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('CODIGO_PROVEEDOR', sql.VarChar(30), codigoProveedor)
+    .query(`
+      SELECT P.ID_PRODUCTO, P.ID_EMPRESA, P.CODIGO_ALFA,
+        P.CODIGO_ERP, COALESCE(P.CODIGO_EAN, P.EAN) AS CODIGO_EAN, P.ACTIVO,
+        A.ID_ALTA, A.CODIGO_ALTA, A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
+        PA.MODO_SELECCION,
+        A.CODIGO_ANO, A.CODIGO_TEMPORADA,
+        D.ID_DETALLE, D.TIPO_PRODUCTO_DETALLE,
+        D.CODIGO_MODELO, D.DETALLE_MODELO,
+        D.CODIGO_COLOR, D.DETALLE_COLOR, D.DETALLE_PRODUCTO,
+        D.CODIGO_TALLE, D.DETALLE_TALLE,
+        D.CODIGO_MODULO, D.DETALLE_MODULO, D.PARES,
+        D.CODIGO_EDAD, D.DETALLE_EDAD, D.SEXO,
+        D.CODIGO_CLASIFICACION, D.DETALLE_CLASIFICACION,
+        D.CODIGO_PROVEEDOR, D.DETALLE_PROVEEDOR
+      FROM dbo.PEDIDOS_ALTAS PA
+      INNER JOIN dbo.ALTAS_PRODUCTOS A
+        ON A.ID_EMPRESA = PA.ID_EMPRESA AND A.ID_ALTA = PA.ID_ALTA
+      INNER JOIN dbo.ALTAS_PRODUCTOS_DETALLE D
+        ON D.ID_EMPRESA = PA.ID_EMPRESA AND D.ID_ALTA = PA.ID_ALTA
+      INNER JOIN dbo.PRODUCTOS P
+        ON P.ID_EMPRESA = D.ID_EMPRESA AND P.CODIGO_ALFA = D.CODIGO_ALFA
+      WHERE PA.ID_EMPRESA = @ID_EMPRESA
+        AND PA.ID_PEDIDO = @ID_PEDIDO
+        AND D.CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR
+        AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
+        AND P.ACTIVO = 1
+        AND LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) <> '9'
+        AND ((PA.MODO_SELECCION = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
+          OR (PA.MODO_SELECCION = 'PAR_SUELTO'
+            AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+            AND D.CODIGO_CLASIFICACION = '1'))
+      ORDER BY A.ID_ALTA, D.DETALLE_MODELO, D.DETALLE_COLOR,
+        D.DETALLE_MODULO, D.DETALLE_TALLE, P.CODIGO_ALFA;
+    `);
+  return resultado.recordset;
+}
+
 async function obtenerResumenProductosAltas(idsAltas, idEmpresa) {
   const ids = [...new Set(idsAltas.map(Number))];
   const pool = await getConnection();
@@ -483,8 +526,11 @@ async function crearPedido(datos, generarCodigoPedido) {
         .input('ID_PEDIDO_ALTA', sql.BigInt, idPedido)
         .input('ID_ALTA_REL', sql.Int, idAlta)
         .query(`
-          INSERT INTO dbo.PEDIDOS_ALTAS (ID_EMPRESA, ID_PEDIDO, ID_ALTA)
-          VALUES (@ID_EMPRESA_ALTA, @ID_PEDIDO_ALTA, @ID_ALTA_REL);
+          INSERT INTO dbo.PEDIDOS_ALTAS (ID_EMPRESA, ID_PEDIDO, ID_ALTA, MODO_SELECCION)
+          SELECT @ID_EMPRESA_ALTA, @ID_PEDIDO_ALTA, @ID_ALTA_REL,
+            CASE WHEN TIPO_PRODUCTO = 'MODULO' THEN 'MODULO' ELSE 'PAR_SUELTO' END
+          FROM dbo.ALTAS_PRODUCTOS
+          WHERE ID_EMPRESA = @ID_EMPRESA_ALTA AND ID_ALTA = @ID_ALTA_REL;
         `);
     }
 
@@ -672,7 +718,22 @@ async function obtenerAltasPorPedido(idPedido, idEmpresa) {
     .query(`
       SELECT A.ID_ALTA, A.CODIGO_ALTA, A.CODIGO_MARCA, A.DETALLE_MARCA,
         A.CODIGO_RUBRO, A.DETALLE_RUBRO, A.TIPO_PRODUCTO,
+        PA.MODO_SELECCION,
         A.CODIGO_ANO, A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA, A.ESTADO,
+        (
+          SELECT COUNT(DISTINCT PR.ID_PRODUCTO)
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE DP
+          INNER JOIN dbo.PRODUCTOS PR
+            ON PR.ID_EMPRESA = DP.ID_EMPRESA AND PR.CODIGO_ALFA = DP.CODIGO_ALFA
+          WHERE DP.ID_EMPRESA = PA.ID_EMPRESA AND DP.ID_ALTA = PA.ID_ALTA
+            AND DP.CODIGO_PROVEEDOR = P.CODIGO_PROVEEDOR
+            AND PR.ACTIVO = 1
+            AND LTRIM(RTRIM(ISNULL(PR.C_ESTADIO, ''))) <> '9'
+            AND ((PA.MODO_SELECCION = 'MODULO' AND DP.TIPO_PRODUCTO_DETALLE = 'MODULO')
+              OR (PA.MODO_SELECCION = 'PAR_SUELTO'
+                AND DP.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
+                AND DP.CODIGO_CLASIFICACION = '1'))
+        ) AS CANTIDAD_PRODUCTOS_PEDIDO,
         (
           SELECT TOP 1 CASE
             WHEN NULLIF(LTRIM(RTRIM(D.LICENCIA)), '') IS NULL THEN 'SIN LICENCIA'
@@ -683,6 +744,8 @@ async function obtenerAltasPorPedido(idPedido, idEmpresa) {
           ORDER BY D.ID_DETALLE
         ) AS LICENCIA_ALTA
       FROM dbo.PEDIDOS_ALTAS PA
+      INNER JOIN dbo.PEDIDOS P
+        ON P.ID_EMPRESA = PA.ID_EMPRESA AND P.ID_PEDIDO = PA.ID_PEDIDO
       INNER JOIN dbo.ALTAS_PRODUCTOS A
         ON A.ID_EMPRESA = PA.ID_EMPRESA AND A.ID_ALTA = PA.ID_ALTA
       WHERE PA.ID_EMPRESA = @ID_EMPRESA AND PA.ID_PEDIDO = @ID_PEDIDO
@@ -713,13 +776,75 @@ async function asociarAltaPedido(idPedido, idAlta, idEmpresa) {
         IF NOT EXISTS (SELECT 1 FROM dbo.PEDIDOS_ALTAS WITH (UPDLOCK, HOLDLOCK)
           WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA)
         BEGIN
-          INSERT dbo.PEDIDOS_ALTAS (ID_EMPRESA, ID_PEDIDO, ID_ALTA)
-          VALUES (@ID_EMPRESA, @ID_PEDIDO, @ID_ALTA);
+          INSERT dbo.PEDIDOS_ALTAS (ID_EMPRESA, ID_PEDIDO, ID_ALTA, MODO_SELECCION)
+          SELECT @ID_EMPRESA, @ID_PEDIDO, @ID_ALTA,
+            CASE WHEN TIPO_PRODUCTO = 'MODULO' THEN 'MODULO' ELSE 'PAR_SUELTO' END
+          FROM dbo.ALTAS_PRODUCTOS
+          WHERE ID_EMPRESA=@ID_EMPRESA AND ID_ALTA=@ID_ALTA;
         END;
         UPDATE dbo.PEDIDOS SET FECHA_ACTUALIZACION=SYSDATETIME()
         WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;`);
     await transaction.commit();
     return { ID_PEDIDO: idPedido, ID_ALTA: idAlta };
+  } catch (error) {
+    try { await transaction.rollback(); } catch (_) {}
+    throw error;
+  }
+}
+
+async function actualizarModoSeleccionAltaPedido(idPedido, idAlta, idEmpresa, modoSeleccion) {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+  try {
+    await transaction.begin();
+    const estado = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_ALTA', sql.Int, idAlta)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .input('MODO_SELECCION', sql.VarChar(20), modoSeleccion)
+      .query(`
+        SELECT TOP 1 P.ESTADO, PA.MODO_SELECCION
+        FROM dbo.PEDIDOS P WITH (UPDLOCK, HOLDLOCK)
+        INNER JOIN dbo.PEDIDOS_ALTAS PA WITH (UPDLOCK, HOLDLOCK)
+          ON PA.ID_EMPRESA=P.ID_EMPRESA AND PA.ID_PEDIDO=P.ID_PEDIDO
+        WHERE P.ID_EMPRESA=@ID_EMPRESA AND P.ID_PEDIDO=@ID_PEDIDO
+          AND PA.ID_ALTA=@ID_ALTA;
+
+        SELECT COUNT(*) AS CANTIDAD
+        FROM dbo.PEDIDOS_DETALLE WITH (UPDLOCK, HOLDLOCK)
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA;
+
+        SELECT COUNT(*) AS CANTIDAD
+        FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+        INNER JOIN dbo.PRODUCTOS PR
+          ON PR.ID_EMPRESA=D.ID_EMPRESA AND PR.CODIGO_ALFA=D.CODIGO_ALFA
+        WHERE D.ID_EMPRESA=@ID_EMPRESA AND D.ID_ALTA=@ID_ALTA
+          AND PR.ACTIVO=1 AND LTRIM(RTRIM(ISNULL(PR.C_ESTADIO, ''))) <> '9'
+          AND ((@MODO_SELECCION='MODULO' AND D.TIPO_PRODUCTO_DETALLE='MODULO')
+            OR (@MODO_SELECCION='PAR_SUELTO' AND D.TIPO_PRODUCTO_DETALLE='PAR_SUELTO'
+              AND D.CODIGO_CLASIFICACION='1'));
+      `);
+    const asociacion = estado.recordsets[0]?.[0];
+    const cargados = Number(estado.recordsets[1]?.[0]?.CANTIDAD || 0);
+    const disponibles = Number(estado.recordsets[2]?.[0]?.CANTIDAD || 0);
+    if (!asociacion) throw new Error('El Alta no está asociada a este pedido.');
+    if (asociacion.ESTADO !== 'BORRADOR') throw new Error(`El pedido está en estado ${asociacion.ESTADO}. Solamente se puede modificar en BORRADOR.`);
+    if (cargados > 0) throw new Error(`No se puede cambiar la modalidad porque el Alta tiene ${cargados} producto(s) cargado(s) en el pedido.`);
+    if (!disponibles) throw new Error('El Alta no tiene productos activos disponibles para la modalidad seleccionada.');
+
+    await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_ALTA', sql.Int, idAlta)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .input('MODO_SELECCION', sql.VarChar(20), modoSeleccion)
+      .query(`
+        UPDATE dbo.PEDIDOS_ALTAS SET MODO_SELECCION=@MODO_SELECCION
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO AND ID_ALTA=@ID_ALTA;
+        UPDATE dbo.PEDIDOS SET FECHA_ACTUALIZACION=SYSDATETIME()
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;
+      `);
+    await transaction.commit();
+    return { ID_PEDIDO: idPedido, ID_ALTA: idAlta, MODO_SELECCION: modoSeleccion };
   } catch (error) {
     try { await transaction.rollback(); } catch (_) {}
     throw error;
@@ -1656,6 +1781,7 @@ module.exports = {
   obtenerProveedoresPorAltas,
   obtenerProductosDisponibles,
   obtenerProductosDisponiblesPorAltas,
+  obtenerProductosDisponiblesPedido,
   obtenerResumenProductosAltas,
   obtenerResumenModelosAlta,
   buscarPedidoDuplicadoActivo,
@@ -1664,6 +1790,7 @@ module.exports = {
   obtenerAltasPorPedido,
   asociarAltaPedido,
   quitarAltaPedido,
+  actualizarModoSeleccionAltaPedido,
   buscarProductoEnPedido,
   agregarProductoPedido,
   listarDetallePedido,

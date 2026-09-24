@@ -75,6 +75,7 @@ function crearEntornoControlado(t) {
   });
   reemplazar('obtenerPedidoPorId', async () => sql.pedido);
   reemplazar('obtenerProductosDisponibles', async () => [sql.producto]);
+  reemplazar('obtenerProductosDisponiblesPedido', async () => [sql.producto]);
   reemplazar('buscarProductoEnPedido', async (_idPedido, idProducto) =>
     sql.detalles.find(item => Number(item.ID_PRODUCTO) === Number(idProducto)) || null
   );

@@ -449,6 +449,7 @@ async function listarSeguimientoEan({ idEmpresa, acceso }) {
             urlsAsociadas: productos.filter(x => Boolean(String(x.URL_IMAGEN_GS1 || '').trim())).length,
             pendientesErp: productos.filter(x => x.ESTADO_EAN === 'PENDIENTE_ERP').length,
             confirmadosErp: productos.filter(x => x.ESTADO_EAN === 'CONFIRMADO_ERP').length,
+            noRequeridos: productos.filter(x => x.ESTADO_EAN === 'NO_REQUERIDO').length,
         },
         codigoProvisorio: EAN_PROVISORIO_GS1,
         productos,

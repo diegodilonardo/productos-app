@@ -384,6 +384,32 @@ async function obtenerProductosDisponiblesPorAltas(idsAltas, codigoProveedor, id
   });
 }
 
+async function obtenerProductosDisponiblesPedido(idPedido, idEmpresa, accesoEmpresa) {
+  const pedido = await obtenerPedidoPorId(idPedido, idEmpresa);
+  if (!pedido) throw new Error('Pedido no encontrado.');
+  await validarAltasDisponibles(pedido.IDS_ALTAS, pedido.ID_EMPRESA, accesoEmpresa);
+
+  const productos = await pedidosRepository.obtenerProductosDisponiblesPedido(
+    pedido.ID_PEDIDO,
+    pedido.CODIGO_PROVEEDOR,
+    pedido.ID_EMPRESA
+  );
+  return productos.map(producto => {
+    const tipo = normalizarTipoProducto(producto.TIPO_PRODUCTO_DETALLE);
+    const parametrosImagen = new URLSearchParams({
+      idAlta: texto(producto.ID_ALTA),
+      ano: texto(producto.CODIGO_ANO), temporada: texto(producto.CODIGO_TEMPORADA),
+      modelo: texto(producto.CODIGO_MODELO), color: texto(producto.CODIGO_COLOR)
+    });
+    if (!texto(producto.ID_ALTA)) parametrosImagen.delete('idAlta');
+    return {
+      ...producto,
+      TALLE_CURVA: tipo === 'MODULO' ? texto(producto.DETALLE_MODULO) : texto(producto.DETALLE_TALLE),
+      URL_IMAGEN: `/api/imagenes/archivo?${parametrosImagen.toString()}`
+    };
+  });
+}
+
 async function obtenerResumenProductosAltas(idsAltas, idEmpresa, accesoEmpresa) {
   const altas = await validarAltasDisponibles(idsAltas, idEmpresa, accesoEmpresa);
   const productos = await pedidosRepository.obtenerResumenProductosAltas(
@@ -900,6 +926,21 @@ async function quitarAltaPedido(idPedido, idAlta, idEmpresa) {
   return obtenerPedidoPorId(pedido.ID_PEDIDO, pedido.ID_EMPRESA);
 }
 
+async function actualizarModoSeleccionAltaPedido(idPedido, idAlta, modoSeleccion, idEmpresa) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  const altaId = Number(idAlta);
+  if (!Number.isInteger(altaId) || altaId <= 0 || !pedido.IDS_ALTAS.includes(altaId)) {
+    throw new Error('El Alta no está asociada a este pedido.');
+  }
+  const modo = texto(modoSeleccion).toUpperCase();
+  if (!['MODULO', 'PAR_SUELTO'].includes(modo)) {
+    throw new Error('La modalidad de selección es inválida.');
+  }
+  return pedidosRepository.actualizarModoSeleccionAltaPedido(
+    pedido.ID_PEDIDO, altaId, pedido.ID_EMPRESA, modo
+  );
+}
+
 /* ============================================================
    PREPARAR PRODUCTO DEL PEDIDO
 
@@ -921,11 +962,8 @@ async function prepararProductoPedido(idPedido, datos = {}, idEmpresa, accesoEmp
     throw new Error('ID_PRODUCTO inválido.');
   }
 
-  const productos = await obtenerProductosDisponiblesPorAltas(
-    pedido.IDS_ALTAS,
-    pedido.CODIGO_PROVEEDOR,
-    pedido.ID_EMPRESA,
-    accesoEmpresa
+  const productos = await obtenerProductosDisponiblesPedido(
+    pedido.ID_PEDIDO, pedido.ID_EMPRESA, accesoEmpresa
   );
   const producto = productos.find(item => Number(item.ID_PRODUCTO) === idProducto);
   if (!producto) {
@@ -2085,6 +2123,7 @@ module.exports = {
   validarProveedorDelAlta,
   obtenerProductosDisponibles,
   obtenerProductosDisponiblesPorAltas,
+  obtenerProductosDisponiblesPedido,
   obtenerResumenProductosAltas,
   obtenerResumenModelosAlta,
   validarProductoDisponible,
@@ -2096,6 +2135,7 @@ module.exports = {
   obtenerAltasAgregablesPedido,
   agregarAltaPedido,
   quitarAltaPedido,
+  actualizarModoSeleccionAltaPedido,
   prepararProductoPedido,
   agregarProductoPedido,
   listarDetallePedido,

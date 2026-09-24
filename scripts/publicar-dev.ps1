@@ -15,7 +15,7 @@ $preparados = Git-Dev -Argumentos @('diff', '--cached', '--name-only')
 if ($preparados) { throw 'Ya hay archivos preparados. Revisalos antes de usar este script.' }
 $archivos = @(Git-Dev -Argumentos @('-c', 'core.quotePath=false', 'ls-files', '--modified', '--others', '--exclude-standard'))
 $permitidos = @($archivos | Where-Object {
-    $_ -match '^(src/|public/js/|views/|test/|scripts/|docs/|sql/)' -or
+    $_ -match '^(src/|public/(js|css)/|views/|test/|scripts/|docs/|sql/)' -or
     $_ -in @('package.json', 'package-lock.json', '.gitignore', '.gitattributes')
 } | Where-Object {
     $_ -notmatch '(^|/)(\.env[^/]*|node_modules|storage|salidas|tmp|\.tmp|output|outputs)(/|$)' -and

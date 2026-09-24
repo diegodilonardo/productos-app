@@ -1207,6 +1207,11 @@ main .progress {
     background: #fff0f0;
 }
 
+.seguimiento-tone-gray {
+    color: #687684;
+    background: #eef1f4;
+}
+
 .seguimiento-metric-value {
     color: #20262d;
     font-size: 28px;
@@ -1299,6 +1304,12 @@ main .progress {
 
 .seguimiento-ean-metrics {
     margin-bottom: 1rem;
+}
+
+@media (min-width: 1200px) {
+    .seguimiento-ean-metrics > * {
+        width: 14.285714%;
+    }
 }
 
 .seguimiento-ean-alert {

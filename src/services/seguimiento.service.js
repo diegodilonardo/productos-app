@@ -1028,11 +1028,27 @@ function filaArchivoGs1(producto, urlImagen, opciones = {}) {
         throw new Error(`El producto ${producto.COD_ALFA} no tiene una cantidad válida.`);
     }
     const nombre = String(producto.DETALLE_MODELO || producto.DETALLE_PRODUCTO || '').trim();
-    const variedadBase = String(producto.DETALLE_PRODUCTO || [
+    // DETALLE_PRODUCTO se limita a 50 caracteres por compatibilidad con Presea.
+    // Para GS1 reconstruimos la variedad desde los campos originales, evitando
+    // perder la clasificacion o el talle en descripciones largas.
+    const talleCurva = tipo === 'MODULO'
+        ? (producto.DETALLE_MODULO || producto.CODIGO_MODULO)
+        : (producto.DETALLE_TALLE || producto.CODIGO_TALLE);
+    const partesVariedad = [
         producto.DETALLE_MODELO,
         producto.DETALLE_COLOR,
-        producto.TALLE_CURVA,
-    ].filter(Boolean).join(' ')).trim();
+        tipo === 'PAR_SUELTO' ? producto.DETALLE_CLASIFICACION : null,
+        talleCurva,
+    ];
+    const datosEstructuradosCompletos = Boolean(
+        String(producto.DETALLE_MODELO || '').trim()
+        && String(producto.DETALLE_COLOR || '').trim()
+        && String(talleCurva || '').trim()
+    );
+    const variedadBase = (datosEstructuradosCompletos ? partesVariedad : [producto.DETALLE_PRODUCTO])
+        .map(valor => String(valor ?? '').trim())
+        .filter(Boolean)
+        .join(' ');
     const edad = String(producto.DETALLE_EDAD ?? '').trim();
     const variedadConEdad = edad && !normalizarTexto(variedadBase).includes(normalizarTexto(edad))
         ? `${variedadBase} ${edad}`.trim()

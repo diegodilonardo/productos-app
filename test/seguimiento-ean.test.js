@@ -297,6 +297,36 @@ test('el archivo GS1 diferencia variedades duplicadas por sexo', () => {
   assert.match(filas[1][4], /ADULTO MAS VE 27$/);
 });
 
+test('la variedad GS1 conserva clasificacion y talle aunque DETALLE_PRODUCTO este recortado', () => {
+  const base = {
+    ID_ALTA: 1, DETALLE_MARCA: 'ATOMIK', DETALLE_RUBRO: 'INDUMENTARIA',
+    TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', PAIS_EAN: '032',
+    DETALLE_MODELO: 'BASELAYER RELAY MEN', DETALLE_COLOR: 'NARANJA CAT',
+    DETALLE_CLASIFICACION: 'PRIMERA', DETALLE_EDAD: 'ADULTO',
+    SEXO: 'MAS', DETALLE_TEMPORADA: 'AN', CODIGO_ANO: '27', PARES: 1,
+    DETALLE_PRODUCTO: 'BASELAYER RELAY MEN NARANJA CAT PRIMERA',
+  };
+  const productos = [
+    { ...base, COD_ALFA: '2742I0008210H0L', DETALLE_TALLE: 'L' },
+    { ...base, COD_ALFA: '2742I0008210H0M', DETALLE_TALLE: 'M' },
+    { ...base, COD_ALFA: '2742I0008210HXL', DETALLE_TALLE: 'XL' },
+  ];
+  const urls = new Map(productos.map(producto => [
+    `${producto.ID_ALTA}|${producto.COD_ALFA}`,
+    `https://gs1.example/${producto.COD_ALFA}.jpg`,
+  ]));
+
+  const variedades = seguimientoService.asegurarVariedadesUnicas(productos, urls)
+    .map(fila => fila[4]);
+
+  assert.deepEqual(variedades, [
+    'BASELAYER RELAY MEN NARANJA CAT PRIMERA L ADULTO AN 27',
+    'BASELAYER RELAY MEN NARANJA CAT PRIMERA M ADULTO AN 27',
+    'BASELAYER RELAY MEN NARANJA CAT PRIMERA XL ADULTO AN 27',
+  ]);
+  assert.equal(variedades.some(variedad => variedad.includes('2742I0008210')), false);
+});
+
 test('asocia las URLs temporales de GS1 por el nombre real de la imagen', async () => {
   const listarOriginal = seguimientoRepository.listarProductosSeguimientoEan;
   const imagenOriginal = imagenesAltaService.buscarImagenProducto;

@@ -7,6 +7,10 @@ const script = fs.readFileSync(
   path.join(__dirname, '../scripts/backup-productos-app.ps1'),
   'utf8'
 );
+const instalador = fs.readFileSync(
+  path.join(__dirname, '../scripts/instalar-tareas-backup-sql.ps1'),
+  'utf8'
+);
 
 test('el backup SQL admite completos y diferenciales sin compresión de Express', () => {
   assert.match(script, /ValidateSet\('FULL', 'DIFF'\)/);
@@ -22,4 +26,14 @@ test('el backup SQL verifica el archivo, registra errores y usa la conexión loc
   assert.doesNotMatch(script, /-r\s+1/);
   assert.match(script, /\$LASTEXITCODE/);
   assert.match(script, /DiasRetencion/);
+});
+
+test('el instalador programa un backup completo y tres diferenciales sin guardar contraseñas', () => {
+  assert.match(instalador, /Backup SQL FULL/);
+  assert.match(instalador, /Backup SQL DIFF 08/);
+  assert.match(instalador, /Backup SQL DIFF 14/);
+  assert.match(instalador, /Backup SQL DIFF 20/);
+  assert.match(instalador, /Get-Credential/);
+  assert.doesNotMatch(instalador, /ConvertTo-SecureString[^\r\n]*-AsPlainText/);
+  assert.match(instalador, /Register-ScheduledTask/);
 });

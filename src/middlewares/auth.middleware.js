@@ -319,7 +319,12 @@ function accesoPermiteAlta(acceso, alta) {
 
   const marca = normalizarScope(alta.CODIGO_MARCA);
   const rubro = normalizarScope(alta.CODIGO_RUBRO);
-  const licencia = normalizarLicenciaScope(alta.LICENCIA_ALTA);
+  const licenciaInformada = alta.LICENCIA_ALTA !== null &&
+    alta.LICENCIA_ALTA !== undefined &&
+    String(alta.LICENCIA_ALTA).trim() !== '';
+  const licencia = licenciaInformada
+    ? normalizarLicenciaScope(alta.LICENCIA_ALTA)
+    : '';
 
   if (!acceso.todasMarcas) {
     const marcas = Array.isArray(acceso.marcas)
@@ -335,7 +340,10 @@ function accesoPermiteAlta(acceso, alta) {
     if (!rubros.includes(rubro)) return false;
   }
 
-  if (!acceso.todasLicencias) {
+  // Un BORRADOR sin productos todavía no tiene licencia. En ese momento se
+  // valida empresa, marca y rubro; la licencia se controla al elegir el primer
+  // modelo y en todos los accesos posteriores, cuando ya quedó definida.
+  if (!acceso.todasLicencias && licenciaInformada) {
     const licencias = Array.isArray(acceso.licencias)
       ? acceso.licencias.map(item => normalizarLicenciaScope(
           codigoScope(item, [
@@ -548,5 +556,6 @@ module.exports = {
   requerirReportesEmpresa,
   requerirAccesoAlta,
   requerirAccesoPedido,
-  rolPermiteEscritura
+  rolPermiteEscritura,
+  accesoPermiteAlta
 };

@@ -360,7 +360,11 @@ function accesoEmpresaPermiteAlta(acceso, alta) {
         alcanceContiene(acceso.rubros, ['codigoRubro', 'detalleRubro', 'CODIGO_RUBRO', 'DETALLE_RUBRO'], alta.DETALLE_RUBRO);
     if (!rubroPermitido) return false;
 
-    if (!acceso.todasLicencias) {
+    const licenciaInformada = alta.LICENCIA_ALTA !== null &&
+        alta.LICENCIA_ALTA !== undefined &&
+        String(alta.LICENCIA_ALTA).trim() !== '';
+
+    if (!acceso.todasLicencias && licenciaInformada) {
         const licenciaAlta = normalizarLicenciaSeguridad(alta.LICENCIA_ALTA);
         const permitida = (acceso.licencias || []).some(
             licencia => normalizarLicenciaSeguridad(licencia) === licenciaAlta

@@ -5,7 +5,10 @@ param(
     [string]$BaseDatos = 'PRODUCTOS_APP',
     [string]$DirectorioBackup = 'C:\SQLBackups\PRODUCTOS_APP',
     [ValidateRange(1, 3650)]
-    [int]$DiasRetencion = 14
+    [int]$DiasRetencion = 14,
+    [string]$DirectorioCopiaExterna = '\\192.168.106.79\sistemas_otros\Bckp_APP_PRODUCTOS',
+    [ValidateRange(1, 3650)]
+    [int]$DiasRetencionExterna = 30
 )
 
 $ErrorActionPreference = 'Stop'
@@ -74,6 +77,18 @@ try {
         throw 'El archivo de backup fue generado vacío.'
     }
 
+    if (-not (Test-Path -LiteralPath $DirectorioCopiaExterna -PathType Container)) {
+        throw "No se puede acceder al directorio externo: $DirectorioCopiaExterna"
+    }
+
+    $rutaExterna = Join-Path $DirectorioCopiaExterna $nombreArchivo
+    Copy-Item -LiteralPath $rutaBackup -Destination $rutaExterna -Force
+    $archivoExterno = Get-Item -LiteralPath $rutaExterna
+    if ($archivoExterno.Length -ne $archivo.Length) {
+        throw "La copia externa no coincide en tamaño con el backup local: $rutaExterna"
+    }
+    Escribir-Registro "Copia externa verificada en $rutaExterna"
+
     $limite = (Get-Date).AddDays(-$DiasRetencion)
     $eliminados = 0
     Get-ChildItem -LiteralPath $directorioCompleto -File -Filter ("{0}_*.bak" -f $BaseDatos) |
@@ -83,8 +98,21 @@ try {
             $eliminados += 1
         }
 
+    $limiteExterno = (Get-Date).AddDays(-$DiasRetencionExterna)
+    $eliminadosExternos = 0
+    Get-ChildItem -LiteralPath $DirectorioCopiaExterna -File -Filter ("{0}_*.bak" -f $BaseDatos) |
+        Where-Object { $_.LastWriteTime -lt $limiteExterno } |
+        ForEach-Object {
+            Remove-Item -LiteralPath $_.FullName -Force
+            $eliminadosExternos += 1
+        }
+
     $tamanoMb = [Math]::Round($archivo.Length / 1MB, 2)
-    Escribir-Registro "Backup verificado correctamente. Tamaño: $tamanoMb MB. Backups vencidos eliminados: $eliminados."
+    Escribir-Registro (
+        "Backup verificado correctamente. Tamaño: $tamanoMb MB. " +
+        "Backups locales vencidos eliminados: $eliminados. " +
+        "Backups externos vencidos eliminados: $eliminadosExternos."
+    )
     exit 0
 }
 catch {

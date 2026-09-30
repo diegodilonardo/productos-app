@@ -26,6 +26,10 @@ test('el backup SQL verifica el archivo, registra errores y usa la conexión loc
   assert.doesNotMatch(script, /-r\s+1/);
   assert.match(script, /\$LASTEXITCODE/);
   assert.match(script, /DiasRetencion/);
+  assert.match(script, /192\.168\.106\.79\\sistemas_otros\\Bckp_APP_PRODUCTOS/);
+  assert.match(script, /Copy-Item -LiteralPath \$rutaBackup/);
+  assert.match(script, /\$archivoExterno\.Length -ne \$archivo\.Length/);
+  assert.match(script, /DiasRetencionExterna = 30/);
 });
 
 test('el instalador programa un backup completo y tres diferenciales sin guardar contraseñas', () => {

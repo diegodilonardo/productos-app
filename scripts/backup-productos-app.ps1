@@ -55,7 +55,6 @@ try {
         -E `
         -C `
         -b `
-        -r 1 `
         -Q $consulta 2>&1
     $codigoSalida = $LASTEXITCODE
 

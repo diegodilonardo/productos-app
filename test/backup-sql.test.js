@@ -19,6 +19,7 @@ test('el backup SQL verifica el archivo, registra errores y usa la conexión loc
   assert.match(script, /RESTORE VERIFYONLY/);
   assert.match(script, /WITH CHECKSUM/);
   assert.match(script, /-C/);
+  assert.doesNotMatch(script, /-r\s+1/);
   assert.match(script, /\$LASTEXITCODE/);
   assert.match(script, /DiasRetencion/);
 });

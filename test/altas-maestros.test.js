@@ -196,6 +196,61 @@ test('crea módulos solamente para calzado o indumentaria y calcula su distribuc
   }
 });
 
+test('un módulo repetido informa el código y tallado existentes', async () => {
+  const originalListar = repository.listar;
+  const originalModulos = maestrosRepository.obtenerTallesModulosConsulta;
+  try {
+    repository.listar = async () => [];
+    maestrosRepository.obtenerTallesModulosConsulta = async () => [{
+      CODIGO_MODULO: 'C0',
+      DETALLE_MODULO: '35 AL 37 X 4 (1,2,1)',
+      T35: 1,
+      T36: 2,
+      T37: 1,
+    }];
+
+    await assert.rejects(
+      () => service.crear({
+        idEmpresa: 1,
+        usuario: 'DIEGO',
+        cuerpo: {
+          tipo: 'MODULO',
+          codigo: 'C1',
+          rubro: 'CALZADO',
+          datos: { distribucion: { T35: 1, T36: 2, T37: 1 } },
+        },
+      }),
+      /código C0 — 35 AL 37 X 4 \(1,2,1\)/
+    );
+
+    maestrosRepository.obtenerTallesModulosConsulta = async () => [];
+    repository.listar = async () => [{
+      TIPO: 'MODULO',
+      ESTADO: 'ENVIADO_PRESEA',
+      CODIGO: 'C2',
+      NOMBRE: '35 AL 37 X 4 (1,2,1)',
+      DATOS_JSON: JSON.stringify({ distribucion: { T35: 1, T36: 2, T37: 1 }, pares: 4 }),
+    }];
+
+    await assert.rejects(
+      () => service.crear({
+        idEmpresa: 1,
+        usuario: 'DIEGO',
+        cuerpo: {
+          tipo: 'MODULO',
+          codigo: 'C3',
+          rubro: 'CALZADO',
+          datos: { distribucion: { T35: 1, T36: 2, T37: 1 } },
+        },
+      }),
+      /Alta de Maestros vigente[\s\S]*código C2/
+    );
+  } finally {
+    repository.listar = originalListar;
+    maestrosRepository.obtenerTallesModulosConsulta = originalModulos;
+  }
+});
+
 test('el DBI de módulos respeta la estructura real de Presea', () => {
   const definicion = service.definicionesDbi.MODULO;
   assert.equal(definicion.archivo, 'TALLES_MODULOS.DBI');

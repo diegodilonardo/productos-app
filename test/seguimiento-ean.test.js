@@ -169,6 +169,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(vista, /Seguimiento EAN \/ GS1/);
   assert.match(vista, /id="buscarSeguimientoEan"/);
   assert.match(vista, /id="filtroEstadoEan"/);
+  assert.match(vista, /id="filtroAltaEan"/);
   assert.match(vista, /id="filtroTemporadaEan"/);
   assert.match(vista, /id="filtroAnoEan"/);
   assert.match(vista, /id="filtroRubroEan"/);
@@ -196,6 +197,8 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /poblarFiltrosSeguimientoEan/);
   assert.match(frontend, /getElementById\('listadoProductosEan'\)\?\.scrollIntoView/);
   assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1'\)/);
+  assert.match(frontend, /String\(producto\.ID_ALTA\) !== idAlta/);
+  assert.match(frontend, /function cambiarFiltroAltaEan\(\)[\s\S]*?seleccionEan\.clear\(\)/);
   assert.match(frontend, /productosSeleccionadosEan\('EAN_ASIGNADO'\)/);
   assert.match(frontend, /productosSeleccionadosEan\('CONFIRMADO_ERP'\)/);
   assert.match(frontend, /seguimiento\.ean\.seleccion\.\$\{idEmpresaSeguimiento\}/);

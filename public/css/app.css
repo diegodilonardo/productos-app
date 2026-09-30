@@ -1320,7 +1320,7 @@ main .progress {
 
 .seguimiento-ean-filters {
     display: grid;
-    grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(145px, 1fr));
+    grid-template-columns: minmax(260px, 2fr) minmax(230px, 1.35fr) repeat(4, minmax(145px, 1fr));
     gap: .75rem;
     flex: 1;
     justify-content: end;

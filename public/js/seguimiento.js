@@ -80,6 +80,7 @@ async function iniciarSeguimiento() {
   }
 
   document.getElementById('buscarSeguimientoEan')?.addEventListener('input', reiniciarPaginaSeguimientoEan);
+  document.getElementById('filtroAltaEan')?.addEventListener('change', cambiarFiltroAltaEan);
   for (const id of ['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan']) {
     document.getElementById(id)?.addEventListener('change', reiniciarPaginaSeguimientoEan);
   }
@@ -246,11 +247,13 @@ function pintarSeguimientoEan() {
   const tbody = document.getElementById('tablaSeguimientoEan');
   if (!tbody) return;
   const busqueda = String(document.getElementById('buscarSeguimientoEan')?.value || '').trim().toUpperCase();
+  const idAlta = document.getElementById('filtroAltaEan')?.value || '';
   const estado = document.getElementById('filtroEstadoEan')?.value || '';
   const temporada = document.getElementById('filtroTemporadaEan')?.value || '';
   const ano = document.getElementById('filtroAnoEan')?.value || '';
   const rubro = document.getElementById('filtroRubroEan')?.value || '';
   const coincide = producto => {
+    if (idAlta && String(producto.ID_ALTA) !== idAlta) return false;
     if (estado && producto.ESTADO_EAN !== estado) return false;
     if (temporada && claveTemporadaEan(producto) !== temporada) return false;
     if (ano && normalizarFiltroEan(producto.CODIGO_ANO) !== ano) return false;
@@ -319,6 +322,13 @@ function claveRubroEan(producto) {
 }
 
 function poblarFiltrosSeguimientoEan() {
+  poblarSelectSeguimientoEan('filtroAltaEan', 'Todas las altas', productosSeguimientoEan.map(producto => ({
+    valor: String(producto.ID_ALTA || '').trim(),
+    etiqueta: [producto.CODIGO_ALTA, producto.DETALLE_MARCA, producto.DETALLE_RUBRO]
+      .map(valor => String(valor ?? '').trim())
+      .filter(Boolean)
+      .join(' · ')
+  })));
   poblarSelectSeguimientoEan('filtroTemporadaEan', 'Todas las temporadas', productosSeguimientoEan.map(producto => ({
     valor: claveTemporadaEan(producto),
     etiqueta: producto.DETALLE_TEMPORADA || producto.CODIGO_TEMPORADA
@@ -370,6 +380,14 @@ function reiniciarPaginaSeguimientoEan() {
   paginaSeguimientoEan = 1;
   familiasEanAbiertas.clear();
   pintarSeguimientoEan();
+}
+
+function cambiarFiltroAltaEan() {
+  seleccionEan.clear();
+  guardarSeleccionEan();
+  asociacionesUrlsGs1 = [];
+  reiniciarPaginaSeguimientoEan();
+  actualizarBotonImagenesEan();
 }
 
 function cambiarPaginaSeguimientoEan(event) {

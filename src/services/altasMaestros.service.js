@@ -233,14 +233,25 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
     datosModulo = { rubro: rubroModulo, distribucion, pares };
 
     const existentes = await maestrosRepository.obtenerTallesModulosConsulta(idEmpresa);
-    const pendientes = (await repository.listar(idEmpresa)).filter(x => x.TIPO === 'MODULO' && x.ESTADO === 'PENDIENTE_ENVIO');
+    const solicitudesVigentes = (await repository.listar(idEmpresa)).filter(x => x.TIPO === 'MODULO');
     const firma = permitidos.map(campo => Number(distribucion[campo] || 0)).join('|');
-    const repetidoMaestro = existentes.some(item => permitidos.map(campo => Number(item[campo] || 0)).join('|') === firma);
-    const repetidoPendiente = pendientes.some(item => {
+    const repetidoMaestro = existentes.find(item => permitidos.map(campo => Number(item[campo] || 0)).join('|') === firma);
+    const repetidoSolicitud = solicitudesVigentes.find(item => {
       try { const datos = JSON.parse(item.DATOS_JSON || '{}'); return permitidos.map(campo => Number(datos.distribucion?.[campo] || 0)).join('|') === firma; }
       catch { return false; }
     });
-    if (repetidoMaestro || repetidoPendiente) throw Object.assign(new Error('Ya existe un módulo con la misma distribución de talles.'), { status: 409 });
+    const repetido = repetidoMaestro || repetidoSolicitud;
+    if (repetido) {
+      const codigoExistente = normalizar(repetido.CODIGO_MODULO || repetido.CODIGO) || 'SIN CÓDIGO';
+      const detalleExistente = String(
+        repetido.DETALLE_MODULO || repetido.DESCRIPCION_CURVA || repetido.NOMBRE || nombre
+      ).trim();
+      const origen = repetidoMaestro ? 'en el maestro sincronizado de Presea' : 'en un Alta de Maestros vigente';
+      throw Object.assign(new Error(
+        `Ya existe ${origen} un módulo con la misma distribución de talles y cantidades: ` +
+        `código ${codigoExistente}${detalleExistente ? ` — ${detalleExistente}` : ''}.`
+      ), { status: 409 });
+    }
   }
   if (!nombre) throw Object.assign(new Error('Debe indicar el nombre o la distribución del módulo.'), { status: 400 });
   if (['COLOR', 'MODELO'].includes(tipo)) {

@@ -1547,6 +1547,9 @@ function aplicarClasificacionSugeridaPorCurvas() {
   const sugerida = clasificacionSugeridaPorCurvas();
   const select = document.getElementById('codigoClasificacion');
   if (!sugerida || !select) return;
+  // La regla por talles es solamente una sugerencia. Si Edad/Sexo o el usuario
+  // ya definieron una clasificación, no debemos reemplazarla al elegir curvas.
+  if (String(select.value || '').trim()) return;
   const opcion = [...select.options].find(item =>
     sugerida.includes(normalizarValorRegla(item.textContent)) ||
     sugerida.includes(normalizarValorRegla(item.dataset.detalle))

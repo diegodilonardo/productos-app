@@ -1739,28 +1739,12 @@ async function prepararDetalleProducto(
         }
     }
 
-    let clasificacionAplicada = clasificacionPrincipal;
-    if (tipoProducto === 'MODULO') {
-        const detallesClasificacion = clasificacionesPorCurva(modulo);
-        if (detallesClasificacion) {
-            clasificacionAplicada = await altasRepository.buscarClasificacionPorDetalles(
-                detallesClasificacion,
-                idEmpresa
-            );
-
-            if (!clasificacionAplicada) {
-                throw new Error(
-                    `No se encontró en el maestro la clasificación ${detallesClasificacion[0]} ` +
-                    `correspondiente a la curva ${modulo.CODIGO_MODULO}.`
-                );
-            }
-        }
-
-        /*
-         * Cuando el rango no forma parte de la matriz automática,
-         * clasificacionAplicada conserva la opción elegida por el usuario.
-         */
-    }
+    /*
+     * La matriz de talles se utiliza únicamente para sugerir una clasificación
+     * en la interfaz. La selección confirmada por el usuario es la autoridad al
+     * generar el producto y no debe ser reemplazada por el rango de la curva.
+     */
+    const clasificacionAplicada = clasificacionPrincipal;
 
     const rubroFactPrincipal =
         determinarRubroFact(

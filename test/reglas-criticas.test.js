@@ -66,7 +66,7 @@ test('las curvas conocidas sugieren por defecto su tipo de módulo', () => {
   assert.match(frontend, /renderizarModulosSeleccionados[\s\S]*aplicarClasificacionSugeridaPorCurvas\(\)/);
 });
 
-test('el backend determina la clasificación de cada curva sin depender de Edad', () => {
+test('la matriz de curvas conserva las sugerencias disponibles para la interfaz', () => {
   assert.deepEqual(clasificacionesPorCurva({ DESCRIPCION_CURVA:'35 AL 40 X 12' }), ['MOD.MUJER', 'MOD.MUJ']);
   assert.deepEqual(clasificacionesPorCurva({ DETALLE_MODULO:'40 al 45 (4,5,2,1)' }), ['MOD.HOMBRE', 'MOD.HOM']);
   assert.deepEqual(clasificacionesPorCurva({ DESCRIPCION_CURVA:'21/22/23/24/25/26/27' }), ['MOD.BABY', 'MOD.BB']);
@@ -74,16 +74,25 @@ test('el backend determina la clasificación de cada curva sin depender de Edad'
   assert.equal(clasificacionesPorCurva({ DESCRIPCION_CURVA:'36 AL 41' }), null);
 });
 
-test('una curva sin regla automática conserva la clasificación elegida por el usuario', () => {
+test('el backend siempre conserva la clasificación elegida por el usuario', () => {
   const backend = fs.readFileSync(path.join(__dirname, '../src/services/altas.service.js'), 'utf8');
   const bloque = backend.slice(
-    backend.indexOf('let clasificacionAplicada = clasificacionPrincipal'),
-    backend.indexOf('const rubroFactPrincipal', backend.indexOf('let clasificacionAplicada = clasificacionPrincipal'))
+    backend.indexOf('const clasificacionAplicada = clasificacionPrincipal'),
+    backend.indexOf('const rubroFactPrincipal', backend.indexOf('const clasificacionAplicada = clasificacionPrincipal'))
   );
 
-  assert.match(bloque, /if \(detallesClasificacion\)/);
-  assert.doesNotMatch(bloque, /no tiene una clasificación configurada por rango/);
-  assert.match(bloque, /clasificacionAplicada conserva la opción elegida por el usuario/);
+  assert.match(bloque, /const clasificacionAplicada = clasificacionPrincipal/);
+  assert.doesNotMatch(bloque, /buscarClasificacionPorDetalles/);
+  assert.match(backend, /selección confirmada por el usuario es la autoridad/);
+});
+
+test('la sugerencia por curva no reemplaza una clasificación ya seleccionada', () => {
+  const frontend = fs.readFileSync(path.join(__dirname, '../public/js/alta-productos.js'), 'utf8');
+  const inicio = frontend.indexOf('function aplicarClasificacionSugeridaPorCurvas()');
+  const fin = frontend.indexOf('\n}\n', inicio) + 2;
+  const bloque = frontend.slice(inicio, fin);
+  assert.match(bloque, /if \(String\(select\.value \|\| ''\)\.trim\(\)\) return/);
+  assert.match(bloque, /select\.value = opcion\.value/);
 });
 
 test('una combinación Edad/Sexo desconocida queda bloqueada', () => {

@@ -29,6 +29,7 @@ test('el color y la curva se editan regenerando toda la familia en una transacci
   const vista = leer('views/altas/productos.hbs');
   const cliente = leer('public/js/alta-productos.js');
   const servicio = leer('src/services/altas.service.js');
+  const rutas = leer('src/routes/altas.routes.js');
   const repositorio = leer('src/repositories/altas.repository.js');
 
   assert.match(vista, /id="editarCodigoColor"/);
@@ -40,6 +41,8 @@ test('el color y la curva se editan regenerando toda la familia en una transacci
   assert.match(servicio, /cambioEstructural/);
   assert.match(servicio, /codigoClasificacion !== codigoClasificacionActual/);
   assert.match(servicio, /prepararDetalleProducto[\s\S]*idDetalleReemplazar:\s*detalleId/);
+  assert.match(servicio, /prefijoClave:\s*`EDIT_\$\{detalleId\}`,[\s\S]*contextoUsuario/);
+  assert.match(rutas, /actualizarInformacionFamilia\([\s\S]*req\.usuario/);
   assert.match(repositorio, /opciones\.idDetalleReemplazar/);
   assert.match(repositorio, /DELETE FROM dbo\.ALTAS_PRODUCTOS_FAMILIAS_DETALLE[\s\S]*DELETE FROM dbo\.ALTAS_PRODUCTOS_DETALLE/);
   assert.match(repositorio, /UPDATE dbo\.ALTAS_PRODUCTOS_IMAGENES[\s\S]*CODIGO_COLOR = @COLOR_NUEVO/);

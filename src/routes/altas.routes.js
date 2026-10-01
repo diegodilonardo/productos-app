@@ -129,7 +129,8 @@ router.put('/:id/detalle/:idDetalle/informacion', requerirAccesoAlta, requerirEs
                 {
                     ...(req.body || {}),
                     usuario: req.usuario?.usuario || req.usuario?.USUARIO || 'SISTEMA'
-                }
+                },
+                req.usuario
             );
 
         res.json({

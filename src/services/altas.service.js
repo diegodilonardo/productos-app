@@ -2624,7 +2624,8 @@ async function eliminarDetalle(
 async function actualizarInformacionFamilia(
     idAlta,
     idDetalle,
-    datosEntrada = {}
+    datosEntrada = {},
+    contextoUsuario = null
 ) {
     const id = validarId(idAlta);
     const detalleId = Number(idDetalle);
@@ -2716,7 +2717,8 @@ async function actualizarInformacionFamilia(
             },
             {
                 codigosGenerados: new Set(),
-                prefijoClave: `EDIT_${detalleId}`
+                prefijoClave: `EDIT_${detalleId}`,
+                contextoUsuario
             }
         );
 

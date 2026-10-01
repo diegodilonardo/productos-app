@@ -205,6 +205,13 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
   if (!/^[A-Z0-9]+$/.test(codigo) || !largoValido) {
     throw Object.assign(new Error(`El código de ${tipo} debe tener hasta ${largos[tipo]} caracteres alfanuméricos.`), { status: 400 });
   }
+  const codigoExistente = await repository.buscarCodigoEnMaestro(idEmpresa, tipo, codigo);
+  if (codigoExistente) {
+    const estado = codigoExistente.ACTIVO ? 'activo' : 'inactivo';
+    throw Object.assign(new Error(
+      `El código ${codigo} ya existe en el maestro de Presea (${estado}). No puede reutilizarse porque sobrescribiría el registro existente.`
+    ), { status: 409 });
+  }
   if (tipo === 'MODELO' && (!normalizar(cuerpo.marca) || !normalizar(cuerpo.rubro) || !licenciaModelo || !disciplinaModelo || !normalizar(cuerpo.cProveedor))) {
     throw Object.assign(new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.'), { status: 400 });
   }
@@ -232,8 +239,8 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
       : `${primerTalle} AL ${ultimoTalle} X ${pares} (${cantidades})`;
     datosModulo = { rubro: rubroModulo, distribucion, pares };
 
-    const existentes = await maestrosRepository.obtenerTallesModulosConsulta(idEmpresa);
-    const solicitudesVigentes = (await repository.listar(idEmpresa)).filter(x => x.TIPO === 'MODULO');
+    const existentes = await repository.listarModulosMaestroCompartido(idEmpresa);
+    const solicitudesVigentes = await repository.listarSolicitudesModulosCompartidas(idEmpresa);
     const firma = permitidos.map(campo => Number(distribucion[campo] || 0)).join('|');
     const repetidoMaestro = existentes.find(item => permitidos.map(campo => Number(item[campo] || 0)).join('|') === firma);
     const repetidoSolicitud = solicitudesVigentes.find(item => {
@@ -493,6 +500,15 @@ async function enviarPresea({ idEmpresa, usuario }) {
   const rutaDestino = resolverRutaDestinoMaestros(datos.rutaDestino);
   if (!rutaDestino) throw Object.assign(new Error('La empresa no tiene configurada la carpeta FTP de Altas de Maestros.'), { status: 409 });
   if (!datos.registros.length) throw Object.assign(new Error('No hay solicitudes pendientes para enviar.'), { status: 409 });
+  for (const registro of datos.registros) {
+    const existente = await repository.buscarCodigoEnMaestro(idEmpresa, normalizar(registro.TIPO), normalizar(registro.CODIGO));
+    if (existente) {
+      const estado = existente.ACTIVO ? 'activo' : 'inactivo';
+      throw Object.assign(new Error(
+        `No se enviaron los DBI: el código ${normalizar(registro.CODIGO)} de ${normalizar(registro.TIPO)} ya existe en Presea (${estado}) y podría ser sobrescrito. Genere la solicitud con un código libre.`
+      ), { status: 409 });
+    }
+  }
   const carpetaLocal = path.join(process.env.EXPORT_PATH || path.join(process.cwd(), 'salidas'), 'altas-maestros', String(idEmpresa));
   fs.mkdirSync(carpetaLocal, { recursive: true });
   const archivos = [];

@@ -8,6 +8,9 @@ const path = require('path');
 const XLSX = require('xlsx');
 
 repository.buscarNombreDuplicado = async () => null;
+repository.buscarCodigoEnMaestro = async () => null;
+repository.listarModulosMaestroCompartido = async () => [];
+repository.listarSolicitudesModulosCompartidas = async () => [];
 
 test('genera códigos alfanuméricos con el largo del maestro', () => {
   assert.equal(service.codigoBase36(0, 2), '00');
@@ -19,8 +22,18 @@ test('la conciliación confirma colores y curvas además de modelos', () => {
   const fuente = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
   assert.match(fuente, /A\.TIPO='COLOR' AND EXISTS[\s\S]*MAESTRO_COLORES/);
   assert.match(fuente, /A\.TIPO='MODULO' AND EXISTS[\s\S]*MAESTRO_TALLES_MODULOS/);
-  assert.match(fuente, /C\.ID_EMPRESA=A\.ID_EMPRESA/);
-  assert.match(fuente, /T\.ID_EMPRESA=A\.ID_EMPRESA/);
+  assert.match(fuente, /alcanceMaestro\('C', 'A\.ID_EMPRESA'\)/);
+  assert.match(fuente, /alcanceMaestro\('T', 'A\.ID_EMPRESA'\)/);
+  assert.match(fuente, /T\.PARES[\s\S]*JSON_VALUE\(A\.DATOS_JSON,'\$\.pares'\)/);
+  assert.match(fuente, /columnasDistribucionModulo[\s\S]*'T31','T32','T33'/);
+  assert.match(fuente, /ISNULL\(T\.\$\{columna\},0\)[\s\S]*\$\.distribucion\.\$\{columna\}/);
+});
+
+test('VICBOR, GYD y BAGUNZA comparten el alcance de maestros y MIDING queda separado', () => {
+  const repositorySource = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
+  assert.match(repositorySource, /CODIGO_EMPRESA\)\) IN \('0','70000','15000'\)/);
+  assert.doesNotMatch(repositorySource, /CODIGO_EMPRESA\)\) IN \('0','70000','15000','3000'\)/);
+  assert.match(repositorySource, /E_ALCANCE\.ID_EMPRESA=E_ORIGEN\.ID_EMPRESA/);
 });
 
 test('un color guarda marca y rubro sólo como referencia sin modificar el DBI', async () => {
@@ -68,11 +81,36 @@ test('un código de maestro anulado puede reutilizarse conservando su historial'
   );
 });
 
-test('los códigos inactivos en Presea y anulados en la app quedan disponibles', () => {
+test('los códigos activos e inactivos de Presea quedan siempre reservados', () => {
   const repositorySource = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
-  assert.match(repositorySource, /SELECT \$\{def\.codigo\} CODIGO FROM dbo\.\$\{def\.tabla\} WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1/);
-  assert.match(repositorySource, /FROM dbo\.MAESTRO_MODELOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1/);
+  assert.match(repositorySource, /SELECT \$\{def\.codigo\} CODIGO FROM dbo\.\$\{def\.tabla\} M WHERE \$\{alcanceMaestro\('M'\)\}/);
+  assert.doesNotMatch(repositorySource, /SELECT \$\{def\.codigo\} CODIGO FROM dbo\.\$\{def\.tabla\} WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1/);
   assert.match(repositorySource, /TIPO=@TIPO AND ESTADO <> 'ANULADO'/);
+});
+
+test('valida nuevamente contra todo el maestro antes de crear y exportar', () => {
+  const repositorySource = fs.readFileSync(path.join(process.cwd(), 'src/repositories/altasMaestros.repository.js'), 'utf8');
+  const serviceSource = fs.readFileSync(path.join(process.cwd(), 'src/services/altasMaestros.service.js'), 'utf8');
+  assert.match(repositorySource, /async function buscarCodigoEnMaestro/);
+  assert.match(repositorySource, /WHERE \$\{alcanceMaestro\('M'\)\}[\s\S]*UPPER\(LTRIM\(RTRIM\(\$\{def\.codigo\}\)\)\)/);
+  assert.match(serviceSource, /ya existe en el maestro de Presea \(\$\{estado\}\).*sobrescribiría/);
+  assert.match(serviceSource, /No se enviaron los DBI:[\s\S]*podría ser sobrescrito/);
+});
+
+test('rechaza crear una solicitud con un código inactivo existente en Presea', async () => {
+  const originalBuscarCodigo = repository.buscarCodigoEnMaestro;
+  const originalCrear = repository.crear;
+  repository.buscarCodigoEnMaestro = async () => ({ CODIGO: 'A4', ACTIVO: false });
+  repository.crear = async () => { throw new Error('No debe guardar la solicitud.'); };
+  try {
+    await assert.rejects(
+      () => service.crear({ idEmpresa: 3, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: 'A4', rubro: 'CALZADO', datos: { distribucion: { T32: 1 } } } }),
+      error => error.status === 409 && /ya existe en el maestro de Presea \(inactivo\)/.test(error.message) && /sobrescribiría/.test(error.message)
+    );
+  } finally {
+    repository.buscarCodigoEnMaestro = originalBuscarCodigo;
+    repository.crear = originalCrear;
+  }
 });
 
 test('rechaza nombres de colores y modelos que ya existen', async () => {
@@ -178,12 +216,12 @@ test('solo permite eliminar solicitudes de maestros pendientes y conserva la tra
 
 test('crea módulos solamente para calzado o indumentaria y calcula su distribución', async () => {
   const originalCrear = repository.crear;
-  const originalListar = repository.listar;
-  const originalModulos = maestrosRepository.obtenerTallesModulosConsulta;
+  const originalSolicitudes = repository.listarSolicitudesModulosCompartidas;
+  const originalModulos = repository.listarModulosMaestroCompartido;
   let guardado;
   repository.crear = async datos => { guardado = datos; return datos; };
-  repository.listar = async () => [];
-  maestrosRepository.obtenerTallesModulosConsulta = async () => [];
+  repository.listarSolicitudesModulosCompartidas = async () => [];
+  repository.listarModulosMaestroCompartido = async () => [];
   try {
     await service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: '0A', rubro: 'CALZADO', datos: { distribucion: { T35: 1, T36: 2, T37: 1 } } } });
     assert.equal(guardado.nombre, '35 AL 37 X 4 (1,2,1)');
@@ -191,17 +229,17 @@ test('crea módulos solamente para calzado o indumentaria y calcula su distribuc
     await assert.rejects(() => service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: '0B', rubro: 'INDUMENTARIA', datos: { distribucion: { T35: 1 } } } }), /no corresponde a INDUMENTARIA/);
   } finally {
     repository.crear = originalCrear;
-    repository.listar = originalListar;
-    maestrosRepository.obtenerTallesModulosConsulta = originalModulos;
+    repository.listarSolicitudesModulosCompartidas = originalSolicitudes;
+    repository.listarModulosMaestroCompartido = originalModulos;
   }
 });
 
 test('un módulo repetido informa el código y tallado existentes', async () => {
-  const originalListar = repository.listar;
-  const originalModulos = maestrosRepository.obtenerTallesModulosConsulta;
+  const originalSolicitudes = repository.listarSolicitudesModulosCompartidas;
+  const originalModulos = repository.listarModulosMaestroCompartido;
   try {
-    repository.listar = async () => [];
-    maestrosRepository.obtenerTallesModulosConsulta = async () => [{
+    repository.listarSolicitudesModulosCompartidas = async () => [];
+    repository.listarModulosMaestroCompartido = async () => [{
       CODIGO_MODULO: 'C0',
       DETALLE_MODULO: '35 AL 37 X 4 (1,2,1)',
       T35: 1,
@@ -223,8 +261,8 @@ test('un módulo repetido informa el código y tallado existentes', async () => 
       /código C0 — 35 AL 37 X 4 \(1,2,1\)/
     );
 
-    maestrosRepository.obtenerTallesModulosConsulta = async () => [];
-    repository.listar = async () => [{
+    repository.listarModulosMaestroCompartido = async () => [];
+    repository.listarSolicitudesModulosCompartidas = async () => [{
       TIPO: 'MODULO',
       ESTADO: 'ENVIADO_PRESEA',
       CODIGO: 'C2',
@@ -246,8 +284,8 @@ test('un módulo repetido informa el código y tallado existentes', async () => 
       /Alta de Maestros vigente[\s\S]*código C2/
     );
   } finally {
-    repository.listar = originalListar;
-    maestrosRepository.obtenerTallesModulosConsulta = originalModulos;
+    repository.listarSolicitudesModulosCompartidas = originalSolicitudes;
+    repository.listarModulosMaestroCompartido = originalModulos;
   }
 });
 

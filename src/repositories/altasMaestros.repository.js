@@ -6,6 +6,34 @@ const maestros = {
   MODULO: { tabla: 'MAESTRO_TALLES_MODULOS', codigo: 'CODIGO_MODULO' }
 };
 
+const columnasDistribucionModulo = [
+  'T15','T16','T17','T18','T19','T20','T21','T22','T23','T24','T25','T26','T27','T28','T29','T30',
+  'T31','T32','T33','T34','T35','T36','T37','T38','T385','T39','T395','T40','T405','T41','T415','T42',
+  'T425','T43','T435','T44','T445','T45','T455','T46','T47','T48','T49','T50',
+  'T_XS','T_S','T_M','T_L','T_XL','T_2XL','T_3XL'
+];
+
+const coincidenciaDistribucionModulo = columnasDistribucionModulo
+  .map(columna => `ISNULL(T.${columna},0)=ISNULL(TRY_CONVERT(INT,JSON_VALUE(A.DATOS_JSON,'$.distribucion.${columna}')),0)`)
+  .join('\n              AND ');
+
+// VICBOR, INDUSTRIAS GYD y BAGUNZA consumen el mismo maestro físico de Presea.
+// MIDING conserva un maestro independiente. El alcance se resuelve por código de
+// empresa para no depender de IDs internos entre ambientes.
+function alcanceMaestro(alias, idEmpresa = '@ID_EMPRESA') {
+  return `${alias}.ID_EMPRESA IN (
+    SELECT E_ALCANCE.ID_EMPRESA
+    FROM dbo.EMPRESAS E_ORIGEN
+    INNER JOIN dbo.EMPRESAS E_ALCANCE
+      ON E_ALCANCE.ID_EMPRESA=E_ORIGEN.ID_EMPRESA
+      OR (
+        LTRIM(RTRIM(E_ORIGEN.CODIGO_EMPRESA)) IN ('0','70000','15000')
+        AND LTRIM(RTRIM(E_ALCANCE.CODIGO_EMPRESA)) IN ('0','70000','15000')
+      )
+    WHERE E_ORIGEN.ID_EMPRESA=${idEmpresa}
+  )`;
+}
+
 async function listar(idEmpresa) {
   const pool = await getConnection();
   const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
@@ -32,21 +60,23 @@ async function conciliarModelosRegistrados(idEmpresa, usuario = 'SISTEMA') {
         AND (
           (A.TIPO='MODELO' AND EXISTS (
           SELECT 1 FROM dbo.MAESTRO_MODELOS M
-          WHERE M.ID_EMPRESA=A.ID_EMPRESA
+          WHERE ${alcanceMaestro('M', 'A.ID_EMPRESA')}
             AND M.ACTIVO=1
             AND UPPER(LTRIM(RTRIM(M.CODIGO_MODELO)))=UPPER(LTRIM(RTRIM(A.CODIGO)))
           ))
           OR (A.TIPO='COLOR' AND EXISTS (
             SELECT 1 FROM dbo.MAESTRO_COLORES C
-            WHERE C.ID_EMPRESA=A.ID_EMPRESA
+            WHERE ${alcanceMaestro('C', 'A.ID_EMPRESA')}
               AND C.ACTIVO=1
               AND UPPER(LTRIM(RTRIM(C.CODIGO_COLOR)))=UPPER(LTRIM(RTRIM(A.CODIGO)))
           ))
           OR (A.TIPO='MODULO' AND EXISTS (
             SELECT 1 FROM dbo.MAESTRO_TALLES_MODULOS T
-            WHERE T.ID_EMPRESA=A.ID_EMPRESA
+            WHERE ${alcanceMaestro('T', 'A.ID_EMPRESA')}
               AND T.ACTIVO=1
               AND UPPER(LTRIM(RTRIM(T.CODIGO_MODULO)))=UPPER(LTRIM(RTRIM(A.CODIGO)))
+              AND ISNULL(T.PARES,0)=ISNULL(TRY_CONVERT(INT,JSON_VALUE(A.DATOS_JSON,'$.pares')),0)
+              AND ${coincidenciaDistribucionModulo}
           ))
         );
 
@@ -64,9 +94,44 @@ async function codigosOcupados(idEmpresa, tipo) {
   const def = maestros[tipo];
   const pool = await getConnection();
   const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).input('TIPO', sql.VarChar(20), tipo).query(`
-    SELECT ${def.codigo} CODIGO FROM dbo.${def.tabla} WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
-    UNION SELECT CODIGO FROM dbo.ALTAS_MAESTROS WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO=@TIPO AND ESTADO <> 'ANULADO'`);
+    SELECT ${def.codigo} CODIGO FROM dbo.${def.tabla} M WHERE ${alcanceMaestro('M')}
+    UNION SELECT CODIGO FROM dbo.ALTAS_MAESTROS A WHERE ${alcanceMaestro('A')} AND TIPO=@TIPO AND ESTADO <> 'ANULADO'`);
   return r.recordset.map(x => String(x.CODIGO || '').trim().toUpperCase());
+}
+
+async function buscarCodigoEnMaestro(idEmpresa, tipo, codigo) {
+  const def = maestros[tipo];
+  if (!def) return null;
+  const pool = await getConnection();
+  const r = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('CODIGO', sql.VarChar(20), codigo)
+    .query(`
+      SELECT TOP 1 ${def.codigo} CODIGO, ACTIVO
+      FROM dbo.${def.tabla} M
+      WHERE ${alcanceMaestro('M')}
+        AND UPPER(LTRIM(RTRIM(${def.codigo})))=UPPER(LTRIM(RTRIM(@CODIGO)));`);
+  return r.recordset[0] || null;
+}
+
+async function listarModulosMaestroCompartido(idEmpresa) {
+  const pool = await getConnection();
+  const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+    SELECT M.*
+    FROM dbo.MAESTRO_TALLES_MODULOS M
+    WHERE ${alcanceMaestro('M')} AND M.ACTIVO=1;`);
+  return r.recordset;
+}
+
+async function listarSolicitudesModulosCompartidas(idEmpresa) {
+  const pool = await getConnection();
+  const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+    SELECT A.*
+    FROM dbo.ALTAS_MAESTROS A
+    WHERE ${alcanceMaestro('A')}
+      AND A.TIPO='MODULO'
+      AND A.ESTADO<>'ANULADO';`);
+  return r.recordset;
 }
 
 async function listarModelosParaSugerencia(idEmpresa) {
@@ -74,23 +139,23 @@ async function listarModelosParaSugerencia(idEmpresa) {
   const r = await pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
     SELECT CODIGO_MODELO CODIGO, MARCA_MODELO MARCA, RUBRO_MODELO RUBRO, LICENCIA,
       CONVERT(BIT,0) REUTILIZABLE, CONVERT(NVARCHAR(MAX),NULL) DATOS_JSON
-    FROM dbo.MAESTRO_MODELOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
+    FROM dbo.MAESTRO_MODELOS M WHERE ${alcanceMaestro('M')} AND ACTIVO=1
     UNION ALL
     SELECT CODIGO, MARCA, RUBRO, LICENCIA, CONVERT(BIT,0) REUTILIZABLE, DATOS_JSON
-    FROM dbo.ALTAS_MAESTROS
-    WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO='MODELO' AND ESTADO <> 'ANULADO'
+    FROM dbo.ALTAS_MAESTROS A
+    WHERE ${alcanceMaestro('A')} AND TIPO='MODELO' AND ESTADO <> 'ANULADO'
     UNION ALL
     SELECT A.CODIGO, A.MARCA, A.RUBRO, A.LICENCIA, CONVERT(BIT,1) REUTILIZABLE, A.DATOS_JSON
     FROM dbo.ALTAS_MAESTROS A
-    WHERE A.ID_EMPRESA=@ID_EMPRESA AND A.TIPO='MODELO' AND A.ESTADO='ANULADO'
+    WHERE ${alcanceMaestro('A')} AND A.TIPO='MODELO' AND A.ESTADO='ANULADO'
       AND NOT EXISTS (
         SELECT 1 FROM dbo.MAESTRO_MODELOS M
-        WHERE M.ID_EMPRESA=A.ID_EMPRESA AND M.ACTIVO=1
+        WHERE ${alcanceMaestro('M', 'A.ID_EMPRESA')} AND M.ACTIVO=1
           AND UPPER(LTRIM(RTRIM(M.CODIGO_MODELO)))=UPPER(LTRIM(RTRIM(A.CODIGO)))
       )
       AND NOT EXISTS (
         SELECT 1 FROM dbo.ALTAS_MAESTROS V
-        WHERE V.ID_EMPRESA=A.ID_EMPRESA AND V.TIPO=A.TIPO AND V.ESTADO<>'ANULADO'
+        WHERE ${alcanceMaestro('V', 'A.ID_EMPRESA')} AND V.TIPO=A.TIPO AND V.ESTADO<>'ANULADO'
           AND UPPER(LTRIM(RTRIM(V.CODIGO)))=UPPER(LTRIM(RTRIM(A.CODIGO)))
       );`);
   return r.recordset;
@@ -114,14 +179,14 @@ async function buscarNombreDuplicado({ idEmpresa, tipo, nombre, codigoExcluir = 
         SELECT TOP 1 CODIGO, NOMBRE, ORIGEN
         FROM (
           SELECT CODIGO_COLOR CODIGO, DETALLE_COLOR NOMBRE, 'MAESTRO' ORIGEN
-          FROM dbo.MAESTRO_COLORES
-          WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
+          FROM dbo.MAESTRO_COLORES C
+          WHERE ${alcanceMaestro('C')} AND ACTIVO=1
             AND UPPER(LTRIM(RTRIM(DETALLE_COLOR)))=@NOMBRE_NORMALIZADO
             AND UPPER(LTRIM(RTRIM(CODIGO_COLOR)))<>UPPER(LTRIM(RTRIM(@CODIGO_EXCLUIR)))
           UNION ALL
           SELECT CODIGO, NOMBRE, 'SOLICITUD' ORIGEN
-          FROM dbo.ALTAS_MAESTROS
-          WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO='COLOR' AND ESTADO<>'ANULADO'
+          FROM dbo.ALTAS_MAESTROS A
+          WHERE ${alcanceMaestro('A')} AND TIPO='COLOR' AND ESTADO<>'ANULADO'
             AND UPPER(LTRIM(RTRIM(NOMBRE)))=@NOMBRE_NORMALIZADO
             AND UPPER(LTRIM(RTRIM(CODIGO)))<>UPPER(LTRIM(RTRIM(@CODIGO_EXCLUIR)))
         ) DUPLICADOS;
@@ -131,16 +196,16 @@ async function buscarNombreDuplicado({ idEmpresa, tipo, nombre, codigoExcluir = 
         SELECT TOP 1 CODIGO, NOMBRE, ORIGEN
         FROM (
           SELECT CODIGO_MODELO CODIGO, DETALLE_MODELO NOMBRE, 'MAESTRO' ORIGEN
-          FROM dbo.MAESTRO_MODELOS
-          WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1
+          FROM dbo.MAESTRO_MODELOS M
+          WHERE ${alcanceMaestro('M')} AND ACTIVO=1
             AND UPPER(LTRIM(RTRIM(DETALLE_MODELO)))=@NOMBRE_NORMALIZADO
             AND UPPER(LTRIM(RTRIM(MARCA_MODELO)))=UPPER(LTRIM(RTRIM(@MARCA)))
             AND UPPER(LTRIM(RTRIM(RUBRO_MODELO)))=UPPER(LTRIM(RTRIM(@RUBRO)))
             AND UPPER(LTRIM(RTRIM(CODIGO_MODELO)))<>UPPER(LTRIM(RTRIM(@CODIGO_EXCLUIR)))
           UNION ALL
           SELECT CODIGO, NOMBRE, 'SOLICITUD' ORIGEN
-          FROM dbo.ALTAS_MAESTROS
-          WHERE ID_EMPRESA=@ID_EMPRESA AND TIPO='MODELO' AND ESTADO<>'ANULADO'
+          FROM dbo.ALTAS_MAESTROS A
+          WHERE ${alcanceMaestro('A')} AND TIPO='MODELO' AND ESTADO<>'ANULADO'
             AND UPPER(LTRIM(RTRIM(NOMBRE)))=@NOMBRE_NORMALIZADO
             AND UPPER(LTRIM(RTRIM(MARCA)))=UPPER(LTRIM(RTRIM(@MARCA)))
             AND UPPER(LTRIM(RTRIM(RUBRO)))=UPPER(LTRIM(RTRIM(@RUBRO)))
@@ -314,4 +379,4 @@ async function eliminarReglaEan(idEmpresa, idRegla, usuario) {
   return r.recordset[0] || null;
 }
 
-module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, listarModelosParaSugerencia, buscarNombreDuplicado, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, obtenerConfiguracionEanEmpresa, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan };
+module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, buscarCodigoEnMaestro, listarModulosMaestroCompartido, listarSolicitudesModulosCompartidas, listarModelosParaSugerencia, buscarNombreDuplicado, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, obtenerConfiguracionEanEmpresa, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, alcanceMaestro };

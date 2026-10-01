@@ -2175,3 +2175,41 @@
   color: #7b8794;
   font-size: 0.76rem;
 }
+
+/* El formulario agrega un nivel entre .modal-content y .modal-body. Sin esta
+   estructura flex Bootstrap no puede limitar el cuerpo y el pie queda fuera
+   de la pantalla cuando hay muchos campos. */
+#modalInformacionProducto .modal-dialog {
+  height: calc(100vh - 2rem);
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+#modalInformacionProducto .modal-content,
+#modalInformacionProducto form {
+  min-height: 0;
+  height: 100%;
+}
+
+#modalInformacionProducto form {
+  display: flex;
+  flex-direction: column;
+}
+
+#modalInformacionProducto .modal-header,
+#modalInformacionProducto .modal-footer {
+  flex: 0 0 auto;
+}
+
+#modalInformacionProducto .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 575.98px) {
+  #modalInformacionProducto .modal-dialog {
+    height: calc(100vh - 1rem);
+    margin: 0.5rem;
+  }
+}

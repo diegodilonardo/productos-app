@@ -44,3 +44,11 @@ test('el color y la curva se editan regenerando toda la familia en una transacci
   assert.match(repositorio, /DELETE FROM dbo\.ALTAS_PRODUCTOS_FAMILIAS_DETALLE[\s\S]*DELETE FROM dbo\.ALTAS_PRODUCTOS_DETALLE/);
   assert.match(repositorio, /UPDATE dbo\.ALTAS_PRODUCTOS_IMAGENES[\s\S]*CODIGO_COLOR = @COLOR_NUEVO/);
 });
+
+test('el modal conserva encabezado y acciones visibles y desplaza solamente el cuerpo', () => {
+  const estilos = leer('public/css/alta-productos-v2.css');
+
+  assert.match(estilos, /#modalInformacionProducto form\s*\{[\s\S]*display:\s*flex/);
+  assert.match(estilos, /#modalInformacionProducto \.modal-body\s*\{[\s\S]*overflow-y:\s*auto/);
+  assert.match(estilos, /#modalInformacionProducto \.modal-footer\s*\{[\s\S]*flex:\s*0 0 auto/);
+});

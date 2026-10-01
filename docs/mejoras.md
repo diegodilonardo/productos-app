@@ -42,7 +42,7 @@ Unidades combinadas colores en MARCEL (MODULOS Y PARES SUELTOS)
 
 En deV
 
-& C:\productos-app\scripts\publicar-dev.ps1 -Mensaje "Correcion de visualizacion de colores"
+ISI
 
 En servidor
 

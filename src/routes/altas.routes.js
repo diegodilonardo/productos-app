@@ -126,12 +126,17 @@ router.put('/:id/detalle/:idDetalle/informacion', requerirAccesoAlta, requerirEs
             await altasService.actualizarInformacionFamilia(
                 req.params.id,
                 req.params.idDetalle,
-                req.body || {}
+                {
+                    ...(req.body || {}),
+                    usuario: req.usuario?.usuario || req.usuario?.USUARIO || 'SISTEMA'
+                }
             );
 
         res.json({
             ok: true,
-            mensaje: 'Información de la familia actualizada correctamente.',
+            mensaje: resultado.familiaRegenerada
+                ? 'Color/curva y familia actualizados correctamente.'
+                : 'Información de la familia actualizada correctamente.',
             resultado
         });
     } catch (error) {

@@ -5869,6 +5869,29 @@ function abrirEdicionInformacionProducto(idDetalle) {
   document.getElementById('codigoInformacionProducto').textContent =
     `${fila.CODIGO_ALFA ?? '-'} · ${fila.DETALLE_PRODUCTO ?? '-'}`;
 
+  const selectorColor = document.getElementById('editarCodigoColor');
+  selectorColor.innerHTML = colores.map(color => {
+    const codigo = String(color.CODIGO_COLOR ?? color.CODIGO ?? '').trim();
+    const detalle = String(color.DETALLE_COLOR ?? color.DETALLE ?? '').trim();
+    return `<option value="${escapar(codigo)}">${escapar(codigo)} - ${escapar(detalle)}</option>`;
+  }).join('');
+  selectorColor.value = valorDetalle(fila, 'CODIGO_COLOR');
+  selectorColor.dataset.valorOriginal = selectorColor.value;
+
+  const esModulo = String(fila.TIPO_PRODUCTO_DETALLE || '').toUpperCase() === 'MODULO';
+  const grupoModulo = document.getElementById('grupoEditarCodigoModulo');
+  const selectorModulo = document.getElementById('editarCodigoModulo');
+  grupoModulo.classList.toggle('d-none', !esModulo);
+  selectorModulo.required = esModulo;
+  selectorModulo.innerHTML = esModulo
+    ? modulos.map(modulo => {
+        const datos = obtenerDatosModulo(modulo);
+        return `<option value="${escapar(datos.codigo)}">${escapar(datos.codigo)} - ${escapar(datos.detalle)}</option>`;
+      }).join('')
+    : '';
+  if (esModulo) selectorModulo.value = valorDetalle(fila, 'CODIGO_MODULO');
+  selectorModulo.dataset.valorOriginal = selectorModulo.value;
+
   const campos = {
     editarCoNew: 'CO_NEW',
     editarMuestra: 'MUESTRA',
@@ -5897,6 +5920,8 @@ async function guardarInformacionProducto(event) {
   const boton = document.getElementById('btnGuardarInformacionProducto');
 
   const body = {
+    codigoColor: valor('editarCodigoColor'),
+    codigoModulo: valor('editarCodigoModulo'),
     coNew: valor('editarCoNew'),
     muestra: valor('editarMuestra'),
     comentario: valor('editarComentario'),
@@ -5907,6 +5932,15 @@ async function guardarInformacionProducto(event) {
     flow: valor('editarFlow'),
     descripcion: valor('editarDescripcion')
   };
+
+  const cambioColor = body.codigoColor !==
+    (document.getElementById('editarCodigoColor').dataset.valorOriginal || '');
+  const cambioModulo = body.codigoModulo !==
+    (document.getElementById('editarCodigoModulo').dataset.valorOriginal || '');
+
+  if ((cambioColor || cambioModulo) && !window.confirm(
+    'Se regenerarán el producto y toda su familia con los nuevos códigos, talles y descripciones. ¿Continuar?'
+  )) return;
 
   try {
     boton.disabled = true;
@@ -5927,7 +5961,9 @@ async function guardarInformacionProducto(event) {
 
     await cargarAlta();
     mostrarAlerta(
-      `Información actualizada en ${respuesta?.cantidadActualizada ?? 1} producto(s) de la familia.`,
+      respuesta?.familiaRegenerada
+        ? `Familia regenerada correctamente (${respuesta?.cantidadActualizada ?? 1} productos).`
+        : `Información actualizada en ${respuesta?.cantidadActualizada ?? 1} producto(s) de la familia.`,
       'success'
     );
   } catch (error) {

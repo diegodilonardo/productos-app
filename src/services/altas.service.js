@@ -2670,6 +2670,75 @@ async function actualizarInformacionFamilia(
         FLOW: normalizarTextoLimitado(datosEntrada.flow, 'FLOW', 100)
     };
 
+    const codigoColorActual = normalizarTexto(detalle.CODIGO_COLOR);
+    const codigoModuloActual = normalizarTexto(detalle.CODIGO_MODULO);
+    const codigoColor = normalizarTexto(datosEntrada.codigoColor) || codigoColorActual;
+    const esModulo = normalizarTipoProducto(detalle.TIPO_PRODUCTO_DETALLE) === 'MODULO';
+    const codigoModulo = esModulo
+        ? (normalizarTexto(datosEntrada.codigoModulo) || codigoModuloActual)
+        : '';
+    const cambioEstructural =
+        codigoColor !== codigoColorActual ||
+        (esModulo && codigoModulo !== codigoModuloActual);
+
+    if (cambioEstructural) {
+        const preparado = await prepararDetalleProducto(
+            id,
+            {
+                codigoModelo: detalle.CODIGO_MODELO,
+                codigoProveedor: detalle.CODIGO_PROVEEDOR,
+                codigoGrupo: detalle.CODIGO_GRUPO,
+                codigoSubgrupo: detalle.CODIGO_SUBGRUPO,
+                codigoLinea: detalle.CODIGO_LINEA,
+                codigoDeporte: detalle.CODIGO_DEPORTE,
+                codigoEdad: detalle.CODIGO_EDAD,
+                sexo: detalle.SEXO,
+                codigoPais: detalle.CODIGO_PAIS,
+                codigoClasificacion: detalle.CODIGO_CLASIFICACION,
+                codigoColor,
+                codigoModulo,
+                codigoTalle: detalle.CODIGO_TALLE,
+                usuario: normalizarTexto(datosEntrada.usuario) || 'SISTEMA',
+                coNew: informacion.CO_NEW,
+                muestra: informacion.MUESTRA,
+                comentario: informacion.COMENTARIO,
+                correcciones: informacion.CORRECCIONES,
+                materialCalzado: informacion.MATERIAL_CALZADO,
+                materialSuela: informacion.MATERIAL_SUELA,
+                tipoAjuste: informacion.TIPO_AJUSTE,
+                descripcion: informacion.DESCRIPCION,
+                flow: informacion.FLOW
+            },
+            {
+                codigosGenerados: new Set(),
+                prefijoClave: `EDIT_${detalleId}`
+            }
+        );
+
+        const creados = await altasRepository.crearDetalles(
+            id,
+            preparado.detallesAGuardar,
+            preparado.usuario,
+            preparado.relacionesFamilia,
+            {
+                idDetalleReemplazar: detalleId,
+                imagen: {
+                    codigoModelo: detalle.CODIGO_MODELO,
+                    codigoColorAnterior: codigoColorActual,
+                    codigoColorNuevo: codigoColor
+                }
+            }
+        );
+
+        return {
+            idAlta: id,
+            idDetalle: detalleId,
+            cantidadActualizada: creados.length,
+            familiaRegenerada: true,
+            informacion
+        };
+    }
+
     const resultado = await altasRepository.actualizarInformacionFamilia(
         id,
         detalleId,

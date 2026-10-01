@@ -24,3 +24,20 @@ test('cada principal permite editar la información y la propaga a su familia', 
   assert.match(repositorio, /ALTAS_PRODUCTOS_FAMILIAS_DETALLE/);
   assert.match(repositorio, /R\.ID_DETALLE_PADRE = @ID_DETALLE_PADRE/);
 });
+
+test('el color y la curva se editan regenerando toda la familia en una transacción', () => {
+  const vista = leer('views/altas/productos.hbs');
+  const cliente = leer('public/js/alta-productos.js');
+  const servicio = leer('src/services/altas.service.js');
+  const repositorio = leer('src/repositories/altas.repository.js');
+
+  assert.match(vista, /id="editarCodigoColor"/);
+  assert.match(vista, /id="editarCodigoModulo"/);
+  assert.match(cliente, /codigoColor:\s*valor\('editarCodigoColor'\)/);
+  assert.match(cliente, /codigoModulo:\s*valor\('editarCodigoModulo'\)/);
+  assert.match(servicio, /cambioEstructural/);
+  assert.match(servicio, /prepararDetalleProducto[\s\S]*idDetalleReemplazar:\s*detalleId/);
+  assert.match(repositorio, /opciones\.idDetalleReemplazar/);
+  assert.match(repositorio, /DELETE FROM dbo\.ALTAS_PRODUCTOS_FAMILIAS_DETALLE[\s\S]*DELETE FROM dbo\.ALTAS_PRODUCTOS_DETALLE/);
+  assert.match(repositorio, /UPDATE dbo\.ALTAS_PRODUCTOS_IMAGENES[\s\S]*CODIGO_COLOR = @COLOR_NUEVO/);
+});

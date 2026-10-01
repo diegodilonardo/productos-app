@@ -1075,7 +1075,13 @@ async function obtenerValidacionesMasivasAlta(idAlta) {
    - PADRE_TEMPORAL
    ============================================================ */
 
-async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) {
+async function crearDetalles(
+  idAlta,
+  detalles,
+  usuario,
+  relacionesFamilia = [],
+  opciones = {}
+) {
   const pool = await getConnection();
   const transaction = new sql.Transaction(pool);
 
@@ -1398,6 +1404,98 @@ async function crearDetalles(idAlta, detalles, usuario, relacionesFamilia = []) 
             );
           END;
         `);
+    }
+
+    const idDetalleReemplazar = Number(opciones.idDetalleReemplazar || 0);
+
+    if (Number.isInteger(idDetalleReemplazar) && idDetalleReemplazar > 0) {
+      /*
+       * La nueva familia ya quedó insertada y relacionada. Recién entonces
+       * retiramos la anterior dentro de esta misma transacción. Los hijos
+       * compartidos se conservan porque ya tienen la relación con el nuevo
+       * principal; solamente se borran los automáticos que quedan huérfanos.
+       */
+      await new sql.Request(transaction)
+        .input("ID_ALTA", sql.BigInt, idAlta)
+        .input("ID_DETALLE_PADRE", sql.BigInt, idDetalleReemplazar)
+        .query(`
+          DELETE FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE
+          WHERE ID_ALTA = @ID_ALTA
+            AND ID_DETALLE_PADRE = @ID_DETALLE_PADRE;
+
+          UPDATE H
+          SET H.ID_DETALLE_PADRE =
+          (
+            SELECT MIN(R.ID_DETALLE_PADRE)
+            FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE AS R
+            WHERE R.ID_ALTA = H.ID_ALTA
+              AND R.ID_DETALLE_HIJO = H.ID_DETALLE
+          )
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE AS H
+          WHERE H.ID_ALTA = @ID_ALTA
+            AND H.ID_DETALLE_PADRE = @ID_DETALLE_PADRE
+            AND EXISTS
+            (
+              SELECT 1
+              FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE AS R
+              WHERE R.ID_ALTA = H.ID_ALTA
+                AND R.ID_DETALLE_HIJO = H.ID_DETALLE
+            );
+
+          DELETE H
+          FROM dbo.ALTAS_PRODUCTOS_DETALLE AS H
+          WHERE H.ID_ALTA = @ID_ALTA
+            AND ISNULL(H.GENERADO_AUTOMATICO, 0) = 1
+            AND NOT EXISTS
+            (
+              SELECT 1
+              FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE AS R
+              WHERE R.ID_ALTA = H.ID_ALTA
+                AND R.ID_DETALLE_HIJO = H.ID_DETALLE
+            );
+
+          DELETE FROM dbo.ALTAS_PRODUCTOS_DETALLE
+          WHERE ID_ALTA = @ID_ALTA
+            AND ID_DETALLE = @ID_DETALLE_PADRE;
+        `);
+
+      const imagen = opciones.imagen || {};
+      const colorAnterior = String(imagen.codigoColorAnterior || '').trim();
+      const colorNuevo = String(imagen.codigoColorNuevo || '').trim();
+      const codigoModeloImagen = String(imagen.codigoModelo || '').trim();
+
+      if (colorAnterior && colorNuevo && colorAnterior !== colorNuevo && codigoModeloImagen) {
+        const resultadoImagen = await new sql.Request(transaction)
+          .input("ID_EMPRESA", sql.Int, idEmpresa)
+          .input("ID_ALTA", sql.BigInt, idAlta)
+          .input("CODIGO_MODELO", sql.VarChar(30), codigoModeloImagen)
+          .input("COLOR_ANTERIOR", sql.VarChar(30), colorAnterior)
+          .input("COLOR_NUEVO", sql.VarChar(30), colorNuevo)
+          .input("USUARIO", sql.VarChar(100), usuario)
+          .query(`
+            IF EXISTS
+            (
+              SELECT 1
+              FROM dbo.ALTAS_PRODUCTOS_IMAGENES
+              WHERE ID_EMPRESA = @ID_EMPRESA
+                AND ID_ALTA = @ID_ALTA
+                AND CODIGO_MODELO = @CODIGO_MODELO
+                AND CODIGO_COLOR = @COLOR_NUEVO
+            )
+              THROW 50001, 'El color de destino ya tiene una imagen cargada.', 1;
+
+            UPDATE dbo.ALTAS_PRODUCTOS_IMAGENES
+            SET CODIGO_COLOR = @COLOR_NUEVO,
+                USUARIO_ACTUALIZACION = @USUARIO,
+                FECHA_ACTUALIZACION = SYSDATETIME()
+            WHERE ID_EMPRESA = @ID_EMPRESA
+              AND ID_ALTA = @ID_ALTA
+              AND CODIGO_MODELO = @CODIGO_MODELO
+              AND CODIGO_COLOR = @COLOR_ANTERIOR;
+          `);
+
+        void resultadoImagen;
+      }
     }
 
     await transaction.commit();

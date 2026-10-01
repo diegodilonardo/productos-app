@@ -5892,6 +5892,24 @@ function abrirEdicionInformacionProducto(idDetalle) {
   if (esModulo) selectorModulo.value = valorDetalle(fila, 'CODIGO_MODULO');
   selectorModulo.dataset.valorOriginal = selectorModulo.value;
 
+  const grupoClasificacion = document.getElementById('grupoEditarCodigoClasificacion');
+  const selectorClasificacion = document.getElementById('editarCodigoClasificacion');
+  grupoClasificacion.classList.toggle('d-none', !esModulo);
+  selectorClasificacion.required = esModulo;
+  selectorClasificacion.innerHTML = esModulo
+    ? clasificacionesMaestro
+        .filter(item => ['0', '3', '4', '5', '6', '7', '8', '9'].includes(
+          String(obtenerCampo(item, ['CODIGO_CLASIFICACION', 'codigoClasificacion']) ?? '').trim()
+        ))
+        .map(item => {
+          const codigo = String(obtenerCampo(item, ['CODIGO_CLASIFICACION', 'codigoClasificacion']) ?? '').trim();
+          const detalle = String(obtenerCampo(item, ['DETALLE_CLASIFICACION', 'detalleClasificacion']) ?? '').trim();
+          return `<option value="${escapar(codigo)}">${escapar(codigo)} - ${escapar(detalle)}</option>`;
+        }).join('')
+    : '';
+  if (esModulo) selectorClasificacion.value = valorDetalle(fila, 'CODIGO_CLASIFICACION');
+  selectorClasificacion.dataset.valorOriginal = selectorClasificacion.value;
+
   const campos = {
     editarCoNew: 'CO_NEW',
     editarMuestra: 'MUESTRA',
@@ -5922,6 +5940,7 @@ async function guardarInformacionProducto(event) {
   const body = {
     codigoColor: valor('editarCodigoColor'),
     codigoModulo: valor('editarCodigoModulo'),
+    codigoClasificacion: valor('editarCodigoClasificacion'),
     coNew: valor('editarCoNew'),
     muestra: valor('editarMuestra'),
     comentario: valor('editarComentario'),
@@ -5937,9 +5956,11 @@ async function guardarInformacionProducto(event) {
     (document.getElementById('editarCodigoColor').dataset.valorOriginal || '');
   const cambioModulo = body.codigoModulo !==
     (document.getElementById('editarCodigoModulo').dataset.valorOriginal || '');
+  const cambioClasificacion = body.codigoClasificacion !==
+    (document.getElementById('editarCodigoClasificacion').dataset.valorOriginal || '');
 
-  if ((cambioColor || cambioModulo) && !window.confirm(
-    'Se regenerarán el producto y toda su familia con los nuevos códigos, talles y descripciones. ¿Continuar?'
+  if ((cambioColor || cambioModulo || cambioClasificacion) && !window.confirm(
+    'Se regenerarán el producto y toda su familia con el nuevo color, curva o clasificación. ¿Continuar?'
   )) return;
 
   try {

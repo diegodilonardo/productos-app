@@ -33,9 +33,12 @@ test('el color y la curva se editan regenerando toda la familia en una transacci
 
   assert.match(vista, /id="editarCodigoColor"/);
   assert.match(vista, /id="editarCodigoModulo"/);
+  assert.match(vista, /id="editarCodigoClasificacion"/);
   assert.match(cliente, /codigoColor:\s*valor\('editarCodigoColor'\)/);
   assert.match(cliente, /codigoModulo:\s*valor\('editarCodigoModulo'\)/);
+  assert.match(cliente, /codigoClasificacion:\s*valor\('editarCodigoClasificacion'\)/);
   assert.match(servicio, /cambioEstructural/);
+  assert.match(servicio, /codigoClasificacion !== codigoClasificacionActual/);
   assert.match(servicio, /prepararDetalleProducto[\s\S]*idDetalleReemplazar:\s*detalleId/);
   assert.match(repositorio, /opciones\.idDetalleReemplazar/);
   assert.match(repositorio, /DELETE FROM dbo\.ALTAS_PRODUCTOS_FAMILIAS_DETALLE[\s\S]*DELETE FROM dbo\.ALTAS_PRODUCTOS_DETALLE/);

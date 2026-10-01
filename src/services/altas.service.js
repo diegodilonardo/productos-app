@@ -2677,9 +2677,14 @@ async function actualizarInformacionFamilia(
     const codigoModulo = esModulo
         ? (normalizarTexto(datosEntrada.codigoModulo) || codigoModuloActual)
         : '';
+    const codigoClasificacionActual = normalizarTexto(detalle.CODIGO_CLASIFICACION);
+    const codigoClasificacion = esModulo
+        ? (normalizarTexto(datosEntrada.codigoClasificacion) || codigoClasificacionActual)
+        : '1';
     const cambioEstructural =
         codigoColor !== codigoColorActual ||
-        (esModulo && codigoModulo !== codigoModuloActual);
+        (esModulo && codigoModulo !== codigoModuloActual) ||
+        (esModulo && codigoClasificacion !== codigoClasificacionActual);
 
     if (cambioEstructural) {
         const preparado = await prepararDetalleProducto(
@@ -2694,7 +2699,7 @@ async function actualizarInformacionFamilia(
                 codigoEdad: detalle.CODIGO_EDAD,
                 sexo: detalle.SEXO,
                 codigoPais: detalle.CODIGO_PAIS,
-                codigoClasificacion: detalle.CODIGO_CLASIFICACION,
+                codigoClasificacion,
                 codigoColor,
                 codigoModulo,
                 codigoTalle: detalle.CODIGO_TALLE,

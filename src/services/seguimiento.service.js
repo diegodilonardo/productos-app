@@ -506,11 +506,18 @@ async function prepararImagenesEan(clavesEntrada, contexto) {
             .filter(Boolean)
     )];
     if (!claves.length) throw new Error('Seleccione al menos un producto.');
-    if (claves.length > 1000) throw new Error('La selección supera el máximo de 1000 productos.');
+    /*
+     * La pantalla permite seleccionar el resultado completo de los filtros.
+     * Una selección puede contener varios integrantes de una misma familia y
+     * luego se reduce a una sola imagen por modelo/color. El límite anterior
+     * de 1000 rechazaba altas válidas antes de realizar esa reducción.
+     */
+    if (claves.length > 5000) throw new Error('La selección supera el máximo de 5000 productos.');
 
     const seguimiento = await listarSeguimientoEan(contexto);
+    const clavesSeleccionadas = new Set(claves);
     const seleccionados = seguimiento.productos.filter(
-        producto => claves.includes(`${producto.ID_ALTA}|${producto.COD_ALFA}`)
+        producto => clavesSeleccionadas.has(`${producto.ID_ALTA}|${producto.COD_ALFA}`)
     );
     if (!seleccionados.length) throw new Error('No se encontraron productos habilitados en la selección.');
     const noPendientes = seleccionados.filter(producto => producto.ESTADO_EAN !== 'PENDIENTE_GS1');

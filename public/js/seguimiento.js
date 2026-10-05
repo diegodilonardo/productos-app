@@ -745,6 +745,10 @@ async function descargarImagenesEan() {
   if (!clavesPendientes.length || !idEmpresaSeguimiento) return;
   ocultarAlerta();
   actualizarBotonImagenesEan(true);
+  mostrarToastSeguimiento(
+    `Preparando las imágenes de ${clavesPendientes.length} productos. La descarga comenzará automáticamente; puede demorar unos minutos.`,
+    'info'
+  );
   try {
     const respuesta = await fetch(`/api/seguimiento/ean/imagenes.zip?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
       method: 'POST',
@@ -761,11 +765,14 @@ async function descargarImagenesEan() {
     const enlace = document.createElement('a');
     enlace.href = url;
     enlace.download = 'IMAGENES_GS1_400X400.zip';
+    enlace.className = 'd-none';
+    document.body.appendChild(enlace);
     enlace.click();
-    URL.revokeObjectURL(url);
-    mostrarAlerta('Imágenes preparadas correctamente en tamaño mínimo 400 × 400.', 'success');
+    enlace.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    mostrarToastSeguimiento('Imágenes preparadas correctamente en tamaño mínimo 400 × 400.', 'success');
   } catch (error) {
-    mostrarAlerta(error.message, 'danger');
+    mostrarToastSeguimiento(error.message, 'danger');
   } finally {
     actualizarBotonImagenesEan(false);
   }

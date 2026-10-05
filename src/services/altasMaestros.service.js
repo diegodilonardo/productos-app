@@ -60,12 +60,18 @@ function validarCodigoProveedor(valor) {
 function codigoBase36(n, largo) { return n.toString(36).toUpperCase().padStart(largo, '0'); }
 
 function sugerirPorMarcaYRubro(modelos, ocupados, marca, rubro) {
-  const referencias = modelos
-    .filter(x => normalizar(x.MARCA) === marca && normalizar(x.RUBRO) === rubro)
+  const modelosMarca = modelos
+    .filter(x => normalizar(x.MARCA) === marca);
+  const modelosMarcaRubro = modelosMarca
+    .filter(x => normalizar(x.RUBRO) === rubro);
+  /* Algunas marcas comparten una única numeración entre rubros. Cuando el
+   * rubro todavía no tiene modelos, continuamos la serie comprobable de la
+   * marca en lugar de impedir su primera alta. */
+  const referencias = (modelosMarcaRubro.length ? modelosMarcaRubro : modelosMarca)
     .map(x => normalizar(x.CODIGO))
     .map(codigo => ({ codigo, partes: codigo.match(/^([A-Z]*)(\d+)$/) }))
     .filter(x => x.partes && x.codigo.length <= largos.MODELO);
-  if (!referencias.length) throw Object.assign(new Error('No hay una numeración existente para esa marca y rubro.'), { status: 409 });
+  if (!referencias.length) throw Object.assign(new Error('No hay una numeración existente para esa marca.'), { status: 409 });
 
   const grupos = new Map();
   for (const referencia of referencias) {

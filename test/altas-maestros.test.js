@@ -344,6 +344,23 @@ test('otras marcas continúan el máximo de la serie correspondiente a marca y r
   } finally { repository.listarModelosParaSugerencia = original; }
 });
 
+test('un rubro nuevo continúa la numeración general comprobable de la marca', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  repository.listarModelosParaSugerencia = async () => [
+    { CODIGO: '140214', MARCA: 'MARCEL', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: '140215', MARCA: 'MARCEL', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: '140160', MARCA: 'MARCEL', RUBRO: 'ACCESORIOS', LICENCIA: null }
+  ];
+  try {
+    assert.equal(
+      await service.sugerirCodigoModelo(3, { marca: 'MARCEL', rubro: 'POP', licencia: 'SIN LICENCIA' }),
+      '140216'
+    );
+  } finally {
+    repository.listarModelosParaSugerencia = original;
+  }
+});
+
 test('prioriza un modelo anulado disponible antes de continuar la numeración', async () => {
   const original = repository.listarModelosParaSugerencia;
   repository.listarModelosParaSugerencia = async () => [

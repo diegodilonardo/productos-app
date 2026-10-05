@@ -219,12 +219,11 @@ async function cargarLicencias() {
   $('datosLicenciaNueva').classList.add('d-none');
   if (!marca || !rubro) { $('licenciaModelo').innerHTML = '<option value="">Seleccione primero marca y rubro...</option>'; $('licenciaModelo').disabled = true; return; }
   const d = await api(`/api/maestros/licencias-modelos?marca=${encodeURIComponent(marca)}&rubro=${encodeURIComponent(rubro)}`);
-  const permiteSinLicencia = String(marca).trim().toUpperCase() === 'ATOMIK' && ['INDUMENTARIA', 'CALZADO', 'POP', 'ACCESORIOS'].includes(String(rubro).trim().toUpperCase());
   const licencias = Array.isArray(d.datos) ? d.datos : [];
   const tieneSinLicencia = licencias.some(x => x.CODIGO_LICENCIA === '__SIN_LICENCIA__');
-  const opcionesLicencia = (permiteSinLicencia && !tieneSinLicencia ? [{ CODIGO_LICENCIA: '__SIN_LICENCIA__', DETALLE_LICENCIA: 'Sin licencia' }, ...licencias] : licencias);
+  const opcionesLicencia = (!tieneSinLicencia ? [{ CODIGO_LICENCIA: '__SIN_LICENCIA__', DETALLE_LICENCIA: 'Sin licencia' }, ...licencias] : licencias);
   $('licenciaModelo').innerHTML = '<option value="">Seleccione licencia...</option>' + opcionesLicencia.map(x => `<option value="${x.CODIGO_LICENCIA}">${x.DETALLE_LICENCIA}</option>`).join('') + '<option value="__NUEVA__">+ Nueva licencia</option>';
-  if (permiteSinLicencia || tieneSinLicencia) $('licenciaModelo').value = '__SIN_LICENCIA__';
+  $('licenciaModelo').value = '__SIN_LICENCIA__';
   $('licenciaModelo').disabled = false;
   ajustarDisciplina();
 }
@@ -233,11 +232,10 @@ async function cargarLicenciasMasivas() {
   vistaPreviaModelos = []; $('panelVistaPreviaModelos').classList.add('d-none'); $('datosLicenciaNuevaMasiva').classList.add('d-none');
   if (!marca || !rubro) { $('licenciaModelosMasivos').innerHTML = '<option value="">Seleccione primero marca y rubro...</option>'; $('licenciaModelosMasivos').disabled = true; return; }
   const d = await api(`/api/maestros/licencias-modelos?marca=${encodeURIComponent(marca)}&rubro=${encodeURIComponent(rubro)}`);
-  const permiteSinLicencia = String(marca).trim().toUpperCase() === 'ATOMIK' && ['INDUMENTARIA', 'CALZADO', 'POP', 'ACCESORIOS'].includes(String(rubro).trim().toUpperCase());
   const licencias = Array.isArray(d.datos) ? d.datos : [], tieneSinLicencia = licencias.some(x => x.CODIGO_LICENCIA === '__SIN_LICENCIA__');
-  const lista = permiteSinLicencia && !tieneSinLicencia ? [{ CODIGO_LICENCIA: '__SIN_LICENCIA__', DETALLE_LICENCIA: 'Sin licencia' }, ...licencias] : licencias;
+  const lista = !tieneSinLicencia ? [{ CODIGO_LICENCIA: '__SIN_LICENCIA__', DETALLE_LICENCIA: 'Sin licencia' }, ...licencias] : licencias;
   $('licenciaModelosMasivos').innerHTML = '<option value="">Seleccione licencia...</option>' + lista.map(x => `<option value="${x.CODIGO_LICENCIA}">${x.DETALLE_LICENCIA}</option>`).join('') + '<option value="__NUEVA__">+ Nueva licencia</option>';
-  if (permiteSinLicencia || tieneSinLicencia) $('licenciaModelosMasivos').value = '__SIN_LICENCIA__';
+  $('licenciaModelosMasivos').value = '__SIN_LICENCIA__';
   $('licenciaModelosMasivos').disabled = false;
   ajustarDisciplinaMasiva();
 }

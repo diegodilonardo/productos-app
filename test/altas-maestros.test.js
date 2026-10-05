@@ -464,11 +464,25 @@ test('San Lorenzo comparte la misma serie entre rubros', async () => {
   finally { repository.listarModelosParaSugerencia = original; }
 });
 
-test('ATOMIK habilita y selecciona sin licencia aunque el rubro todavía no tenga modelos', () => {
+test('todas las marcas habilitan y seleccionan sin licencia aunque el rubro todavía no tenga modelos', () => {
   const js = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
-  assert.match(js, /\['INDUMENTARIA', 'CALZADO', 'POP', 'ACCESORIOS'\]/);
   assert.match(js, /CODIGO_LICENCIA: '__SIN_LICENCIA__'/);
   assert.match(js, /licenciaModelo'\)\.value = '__SIN_LICENCIA__'/);
+});
+
+test('una licencia vacía se interpreta como sin licencia al sugerir modelos', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  repository.listarModelosParaSugerencia = async () => [
+    { CODIGO: 'P00002', MARCA: 'MARCEL', RUBRO: 'POP', LICENCIA: null }
+  ];
+  try {
+    assert.equal(
+      await service.sugerirCodigoModelo(3, { marca: 'MARCEL', rubro: 'POP', licencia: '' }),
+      'P00003'
+    );
+  } finally {
+    repository.listarModelosParaSugerencia = original;
+  }
 });
 
 test('el template asigna códigos distintos a todos los modelos del lote', async () => {

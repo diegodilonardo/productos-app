@@ -47,7 +47,10 @@ function mensajeNombreDuplicado(tipo, nombre, duplicado, marca = '', rubro = '')
   const origen = duplicado.ORIGEN === 'SOLICITUD' ? 'en un Alta de Maestros' : 'en el maestro sincronizado de Presea';
   return `El ${entidad} "${nombre}"${alcance} ya existe ${origen} con el código ${duplicado.CODIGO}.`;
 }
-function normalizarLicencia(v) { const valor = normalizar(v); return valor === '__SIN_LICENCIA__' ? 'SIN LICENCIA' : valor; }
+function normalizarLicencia(v) {
+  const valor = normalizar(v);
+  return !valor || valor === '__SIN_LICENCIA__' ? 'SIN LICENCIA' : valor;
+}
 function normalizarDisciplina(v) { const valor = normalizar(v); return !valor || valor === '__SIN_DISCIPLINA__' ? 'SIN DISCIPLINA' : valor; }
 function validarCodigoProveedor(valor) {
   const codigo = normalizar(valor);
@@ -117,7 +120,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   const nuevaLicencia = filtros.nuevaLicencia === true || normalizar(filtros.nuevaLicencia) === 'TRUE';
   const prefijoNuevo = normalizar(filtros.prefijo);
   const prefijoDisciplina = normalizar(filtros.prefijoDisciplina);
-  if (!marca || !rubro || !licencia || !disciplina) throw Object.assign(new Error('Seleccione marca, rubro, licencia y disciplina antes de sugerir el modelo.'), { status: 400 });
+  if (!marca || !rubro) throw Object.assign(new Error('Seleccione marca y rubro antes de sugerir el modelo.'), { status: 400 });
   const modelos = await repository.listarModelosParaSugerencia(idEmpresa);
   const modelosVigentes = modelos.filter(x => x.REUTILIZABLE !== true && x.REUTILIZABLE !== 1);
   const anuladosDisponibles = modelos.filter(x => x.REUTILIZABLE === true || x.REUTILIZABLE === 1);

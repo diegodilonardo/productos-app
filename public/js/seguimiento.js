@@ -12,6 +12,18 @@ let vistaSeguimiento = sessionStorage.getItem('seguimiento.vista') === 'tabla' ?
 let paginaSeguimientoEan = 1;
 let temporizadorToastSeguimiento = null;
 const PRODUCTOS_POR_PAGINA_EAN = 50;
+const MAX_PRODUCTOS_OPERACION_EAN = 2500;
+
+function excedeMaximoOperacionEan(cantidad) {
+  return Number(cantidad) > MAX_PRODUCTOS_OPERACION_EAN;
+}
+
+function configurarLimiteBotonEan(elemento, cantidad) {
+  if (!elemento) return;
+  elemento.title = excedeMaximoOperacionEan(cantidad)
+    ? `Seleccione como máximo ${MAX_PRODUCTOS_OPERACION_EAN} productos.`
+    : '';
+}
 
 function claveSesionSeleccionEan() {
   return idEmpresaSeguimiento ? `seguimiento.ean.seleccion.${idEmpresaSeguimiento}` : '';
@@ -494,52 +506,60 @@ function actualizarBotonImagenesEan(cargando = false) {
   if (!boton) return;
   const pendientesGs1 = productosSeleccionadosEan('PENDIENTE_GS1');
   const clavesPendientesGs1 = pendientesGs1.map(claveProductoEan);
-  boton.disabled = cargando || pendientesGs1.length === 0;
+  boton.disabled = cargando || pendientesGs1.length === 0 || excedeMaximoOperacionEan(pendientesGs1.length);
   boton.textContent = cargando ? 'Preparando imágenes...' : `Descargar imágenes (${pendientesGs1.length})`;
+  configurarLimiteBotonEan(boton, pendientesGs1.length);
   const importar = document.getElementById('btnImportarUrlsTemporalesEan');
   const pendientesUrl = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO')
     .filter(producto => !String(producto.URL_IMAGEN_GS1 || '').trim());
   if (importar) {
-    importar.disabled = cargando || pendientesUrl.length === 0;
+    importar.disabled = cargando || pendientesUrl.length === 0 || excedeMaximoOperacionEan(pendientesUrl.length);
     importar.textContent = `Importar URLs GS1 (${pendientesUrl.length})`;
+    configurarLimiteBotonEan(importar, pendientesUrl.length);
   }
   sincronizarAsociacionesRegistradas();
   const generar = document.getElementById('btnGenerarArchivoGs1');
   if (generar) {
-    generar.disabled = cargando || asociacionesUrlsGs1.length === 0;
+    generar.disabled = cargando || asociacionesUrlsGs1.length === 0 || excedeMaximoOperacionEan(asociacionesUrlsGs1.length);
     generar.textContent = `Generar archivo GS1 (${asociacionesUrlsGs1.length})`;
+    configurarLimiteBotonEan(generar, asociacionesUrlsGs1.length);
   }
   const importarEan = document.getElementById('btnImportarCodigosEanGs1');
   const importablesEan = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO');
   if (importarEan) {
-    importarEan.disabled = cargando || importablesEan.length === 0;
+    importarEan.disabled = cargando || importablesEan.length === 0 || excedeMaximoOperacionEan(importablesEan.length);
     importarEan.textContent = `Importar EAN definitivos (${importablesEan.length})`;
+    configurarLimiteBotonEan(importarEan, importablesEan.length);
   }
   const exportarDbi = document.getElementById('btnExportarGtinDbi');
   const asignados = productosSeleccionadosEan('EAN_ASIGNADO')
     .filter(producto => producto.EAN_GS1 && producto.CODIGO_ERP);
   if (exportarDbi) {
-    exportarDbi.disabled = cargando || asignados.length === 0;
+    exportarDbi.disabled = cargando || asignados.length === 0 || excedeMaximoOperacionEan(asignados.length);
     exportarDbi.textContent = `Descargar GTIN.DBI (${asignados.length})`;
+    configurarLimiteBotonEan(exportarDbi, asignados.length);
   }
   const enviarPresea = document.getElementById('btnEnviarGtinPresea');
   if (enviarPresea) {
-    enviarPresea.disabled = cargando || asignados.length === 0;
+    enviarPresea.disabled = cargando || asignados.length === 0 || excedeMaximoOperacionEan(asignados.length);
     enviarPresea.textContent = `Enviar GTIN a Presea (${asignados.length})`;
+    configurarLimiteBotonEan(enviarPresea, asignados.length);
   }
   const imprimirEtiquetas = document.getElementById('btnImprimirEtiquetasEan');
   const confirmados = productosSeleccionadosEan('CONFIRMADO_ERP').length;
   if (imprimirEtiquetas) {
-    imprimirEtiquetas.disabled = cargando || confirmados === 0;
+    imprimirEtiquetas.disabled = cargando || confirmados === 0 || excedeMaximoOperacionEan(confirmados);
     imprimirEtiquetas.textContent = `Imprimir etiquetas (${confirmados})`;
+    configurarLimiteBotonEan(imprimirEtiquetas, confirmados);
   }
   const descargarPendientes = document.getElementById('btnExportarPendientesEan');
   if (descargarPendientes) {
-    const deshabilitado = cargando || clavesPendientesGs1.length === 0;
+    const deshabilitado = cargando || clavesPendientesGs1.length === 0 || excedeMaximoOperacionEan(clavesPendientesGs1.length);
     descargarPendientes.classList.toggle('disabled', deshabilitado);
     descargarPendientes.setAttribute('aria-disabled', String(deshabilitado));
     descargarPendientes.tabIndex = deshabilitado ? -1 : 0;
     descargarPendientes.textContent = `Descargar pendientes GS1 (${clavesPendientesGs1.length})`;
+    configurarLimiteBotonEan(descargarPendientes, clavesPendientesGs1.length);
   }
   actualizarSelectorTodosEan();
 }

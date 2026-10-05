@@ -193,6 +193,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /URL GS1 ASOCIADA/);
   assert.match(frontend, /GESTIONAR EN GS1/);
   assert.match(frontend, /PRODUCTOS_POR_PAGINA_EAN = 50/);
+  assert.match(frontend, /MAX_PRODUCTOS_OPERACION_EAN = 2500/);
   assert.match(frontend, /paginarGruposSeguimientoEan/);
   assert.match(frontend, /poblarFiltrosSeguimientoEan/);
   assert.match(frontend, /getElementById\('listadoProductosEan'\)\?\.scrollIntoView/);
@@ -223,6 +224,13 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(estilos, /seguimiento-toast-info/);
   assert.match(estilos, /seguimiento-toast-warning/);
   assert.match(frontend, /await cargarTodo\(\);/);
+
+  const servicio = fs.readFileSync(
+    path.join(__dirname, '../src/services/seguimiento.service.js'),
+    'utf8'
+  );
+  assert.match(servicio, /MAX_PRODUCTOS_OPERACION_EAN = 2500/);
+  assert.doesNotMatch(servicio, /máximo de 1000 productos/);
 });
 
 test('la importación EAN cruza solo la selección pendiente e ignora registros históricos del día', async () => {

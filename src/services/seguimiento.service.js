@@ -12,6 +12,16 @@ const { escribirDBFGenerico } = require('./dbfWriterGenerico.service');
 const ftpService = require('./ftp.service');
 
 const EAN_PROVISORIO_GS1 = '7792800015157';
+const MAX_PRODUCTOS_OPERACION_EAN = 2500;
+
+
+function validarCantidadOperacionEan(cantidad) {
+    if (Number(cantidad) > MAX_PRODUCTOS_OPERACION_EAN) {
+        throw new Error(
+            `La selección supera el máximo de ${MAX_PRODUCTOS_OPERACION_EAN} productos.`
+        );
+    }
+}
 
 
 function normalizarTexto(valor) {
@@ -512,7 +522,7 @@ async function prepararImagenesEan(clavesEntrada, contexto) {
      * luego se reduce a una sola imagen por modelo/color. El límite anterior
      * de 1000 rechazaba altas válidas antes de realizar esa reducción.
      */
-    if (claves.length > 5000) throw new Error('La selección supera el máximo de 5000 productos.');
+    validarCantidadOperacionEan(claves.length);
 
     const seguimiento = await listarSeguimientoEan(contexto);
     const clavesSeleccionadas = new Set(claves);
@@ -717,17 +727,17 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
             .filter(Boolean)
     )];
     if (!claves.length) throw new Error('Seleccione al menos un producto para imprimir.');
-    if (claves.length > 1000) throw new Error('La selección supera el máximo de 1000 productos.');
+    validarCantidadOperacionEan(claves.length);
 
     const seguimiento = await listarSeguimientoEan(contexto);
+    const clavesSeleccionadas = new Set(claves);
     const seleccionados = seguimiento.productos.filter(
-        producto => claves.includes(`${producto.ID_ALTA}|${producto.COD_ALFA}`)
+        producto => clavesSeleccionadas.has(`${producto.ID_ALTA}|${producto.COD_ALFA}`)
     );
     if (seleccionados.length !== claves.length) {
         throw new Error('Hay productos seleccionados fuera del alcance disponible.');
     }
 
-    const clavesSeleccionadas = new Set(claves);
     const modulosSeleccionados = seguimiento.grupos.filter(grupo =>
         grupo.tipo === 'MODULO' &&
         clavesSeleccionadas.has(`${grupo.principal.ID_ALTA}|${grupo.principal.COD_ALFA}`)
@@ -939,10 +949,12 @@ async function asociarUrlsTemporalesEan(bufferArchivo, clavesEntrada, contexto) 
     const claves = [...new Set((Array.isArray(clavesEntrada) ? clavesEntrada : [])
         .map(valor => String(valor ?? '').trim()).filter(Boolean))];
     if (!claves.length) throw new Error('Seleccione al menos un producto antes de importar las URLs.');
+    validarCantidadOperacionEan(claves.length);
 
     const seguimiento = await listarSeguimientoEan(contexto);
+    const clavesSeleccionadas = new Set(claves);
     const seleccionados = seguimiento.productos.filter(
-        producto => claves.includes(`${producto.ID_ALTA}|${producto.COD_ALFA}`)
+        producto => clavesSeleccionadas.has(`${producto.ID_ALTA}|${producto.COD_ALFA}`)
     );
     if (seleccionados.length !== claves.length) {
         throw new Error('Hay productos seleccionados fuera del alcance disponible.');
@@ -1116,7 +1128,7 @@ function asegurarVariedadesUnicas(productos, urlPorClave) {
 async function generarArchivoGs1(asociacionesEntrada, contexto) {
     const asociaciones = Array.isArray(asociacionesEntrada) ? asociacionesEntrada : [];
     if (!asociaciones.length) throw new Error('Primero importe y asocie las URLs temporales de GS1.');
-    if (asociaciones.length > 1000) throw new Error('La selección supera el máximo de 1000 productos.');
+    validarCantidadOperacionEan(asociaciones.length);
 
     const urlPorClave = new Map();
     asociaciones.forEach(item => {
@@ -1175,6 +1187,7 @@ async function importarCodigosEanGs1(buffer, nombreArchivo, clavesEntrada, conte
     if (!clavesSeleccionadas.size) {
         throw new Error('Seleccione los productos pendientes que desea cruzar con el archivo de GS1.');
     }
+    validarCantidadOperacionEan(clavesSeleccionadas.size);
     let workbook;
     try { workbook = XLSX.read(buffer, { type: 'buffer', raw: false }); }
     catch (_) { throw new Error('El archivo devuelto por GS1 no es un Excel válido.'); }
@@ -1246,8 +1259,10 @@ async function exportarGtinDbi(clavesEntrada, contexto) {
     const claves = [...new Set((Array.isArray(clavesEntrada) ? clavesEntrada : [])
         .map(valor => String(valor || '').trim()).filter(Boolean))];
     if (!claves.length) throw new Error('Seleccione al menos un producto.');
+    validarCantidadOperacionEan(claves.length);
     const seguimiento = await listarSeguimientoEan(contexto);
-    const seleccionados = seguimiento.productos.filter(p => claves.includes(`${p.ID_ALTA}|${p.COD_ALFA}`));
+    const clavesSeleccionadas = new Set(claves);
+    const seleccionados = seguimiento.productos.filter(p => clavesSeleccionadas.has(`${p.ID_ALTA}|${p.COD_ALFA}`));
     if (seleccionados.length !== claves.length) throw new Error('Hay productos seleccionados fuera del alcance disponible.');
     const estadosInvalidos = seleccionados.filter(p => p.ESTADO_EAN !== 'EAN_ASIGNADO');
     if (estadosInvalidos.length) {

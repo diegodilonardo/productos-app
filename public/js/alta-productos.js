@@ -3657,6 +3657,10 @@ function htmlImagenFamilia(
                 Arrastrá o pegá con Ctrl+V
               </small>
 
+              <small class="text-secondary d-block">
+                Mínimo 300 × 300 px · Máximo 350 KB
+              </small>
+
             </div>
           `
           : `
@@ -3849,10 +3853,41 @@ async function manejarCambioImagenDetalle(
 
   if (
     archivo.size >
-    6 * 1024 * 1024
+    350 * 1024
   ) {
     mostrarAlerta(
-      'La imagen supera el máximo permitido de 6 MB.',
+      'La imagen supera el máximo permitido de 350 KB.',
+      'warning'
+    );
+
+    input.value = '';
+    return;
+  }
+
+  let dimensiones;
+
+  try {
+    dimensiones =
+      await obtenerDimensionesImagenArchivo(
+        archivo
+      );
+  } catch (_) {
+    mostrarAlerta(
+      'No se pudieron verificar las dimensiones de la imagen.',
+      'warning'
+    );
+
+    input.value = '';
+    return;
+  }
+
+  if (
+    dimensiones.ancho < 300 ||
+    dimensiones.alto < 300
+  ) {
+    mostrarAlerta(
+      `La imagen debe medir como mínimo 300 × 300 píxeles. ` +
+      `La imagen seleccionada mide ${dimensiones.ancho} × ${dimensiones.alto}.`,
       'warning'
     );
 
@@ -3920,6 +3955,45 @@ async function manejarCambioImagenDetalle(
   await guardarImagenFamilia(
     input,
     archivo
+  );
+}
+
+
+function obtenerDimensionesImagenArchivo(
+  archivo
+) {
+  return new Promise(
+    (resolve, reject) => {
+      const url =
+        URL.createObjectURL(
+          archivo
+        );
+
+      const imagen =
+        new Image();
+
+      const liberar =
+        () => URL.revokeObjectURL(url);
+
+      imagen.onload =
+        () => {
+          const dimensiones = {
+            ancho: imagen.naturalWidth,
+            alto: imagen.naturalHeight
+          };
+
+          liberar();
+          resolve(dimensiones);
+        };
+
+      imagen.onerror =
+        () => {
+          liberar();
+          reject(new Error('Imagen inválida.'));
+        };
+
+      imagen.src = url;
+    }
   );
 }
 

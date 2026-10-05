@@ -214,6 +214,14 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1', 'EAN_ASIGNADO'\)/);
   assert.match(frontend, /ignoradosYaActualizados/);
   assert.match(frontend, /mostrarToastSeguimiento\(`GTIN\.DBI enviado correctamente a Presea/);
+  assert.match(frontend, /Importar URLs GS1 \(\$\{pendientesUrl\.length\}\)/);
+  assert.match(frontend, /Generar archivo GS1 \(\$\{asociacionesUrlsGs1\.length\}\)/);
+  assert.match(frontend, /Descargar pendientes GS1 \(\$\{clavesPendientesGs1\.length\}\)/);
+  assert.match(frontend, /EAN procesados para \$\{clavesImportables\.length\} productos/);
+  assert.match(frontend, /Etiquetas preparadas correctamente para \$\{clavesConfirmadas\.length\} productos/);
+  const estilos = fs.readFileSync(path.join(__dirname, '../public/css/app.css'), 'utf8');
+  assert.match(estilos, /seguimiento-toast-info/);
+  assert.match(estilos, /seguimiento-toast-warning/);
   assert.match(frontend, /await cargarTodo\(\);/);
 });
 

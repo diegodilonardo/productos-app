@@ -173,3 +173,16 @@ test('la validación del Alta bloquea familias sin imágenes', () => {
   assert.match(fuente, /imagenesAltaService\.listarFamiliasSinImagen/);
   assert.match(fuente, /No se puede validar el Alta\. Faltan fotos/);
 });
+
+test('el servidor exige imágenes de hasta 350 KB y como mínimo 300 por 300', () => {
+  const fuente = fs.readFileSync(
+    path.resolve(__dirname, '../src/routes/imagenes.routes.js'),
+    'utf8'
+  );
+
+  assert.match(fuente, /const MAX_BYTES = 350 \* 1024/);
+  assert.match(fuente, /const MIN_ANCHO = 300/);
+  assert.match(fuente, /const MIN_ALTO = 300/);
+  assert.match(fuente, /await validarDimensionesImagen/);
+  assert.match(fuente, /sharp\(buffer\)\.metadata\(\)/);
+});

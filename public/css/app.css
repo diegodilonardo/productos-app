@@ -2722,6 +2722,8 @@ main .progress {
 
 .seguimiento-toast-success { border-left-color: #198754; }
 .seguimiento-toast-danger { border-left-color: #dc3545; }
+.seguimiento-toast-info { border-left-color: #0d6efd; }
+.seguimiento-toast-warning { border-left-color: #f59e0b; }
 
 .seguimiento-toast-icon {
   display: grid;
@@ -2736,6 +2738,8 @@ main .progress {
 }
 
 .seguimiento-toast-danger .seguimiento-toast-icon { background: #dc3545; }
+.seguimiento-toast-info .seguimiento-toast-icon { background: #0d6efd; }
+.seguimiento-toast-warning .seguimiento-toast-icon { background: #f59e0b; }
 .seguimiento-toast-message { font-size: 0.92rem; font-weight: 700; }
 .seguimiento-toast-close {
   padding: 0.2rem 0.4rem;

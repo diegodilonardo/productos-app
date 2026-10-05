@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 
 const altasRepository =
     require('../repositories/altas.repository');
@@ -10,7 +11,9 @@ const imagenesAltaService =
 const router = express.Router();
 
 const EXTENSIONES = ['.jpg', '.jpeg', '.png'];
-const MAX_BYTES = 6 * 1024 * 1024;
+const MAX_BYTES = 350 * 1024;
+const MIN_ANCHO = 300;
+const MIN_ALTO = 300;
 
 /* ============================================================
    CONFIGURACION
@@ -227,11 +230,39 @@ function decodificarBase64(valor) {
         MAX_BYTES
     ) {
         throw new Error(
-            'La imagen supera el máximo permitido de 6 MB.'
+            'La imagen supera el máximo permitido de 350 KB.'
         );
     }
 
     return buffer;
+}
+
+
+async function validarDimensionesImagen(buffer) {
+    let metadata;
+
+    try {
+        metadata = await sharp(buffer).metadata();
+    } catch (_) {
+        throw new Error(
+            'No se pudieron verificar las dimensiones de la imagen.'
+        );
+    }
+
+    const ancho = Number(metadata.width || 0);
+    const alto = Number(metadata.height || 0);
+
+    if (
+        ancho < MIN_ANCHO ||
+        alto < MIN_ALTO
+    ) {
+        throw new Error(
+            `La imagen debe medir como mínimo ${MIN_ANCHO} × ${MIN_ALTO} píxeles. ` +
+            `La imagen seleccionada mide ${ancho} × ${alto}.`
+        );
+    }
+
+    return { ancho, alto };
 }
 
 
@@ -602,6 +633,11 @@ router.post(
                     buffer
                 );
 
+            const dimensiones =
+                await validarDimensionesImagen(
+                    buffer
+                );
+
             const carpeta =
                 await obtenerUbicacionOrganizada(idAlta, req.body || {}, alta) ||
                 asegurarCarpeta();
@@ -666,6 +702,10 @@ router.post(
                     tipo.mime,
                 bytes:
                     buffer.length,
+                ancho:
+                    dimensiones.ancho,
+                alto:
+                    dimensiones.alto,
                 url:
                     '/api/imagenes/archivo?' +
                     new URLSearchParams({

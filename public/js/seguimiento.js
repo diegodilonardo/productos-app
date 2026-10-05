@@ -499,10 +499,16 @@ function actualizarBotonImagenesEan(cargando = false) {
   const importar = document.getElementById('btnImportarUrlsTemporalesEan');
   const pendientesUrl = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO')
     .filter(producto => !String(producto.URL_IMAGEN_GS1 || '').trim());
-  if (importar) importar.disabled = cargando || pendientesUrl.length === 0;
+  if (importar) {
+    importar.disabled = cargando || pendientesUrl.length === 0;
+    importar.textContent = `Importar URLs GS1 (${pendientesUrl.length})`;
+  }
   sincronizarAsociacionesRegistradas();
   const generar = document.getElementById('btnGenerarArchivoGs1');
-  if (generar) generar.disabled = cargando || asociacionesUrlsGs1.length === 0;
+  if (generar) {
+    generar.disabled = cargando || asociacionesUrlsGs1.length === 0;
+    generar.textContent = `Generar archivo GS1 (${asociacionesUrlsGs1.length})`;
+  }
   const importarEan = document.getElementById('btnImportarCodigosEanGs1');
   const importablesEan = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO');
   if (importarEan) {
@@ -533,6 +539,7 @@ function actualizarBotonImagenesEan(cargando = false) {
     descargarPendientes.classList.toggle('disabled', deshabilitado);
     descargarPendientes.setAttribute('aria-disabled', String(deshabilitado));
     descargarPendientes.tabIndex = deshabilitado ? -1 : 0;
+    descargarPendientes.textContent = `Descargar pendientes GS1 (${clavesPendientesGs1.length})`;
   }
   actualizarSelectorTodosEan();
 }
@@ -571,8 +578,12 @@ async function importarUrlsTemporalesEan(event) {
   const boton = document.getElementById('btnImportarUrlsTemporalesEan');
   const resultado = document.getElementById('resultadoUrlsTemporalesEan');
   boton.disabled = true;
-  boton.textContent = 'Asociando URLs...';
+  boton.textContent = `Asociando URLs (${clavesPendientes.length})...`;
   resultado?.classList.add('d-none');
+  mostrarToastSeguimiento(
+    `Procesando URLs de GS1 para ${clavesPendientes.length} productos seleccionados.`,
+    'info'
+  );
   try {
     if (archivo.size > 10 * 1024 * 1024) throw new Error('El archivo supera el máximo de 10 MB.');
     const datos = await archivo.arrayBuffer();
@@ -605,17 +616,17 @@ async function importarUrlsTemporalesEan(event) {
     pintarSeguimientoEan();
     const generar = document.getElementById('btnGenerarArchivoGs1');
     if (generar) generar.disabled = asociacionesUrlsGs1.length === 0;
-    if (resultado) {
-      resultado.innerHTML = `<strong>URLs de GS1 procesadas.</strong> ${numero(resumen.productosAsociados)} de ${numero(resumen.productosSeleccionados)} productos asociados. `
-        + `${numero(resumen.productosSinUrl)} sin URL y ${numero(resumen.urlsSinProducto)} URLs sin producto seleccionado. `
-        + `${numero(resumen.urlsInsertadas)} registradas y ${numero(resumen.urlsActualizadas)} actualizadas.`;
-      resultado.classList.remove('d-none');
-    }
+    const mensaje = `URLs de GS1 procesadas: ${numero(resumen.productosAsociados)} de ${numero(resumen.productosSeleccionados)} productos asociados. `
+      + `${numero(resumen.productosSinUrl)} sin URL, ${numero(resumen.urlsSinProducto)} URLs sin producto seleccionado; `
+      + `${numero(resumen.urlsInsertadas)} registradas y ${numero(resumen.urlsActualizadas)} actualizadas.`;
+    mostrarToastSeguimiento(
+      mensaje,
+      numero(resumen.productosSinUrl) || numero(resumen.urlsSinProducto) ? 'warning' : 'success'
+    );
   } catch (error) {
-    mostrarAlerta(error.message, 'danger');
+    mostrarToastSeguimiento(error.message, 'danger');
   } finally {
     event.target.value = '';
-    boton.textContent = 'Importar URLs GS1';
     actualizarBotonImagenesEan(false);
   }
 }
@@ -624,7 +635,11 @@ async function generarArchivoGs1() {
   if (!asociacionesUrlsGs1.length || !idEmpresaSeguimiento) return;
   const boton = document.getElementById('btnGenerarArchivoGs1');
   boton.disabled = true;
-  boton.textContent = 'Generando archivo...';
+  boton.textContent = `Generando archivo (${asociacionesUrlsGs1.length})...`;
+  mostrarToastSeguimiento(
+    `Generando el archivo GS1 para ${asociacionesUrlsGs1.length} productos.`,
+    'info'
+  );
   try {
     const respuesta = await fetch(`/api/seguimiento/ean/archivo-gs1.xlsx?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
       method: 'POST',
@@ -641,14 +656,19 @@ async function generarArchivoGs1() {
     const enlace = document.createElement('a');
     enlace.href = url;
     enlace.download = `ALTA_GS1_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    enlace.className = 'd-none';
+    document.body.appendChild(enlace);
     enlace.click();
-    URL.revokeObjectURL(url);
-    mostrarAlerta('Archivo para registrar los productos en GS1 generado correctamente.', 'success');
+    enlace.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    mostrarToastSeguimiento(
+      `Archivo GS1 generado correctamente para ${asociacionesUrlsGs1.length} productos.`,
+      'success'
+    );
   } catch (error) {
-    mostrarAlerta(error.message, 'danger');
+    mostrarToastSeguimiento(error.message, 'danger');
   } finally {
-    boton.textContent = 'Generar archivo GS1';
-    boton.disabled = asociacionesUrlsGs1.length === 0;
+    actualizarBotonImagenesEan(false);
   }
 }
 
@@ -656,11 +676,12 @@ async function importarCodigosEanGs1(event) {
   const archivo = event.target.files?.[0]; if (!archivo || !idEmpresaSeguimiento) return;
   const clavesImportables = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO').map(claveProductoEan);
   if (!clavesImportables.length) {
-    mostrarAlerta('Seleccione productos por gestionar o con EAN asignado que todavía no hayan sido enviados a Presea.', 'warning');
+    mostrarToastSeguimiento('Seleccione productos por gestionar o con EAN asignado que todavía no hayan sido enviados a Presea.', 'warning');
     event.target.value = '';
     return;
   }
-  const boton = document.getElementById('btnImportarCodigosEanGs1'); boton.disabled = true; boton.textContent = 'Importando EAN...';
+  const boton = document.getElementById('btnImportarCodigosEanGs1'); boton.disabled = true; boton.textContent = `Importando EAN (${clavesImportables.length})...`;
+  mostrarToastSeguimiento(`Importando EAN definitivos para ${clavesImportables.length} productos seleccionados.`, 'info');
   try {
     const bytes = new Uint8Array(await archivo.arrayBuffer()); let binario = '';
     for (let i=0;i<bytes.length;i+=32768) binario += String.fromCharCode(...bytes.subarray(i,i+32768));
@@ -670,31 +691,33 @@ async function importarCodigosEanGs1(event) {
     });
     const data=await respuesta.json(); if(!respuesta.ok||!data.ok) throw new Error(data.mensaje||`Error HTTP ${respuesta.status}.`);
     const r=data.resultado.resumen;
-    mostrarAlerta(`EAN importados: ${numero(r.validos)}. Nuevos: ${numero(r.insertados)}. Actualizados: ${numero(r.actualizados)}. Ignorados: ${numero(r.ignorados)} (${numero(r.ignoradosYaActualizados)} ya actualizados y ${numero(r.ignoradosFueraSeleccion)} fuera de la selección). Rechazados: ${numero(r.rechazados)}.`, r.rechazados ? 'warning':'success');
+    mostrarToastSeguimiento(`EAN procesados para ${clavesImportables.length} productos. Válidos: ${numero(r.validos)}. Nuevos: ${numero(r.insertados)}. Actualizados: ${numero(r.actualizados)}. Ignorados: ${numero(r.ignorados)} (${numero(r.ignoradosYaActualizados)} ya actualizados y ${numero(r.ignoradosFueraSeleccion)} fuera de la selección). Rechazados: ${numero(r.rechazados)}.`, r.rechazados ? 'warning':'success');
     await cargarTodo();
-  } catch(error) { mostrarAlerta(error.message,'danger'); }
+  } catch(error) { mostrarToastSeguimiento(error.message,'danger'); }
   finally { event.target.value=''; actualizarBotonImagenesEan(false); }
 }
 
 async function exportarGtinDbi() {
   const clavesAsignadas = productosSeleccionadosEan('EAN_ASIGNADO').map(claveProductoEan);
   if (!clavesAsignadas.length || !idEmpresaSeguimiento) return;
-  const boton=document.getElementById('btnExportarGtinDbi'); boton.disabled=true; boton.textContent='Generando GTIN.DBI...';
+  const boton=document.getElementById('btnExportarGtinDbi'); boton.disabled=true; boton.textContent=`Generando GTIN.DBI (${clavesAsignadas.length})...`;
+  mostrarToastSeguimiento(`Generando GTIN.DBI para ${clavesAsignadas.length} productos.`, 'info');
   try {
     const respuesta=await fetch(`/api/seguimiento/ean/exportar-gtin.dbi?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`,{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clavesProducto:clavesAsignadas})
     });
     if(!respuesta.ok){let m=`Error HTTP ${respuesta.status}.`;try{m=(await respuesta.json()).mensaje||m}catch{}throw new Error(m)}
     const blob=await respuesta.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download='GTIN.DBI';a.click();URL.revokeObjectURL(url);
-    mostrarAlerta('GTIN.DBI generado correctamente para Presea.','success');
-  } catch(error){mostrarAlerta(error.message,'danger')} finally {actualizarBotonImagenesEan(false)}
+    a.href=url;a.download='GTIN.DBI';a.className='d-none';document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
+    mostrarToastSeguimiento(`GTIN.DBI generado correctamente para ${clavesAsignadas.length} productos.`, 'success');
+  } catch(error){mostrarToastSeguimiento(error.message,'danger')} finally {actualizarBotonImagenesEan(false)}
 }
 
 async function enviarGtinPresea() {
   const clavesAsignadas = productosSeleccionadosEan('EAN_ASIGNADO').map(claveProductoEan);
   if (!clavesAsignadas.length || !idEmpresaSeguimiento) return;
-  const boton=document.getElementById('btnEnviarGtinPresea'); boton.disabled=true; boton.textContent='Enviando a Presea...';
+  const boton=document.getElementById('btnEnviarGtinPresea'); boton.disabled=true; boton.textContent=`Enviando a Presea (${clavesAsignadas.length})...`;
+  mostrarToastSeguimiento(`Enviando ${clavesAsignadas.length} productos a Presea.`, 'info');
   try {
     const respuesta=await fetch(`/api/seguimiento/ean/enviar-gtin-presea?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`,{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clavesProducto:clavesAsignadas})
@@ -705,7 +728,6 @@ async function enviarGtinPresea() {
     await cargarTodo();
   } catch(error){
     mostrarToastSeguimiento(error.message, 'danger');
-    mostrarAlerta(error.message,'danger');
   } finally {actualizarBotonImagenesEan(false)}
 }
 
@@ -715,10 +737,11 @@ async function imprimirEtiquetasEan() {
   ocultarAlerta();
   const ventana = window.open('', '_blank');
   if (!ventana) {
-    mostrarAlerta('El navegador bloqueó la ventana de impresión. Habilite las ventanas emergentes para esta aplicación.', 'warning');
+    mostrarToastSeguimiento('El navegador bloqueó la ventana de impresión. Habilite las ventanas emergentes para esta aplicación.', 'warning');
     return;
   }
-  ventana.document.write('<p style="font-family:Arial;padding:24px">Preparando etiquetas...</p>');
+  ventana.document.write(`<p style="font-family:Arial;padding:24px">Preparando etiquetas para ${clavesConfirmadas.length} productos...</p>`);
+  mostrarToastSeguimiento(`Preparando etiquetas para ${clavesConfirmadas.length} productos.`, 'info');
   try {
     const respuesta = await fetch(`/api/seguimiento/ean/etiquetas?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
       method: 'POST',
@@ -734,9 +757,10 @@ async function imprimirEtiquetasEan() {
     ventana.document.open();
     ventana.document.write(html);
     ventana.document.close();
+    mostrarToastSeguimiento(`Etiquetas preparadas correctamente para ${clavesConfirmadas.length} productos.`, 'success');
   } catch (error) {
     ventana.close();
-    mostrarAlerta(error.message, 'danger');
+    mostrarToastSeguimiento(error.message, 'danger');
   }
 }
 
@@ -798,9 +822,11 @@ function prepararDescargaEan(event) {
   }
   if (!idEmpresaSeguimiento) {
     event.preventDefault();
-    mostrarAlerta('Debe seleccionar una empresa.', 'danger');
+    mostrarToastSeguimiento('Debe seleccionar una empresa.', 'danger');
     return;
   }
+  const cantidad = productosSeleccionadosEan('PENDIENTE_GS1').length;
+  mostrarToastSeguimiento(`Descargando el listado de ${cantidad} productos pendientes de GS1.`, 'info');
   event.currentTarget.href = `/api/seguimiento/ean/pendientes.xlsx?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`;
 }
 

@@ -361,6 +361,28 @@ test('un rubro nuevo continúa la numeración general comprobable de la marca', 
   }
 });
 
+test('MASSIMO y WAKE también continúan su serie general cuando incorporan un rubro nuevo', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  repository.listarModelosParaSugerencia = async () => [
+    { CODIGO: 'MC1310', MARCA: 'MASSIMO', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: 'MC1311', MARCA: 'MASSIMO', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: '150379', MARCA: 'WAKE', RUBRO: 'CALZADO', LICENCIA: null },
+    { CODIGO: '150380', MARCA: 'WAKE', RUBRO: 'CALZADO', LICENCIA: null }
+  ];
+  try {
+    assert.equal(
+      await service.sugerirCodigoModelo(3, { marca: 'MASSIMO', rubro: 'POP', licencia: 'SIN LICENCIA' }),
+      'MC1312'
+    );
+    assert.equal(
+      await service.sugerirCodigoModelo(3, { marca: 'WAKE', rubro: 'POP', licencia: 'SIN LICENCIA' }),
+      '150381'
+    );
+  } finally {
+    repository.listarModelosParaSugerencia = original;
+  }
+});
+
 test('prioriza un modelo anulado disponible antes de continuar la numeración', async () => {
   const original = repository.listarModelosParaSugerencia;
   repository.listarModelosParaSugerencia = async () => [

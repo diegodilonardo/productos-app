@@ -37,3 +37,11 @@ test('las tarjetas resumen la cobertura EAN definitiva sin contar el código gen
   assert.match(cliente, /FOTOS_EN_PRESEA/);
   assert.match(cliente, /FOTOS_PENDIENTES/);
 });
+
+test('los filtros secundarios ocupan una sola fila en pantallas amplias', () => {
+  const estilos = leer('public/css/altas-index.css');
+
+  assert.match(estilos, /\.altas-filter-row\s*\{[\s\S]*grid-template-columns:[\s\S]*minmax\(105px,[\s\S]*minmax\(125px,[\s\S]*minmax\(105px, auto\)/);
+  assert.match(estilos, /\.altas-multifilter > \.btn\s*\{[\s\S]*font-size:\s*0\.76rem/);
+  assert.match(estilos, /@media \(min-width: 1200px\) and \(max-width: 1499\.98px\)/);
+});

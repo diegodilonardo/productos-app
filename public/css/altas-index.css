@@ -73,8 +73,15 @@
 .altas-filter-row {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(4, minmax(135px, 1fr)) auto;
-  gap: 9px;
+  grid-template-columns:
+    minmax(105px, 0.72fr)
+    minmax(145px, 1fr)
+    minmax(135px, 0.9fr)
+    minmax(145px, 1fr)
+    minmax(120px, 0.78fr)
+    minmax(125px, 0.82fr)
+    minmax(105px, auto);
+  gap: 7px;
   align-items: center;
   padding: 9px;
   border: 1px solid #e3e8ee;
@@ -93,6 +100,16 @@
   color: #425264;
   font-weight: 600;
   text-align: left;
+  font-size: 0.76rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.altas-filter-row #btnLimpiarFiltrosAltas {
+  min-height: 36px;
+  padding-inline: 12px;
+  white-space: nowrap;
 }
 
 .altas-multifilter > .btn:hover,
@@ -457,6 +474,12 @@
 
   .altas-filter-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1499.98px) {
+  .altas-filter-row {
+    grid-template-columns: repeat(4, minmax(125px, 1fr));
   }
 }
 

@@ -8,7 +8,9 @@ const filtrosMultiplesAltas = {
   ano: new Set(),
   temporada: new Set(),
   rubro: new Set(),
-  licencia: new Set()
+  licencia: new Set(),
+  ean: new Set(),
+  fotos: new Set()
 };
 
 document.addEventListener('DOMContentLoaded', iniciarPantallaAltas);
@@ -265,6 +267,8 @@ function pintarAltasFiltradas() {
       if (filtrosMultiplesAltas.rubro.size && !filtrosMultiplesAltas.rubro.has(normalizarFiltroAlta(item.CODIGO_RUBRO))) return false;
       const licencia = normalizarFiltroAlta(normalizarLicenciaAlta(item) || 'SIN LICENCIA');
       if (filtrosMultiplesAltas.licencia.size && !filtrosMultiplesAltas.licencia.has(licencia)) return false;
+      if (filtrosMultiplesAltas.ean.size && !filtrosMultiplesAltas.ean.has(estadoEanAlta(item))) return false;
+      if (filtrosMultiplesAltas.fotos.size && !filtrosMultiplesAltas.fotos.has(estadoFotosAlta(item))) return false;
 
       if (!texto) {
         return true;
@@ -316,6 +320,41 @@ function completarFiltrosAltas() {
     valor: normalizarLicenciaAlta(alta) || 'SIN LICENCIA',
     etiqueta: normalizarLicenciaAlta(alta) || 'SIN LICENCIA'
   })));
+  poblarFiltroAlta('ean', 'opcionesFiltroEanAlta', 'btnFiltroEanAlta', 'Todos los EAN', 'EAN', altasCargadas.map(alta => ({
+    valor: estadoEanAlta(alta),
+    etiqueta: etiquetaEstadoEanAlta(estadoEanAlta(alta))
+  })));
+  poblarFiltroAlta('fotos', 'opcionesFiltroFotosAlta', 'btnFiltroFotosAlta', 'Todas las fotos', 'Fotos', altasCargadas.map(alta => ({
+    valor: estadoFotosAlta(alta),
+    etiqueta: estadoFotosAlta(alta) === 'FOTOS_EN_PRESEA' ? 'Fotos en Presea' : 'Fotos pendientes'
+  })));
+}
+
+function estadoFotosAlta(alta) {
+  return alta.FOTOS_EN_PRESEA === true || Number(alta.FOTOS_EN_PRESEA) === 1
+    ? 'FOTOS_EN_PRESEA'
+    : 'FOTOS_PENDIENTES';
+}
+
+function estadoEanAlta(alta) {
+  const evaluados = Number(alta.CANTIDAD_EAN_EVALUADOS || 0);
+  const requeridos = Number(alta.CANTIDAD_EAN_REQUERIDOS || 0);
+  const definitivos = Number(alta.CANTIDAD_EAN_DEFINITIVOS || 0);
+  if (evaluados <= 0) return 'SIN_DATOS_EAN';
+  if (requeridos <= 0) return 'EAN_NO_REQUERIDO';
+  if (definitivos >= requeridos) return 'EAN_COMPLETOS';
+  if (definitivos > 0) return 'EAN_PARCIALES';
+  return 'SIN_EAN';
+}
+
+function etiquetaEstadoEanAlta(estado) {
+  return ({
+    EAN_COMPLETOS: 'EAN completos',
+    EAN_PARCIALES: 'EAN parciales',
+    SIN_EAN: 'Sin EAN',
+    EAN_NO_REQUERIDO: 'EAN no requerido',
+    SIN_DATOS_EAN: 'Todavía no evaluado'
+  })[estado] || estado;
 }
 
 function poblarFiltroAlta(clave, idOpciones, idBoton, opcionTodos, etiquetaCorta, opciones) {

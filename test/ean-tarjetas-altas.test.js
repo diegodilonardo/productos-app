@@ -10,6 +10,7 @@ function leer(ruta) {
 test('las tarjetas resumen la cobertura EAN definitiva sin contar el código genérico', () => {
   const repositorio = leer('src/repositories/altas.repository.js');
   const cliente = leer('public/js/altas-index.js');
+  const vista = leer('views/altas/index.hbs');
 
   assert.match(repositorio, /7792800015157/);
   assert.match(repositorio, /CANTIDAD_EAN_EVALUADOS/);
@@ -21,4 +22,18 @@ test('las tarjetas resumen la cobertura EAN definitiva sin contar el código gen
   assert.match(cliente, /SIN EAN/);
   assert.match(cliente, /EAN NO REQUERIDO/);
   assert.match(cliente, /\$\{badgeEan\}/);
+  assert.match(vista, /id="filtroEanAlta"/);
+  assert.match(vista, /id="opcionesFiltroEanAlta"/);
+  assert.match(cliente, /ean:\s*new Set\(\)/);
+  assert.match(cliente, /filtrosMultiplesAltas\.ean\.size/);
+  assert.match(cliente, /EAN_COMPLETOS/);
+  assert.match(cliente, /EAN_PARCIALES/);
+  assert.match(cliente, /EAN_NO_REQUERIDO/);
+  assert.match(cliente, /SIN_DATOS_EAN/);
+  assert.match(vista, /id="filtroFotosAlta"/);
+  assert.match(vista, /id="opcionesFiltroFotosAlta"/);
+  assert.match(cliente, /fotos:\s*new Set\(\)/);
+  assert.match(cliente, /filtrosMultiplesAltas\.fotos\.size/);
+  assert.match(cliente, /FOTOS_EN_PRESEA/);
+  assert.match(cliente, /FOTOS_PENDIENTES/);
 });

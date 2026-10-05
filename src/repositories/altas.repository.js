@@ -265,6 +265,9 @@ async function listarAltas(idEmpresa) {
                 ,CASE WHEN FE.ID_ENVIO IS NULL THEN CONVERT(BIT, 0) ELSE CONVERT(BIT, 1) END AS FOTOS_EN_PRESEA
                 ,FE.FECHA_ENVIO AS FECHA_FOTOS_PRESEA
                 ,FE.CANTIDAD_FOTOS AS CANTIDAD_FOTOS_PRESEA
+                ,COALESCE(EA.CANTIDAD_EAN_EVALUADOS, 0) AS CANTIDAD_EAN_EVALUADOS
+                ,COALESCE(EA.CANTIDAD_EAN_REQUERIDOS, 0) AS CANTIDAD_EAN_REQUERIDOS
+                ,COALESCE(EA.CANTIDAD_EAN_DEFINITIVOS, 0) AS CANTIDAD_EAN_DEFINITIVOS
 
             FROM dbo.ALTAS_PRODUCTOS A
             OUTER APPLY (
@@ -293,6 +296,66 @@ async function listarAltas(idEmpresa) {
                   AND E.ID_ALTA = A.ID_ALTA
                 ORDER BY E.ID_ENVIO DESC
             ) FE
+            OUTER APPLY (
+                SELECT
+                    COUNT(*) AS CANTIDAD_EAN_EVALUADOS,
+                    SUM(CASE WHEN X.REQUIERE_EAN = 1 THEN 1 ELSE 0 END) AS CANTIDAD_EAN_REQUERIDOS,
+                    SUM(CASE
+                        WHEN X.REQUIERE_EAN = 1
+                         AND NULLIF(LTRIM(RTRIM(X.EAN_ACTUAL)), '') IS NOT NULL
+                         AND LTRIM(RTRIM(X.EAN_ACTUAL)) <> '7792800015157'
+                        THEN 1 ELSE 0
+                    END) AS CANTIDAD_EAN_DEFINITIVOS
+                FROM (
+                    SELECT DISTINCT
+                        DE.CODIGO_ALFA,
+                        COALESCE(RE.REQUIERE_EAN, CONVERT(BIT, 1)) AS REQUIERE_EAN,
+                        COALESCE(
+                            NULLIF(NULLIF(LTRIM(RTRIM(CONVERT(VARCHAR(20), GE.EAN_GS1))), ''), '7792800015157'),
+                            NULLIF(NULLIF(LTRIM(RTRIM(CONVERT(VARCHAR(20), PE.CODIGO_EAN))), ''), '7792800015157'),
+                            NULLIF(NULLIF(LTRIM(RTRIM(CONVERT(VARCHAR(20), PE.EAN))), ''), '7792800015157'),
+                            NULLIF(NULLIF(LTRIM(RTRIM(CONVERT(VARCHAR(20), EX.EAN_ERP))), ''), '7792800015157')
+                        ) AS EAN_ACTUAL
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE DE
+                    INNER JOIN dbo.PRODUCTOS PE
+                        ON PE.ID_EMPRESA = DE.ID_EMPRESA
+                       AND PE.CODIGO_ALFA = DE.CODIGO_ALFA
+                       AND ISNULL(PE.ACTIVO, 1) = 1
+                       AND LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) <> '9'
+                    LEFT JOIN dbo.ALTAS_PRODUCTOS_EXPORTADOS EX
+                        ON EX.ID_EMPRESA = DE.ID_EMPRESA
+                       AND EX.ID_ALTA = DE.ID_ALTA
+                       AND EX.COD_ALFA = DE.CODIGO_ALFA
+                    LEFT JOIN dbo.GS1_PRODUCTOS_EAN GE
+                        ON GE.ID_EMPRESA = DE.ID_EMPRESA
+                       AND GE.ID_ALTA = DE.ID_ALTA
+                       AND GE.COD_ALFA = DE.CODIGO_ALFA
+                    OUTER APPLY (
+                        SELECT TOP 1 R.REQUIERE_EAN
+                        FROM dbo.REGLAS_REQUERIMIENTO_EAN R
+                        WHERE R.ID_EMPRESA = A.ID_EMPRESA
+                          AND R.ACTIVO = 1
+                          AND (
+                            (R.MARCA = '*' AND R.RUBRO = '*' AND R.LICENCIA = '')
+                            OR (
+                              UPPER(LTRIM(RTRIM(R.MARCA))) = UPPER(LTRIM(RTRIM(A.DETALLE_MARCA)))
+                              AND UPPER(LTRIM(RTRIM(R.RUBRO))) = UPPER(LTRIM(RTRIM(A.DETALLE_RUBRO)))
+                              AND UPPER(LTRIM(RTRIM(R.LICENCIA))) = UPPER(LTRIM(RTRIM(ISNULL(DE.LICENCIA, ''))))
+                            )
+                          )
+                        ORDER BY CASE WHEN R.MARCA = '*' AND R.RUBRO = '*' THEN 1 ELSE 0 END
+                    ) RE
+                    WHERE DE.ID_EMPRESA = A.ID_EMPRESA
+                      AND DE.ID_ALTA = A.ID_ALTA
+                      AND (
+                        (
+                          UPPER(LTRIM(RTRIM(ISNULL(DE.TIPO_PRODUCTO_DETALLE, '')))) = 'MODULO'
+                          AND ISNULL(DE.GENERADO_AUTOMATICO, 0) = 0
+                        )
+                        OR UPPER(LTRIM(RTRIM(ISNULL(DE.DETALLE_CLASIFICACION, '')))) = 'PRIMERA'
+                      )
+                ) X
+            ) EA
             WHERE A.ID_EMPRESA = @ID_EMPRESA
 
             ORDER BY

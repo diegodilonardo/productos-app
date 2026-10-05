@@ -416,6 +416,18 @@ function pintarTarjetasAltas(filas) {
     const inhabilitados = Number(alta.CANTIDAD_PRODUCTOS_INHABILITADOS ?? alta.cantidadProductosInhabilitados ?? 0);
     const fotosEnPresea = alta.FOTOS_EN_PRESEA === true || Number(alta.FOTOS_EN_PRESEA) === 1;
     const cantidadFotosPresea = Number(alta.CANTIDAD_FOTOS_PRESEA || 0);
+    const eanEvaluados = Number(alta.CANTIDAD_EAN_EVALUADOS || 0);
+    const eanRequeridos = Number(alta.CANTIDAD_EAN_REQUERIDOS || 0);
+    const eanDefinitivos = Number(alta.CANTIDAD_EAN_DEFINITIVOS || 0);
+    const badgeEan = eanEvaluados <= 0
+      ? ''
+      : eanRequeridos <= 0
+        ? '<span class="badge text-bg-secondary" title="Los productos de esta Alta no requieren gestión de EAN">EAN NO REQUERIDO</span>'
+        : eanDefinitivos >= eanRequeridos
+          ? `<span class="badge text-bg-info" title="${escapar(eanDefinitivos)} de ${escapar(eanRequeridos)} productos con EAN definitivo">EAN COMPLETOS ${escapar(eanDefinitivos)}/${escapar(eanRequeridos)}</span>`
+          : eanDefinitivos > 0
+            ? `<span class="badge text-bg-warning" title="${escapar(eanDefinitivos)} de ${escapar(eanRequeridos)} productos con EAN definitivo">EAN PARCIALES ${escapar(eanDefinitivos)}/${escapar(eanRequeridos)}</span>`
+            : `<span class="badge text-bg-danger" title="Ninguno de los ${escapar(eanRequeridos)} productos tiene EAN definitivo">SIN EAN 0/${escapar(eanRequeridos)}</span>`;
     const temporada = alta.DETALLE_TEMPORADA ?? alta.CODIGO_TEMPORADA ?? '-';
     const motivo = alta.MOTIVO_ANULACION ?? alta.motivoAnulacion ?? 'Sin motivo informado';
 
@@ -429,6 +441,7 @@ function pintarTarjetasAltas(filas) {
           <div class="d-flex flex-column align-items-end gap-1">
             <span class="badge ${claseEstado(estado)}">${escapar(estado)}</span>
             ${fotosEnPresea ? `<span class="badge text-bg-primary" title="${escapar(cantidadFotosPresea)} foto${cantidadFotosPresea === 1 ? '' : 's'} enviada${cantidadFotosPresea === 1 ? '' : 's'} a Presea">FOTOS EN PRESEA</span>` : ''}
+            ${badgeEan}
           </div>
         </div>
 

@@ -3,6 +3,13 @@ const {
   sql
 } = require('../config/database');
 
+const TABLAS_MAESTRO_COMERCIAL_COMPARTIDO = new Set([
+  'MAESTRO_GRUPOS',
+  'MAESTRO_SUBGRUPOS',
+  'MAESTRO_LINEA',
+  'MAESTRO_DEPORTES',
+]);
+
 
 async function obtenerMaestroSimple({
   tabla,
@@ -14,17 +21,43 @@ async function obtenerMaestroSimple({
   const pool =
     await getConnection();
 
-  const resultado =
-    await pool
-      .request()
-      .input(
-        'ID_EMPRESA',
-        sql.Int,
-        idEmpresa
-      )
-      .query(`
-        SELECT
-          ${columnas.join(', ')}
+  const compartido = TABLAS_MAESTRO_COMERCIAL_COMPARTIDO.has(tabla);
+  const codigoClave = columnas[0];
+  const seleccion = columnas.map(columna => `M.${columna}`).join(', ');
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .query(compartido ? `
+        WITH ALCANCE AS
+        (
+          SELECT E_ALCANCE.ID_EMPRESA,
+            CASE WHEN E_ALCANCE.ID_EMPRESA = @ID_EMPRESA THEN 0 ELSE 1 END AS PRIORIDAD
+          FROM dbo.EMPRESAS E_ORIGEN
+          INNER JOIN dbo.EMPRESAS E_ALCANCE
+            ON E_ALCANCE.ID_EMPRESA = E_ORIGEN.ID_EMPRESA
+            OR (
+              LTRIM(RTRIM(E_ORIGEN.CODIGO_EMPRESA)) IN ('0','70000','9000','15000')
+              AND LTRIM(RTRIM(E_ALCANCE.CODIGO_EMPRESA)) IN ('0','70000','9000','15000')
+            )
+          WHERE E_ORIGEN.ID_EMPRESA = @ID_EMPRESA
+        ),
+        REGISTROS AS
+        (
+          SELECT ${seleccion},
+            ROW_NUMBER() OVER
+            (
+              PARTITION BY UPPER(LTRIM(RTRIM(M.${codigoClave})))
+              ORDER BY A.PRIORIDAD, M.ID_EMPRESA
+            ) AS RN
+          FROM dbo.${tabla} M
+          INNER JOIN ALCANCE A ON A.ID_EMPRESA = M.ID_EMPRESA
+          WHERE M.ACTIVO = 1
+        )
+        SELECT ${columnas.join(', ')}
+        FROM REGISTROS
+        WHERE RN = 1
+        ORDER BY ${orden};
+      ` : `
+        SELECT ${columnas.join(', ')}
         FROM dbo.${tabla}
         WHERE ACTIVO = 1
           AND ID_EMPRESA = @ID_EMPRESA

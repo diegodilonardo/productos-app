@@ -1,5 +1,19 @@
 const { getConnection, sql } = require("../config/database");
 
+function alcanceMaestroComercialCompartido(alias) {
+  return `${alias}.ID_EMPRESA IN (
+    SELECT E_ALCANCE.ID_EMPRESA
+    FROM dbo.EMPRESAS E_ORIGEN
+    INNER JOIN dbo.EMPRESAS E_ALCANCE
+      ON E_ALCANCE.ID_EMPRESA = E_ORIGEN.ID_EMPRESA
+      OR (
+        LTRIM(RTRIM(E_ORIGEN.CODIGO_EMPRESA)) IN ('0','70000','9000','15000')
+        AND LTRIM(RTRIM(E_ALCANCE.CODIGO_EMPRESA)) IN ('0','70000','9000','15000')
+      )
+    WHERE E_ORIGEN.ID_EMPRESA = @ID_EMPRESA
+  )`;
+}
+
 /* ============================================================
    CABECERA - MAESTROS
    ============================================================ */
@@ -546,12 +560,12 @@ async function buscarGrupo(codigo, idEmpresa) {
             SELECT TOP 1
                 CODIGO_GRUPO,
                 DETALLE_GRUPO
-            FROM dbo.MAESTRO_GRUPOS
+            FROM dbo.MAESTRO_GRUPOS M
             WHERE
-        ID_EMPRESA = @ID_EMPRESA
-        AND                 ID_EMPRESA = @ID_EMPRESA
-                AND                 CODIGO_GRUPO = @CODIGO
-                AND ACTIVO = 1;
+                ${alcanceMaestroComercialCompartido('M')}
+                AND M.CODIGO_GRUPO = @CODIGO
+                AND M.ACTIVO = 1
+            ORDER BY CASE WHEN M.ID_EMPRESA = @ID_EMPRESA THEN 0 ELSE 1 END, M.ID_EMPRESA;
         `);
 
   return resultado.recordset[0] || null;
@@ -566,12 +580,12 @@ async function buscarSubgrupo(codigo, idEmpresa) {
             SELECT TOP 1
                 CODIGO_SUBGRUPO,
                 DETALLE_SUBGRUPO
-            FROM dbo.MAESTRO_SUBGRUPOS
+            FROM dbo.MAESTRO_SUBGRUPOS M
             WHERE
-        ID_EMPRESA = @ID_EMPRESA
-        AND                 ID_EMPRESA = @ID_EMPRESA
-                AND                 CODIGO_SUBGRUPO = @CODIGO
-                AND ACTIVO = 1;
+                ${alcanceMaestroComercialCompartido('M')}
+                AND M.CODIGO_SUBGRUPO = @CODIGO
+                AND M.ACTIVO = 1
+            ORDER BY CASE WHEN M.ID_EMPRESA = @ID_EMPRESA THEN 0 ELSE 1 END, M.ID_EMPRESA;
         `);
 
   return resultado.recordset[0] || null;
@@ -586,12 +600,12 @@ async function buscarLinea(codigo, idEmpresa) {
             SELECT TOP 1
                 CODIGO_LINEA,
                 DETALLE_LINEA
-            FROM dbo.MAESTRO_LINEA
+            FROM dbo.MAESTRO_LINEA M
             WHERE
-        ID_EMPRESA = @ID_EMPRESA
-        AND                 ID_EMPRESA = @ID_EMPRESA
-                AND                 CODIGO_LINEA = @CODIGO
-                AND ACTIVO = 1;
+                ${alcanceMaestroComercialCompartido('M')}
+                AND M.CODIGO_LINEA = @CODIGO
+                AND M.ACTIVO = 1
+            ORDER BY CASE WHEN M.ID_EMPRESA = @ID_EMPRESA THEN 0 ELSE 1 END, M.ID_EMPRESA;
         `);
 
   return resultado.recordset[0] || null;
@@ -606,12 +620,12 @@ async function buscarDeporte(codigo, idEmpresa) {
             SELECT TOP 1
                 CODIGO_DEPORTE,
                 DETALLE_DEPORTE
-            FROM dbo.MAESTRO_DEPORTES
+            FROM dbo.MAESTRO_DEPORTES M
             WHERE
-        ID_EMPRESA = @ID_EMPRESA
-        AND                 ID_EMPRESA = @ID_EMPRESA
-                AND                 CODIGO_DEPORTE = @CODIGO
-                AND ACTIVO = 1;
+                ${alcanceMaestroComercialCompartido('M')}
+                AND M.CODIGO_DEPORTE = @CODIGO
+                AND M.ACTIVO = 1
+            ORDER BY CASE WHEN M.ID_EMPRESA = @ID_EMPRESA THEN 0 ELSE 1 END, M.ID_EMPRESA;
         `);
 
   return resultado.recordset[0] || null;

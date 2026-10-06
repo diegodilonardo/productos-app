@@ -1280,6 +1280,24 @@ async function eliminarProductoPedido(
   );
 }
 
+async function confirmarPedidoComex(idPedido, idEmpresa, usuarioAutenticado, opciones = {}) {
+  const id = validarIdPedido(idPedido);
+  const empresa = validarIdEmpresa(idEmpresa);
+  const usuario = texto(usuarioAutenticado) || 'SISTEMA';
+  const origen = texto(opciones.origen || 'MANUAL').toUpperCase();
+
+  if (usuario.length > 100) throw new Error('El usuario de confirmación supera los 100 caracteres.');
+  if (!['MANUAL', 'API'].includes(origen)) throw new Error('Origen de confirmación COMEX inválido.');
+
+  return pedidosRepository.confirmarPedidoComex(
+    id,
+    empresa,
+    usuario,
+    origen,
+    opciones.respuestaExterna ? JSON.stringify(opciones.respuestaExterna) : null
+  );
+}
+
 
 /* ============================================================
    VALIDAR PEDIDO COMPLETO
@@ -2143,6 +2161,7 @@ module.exports = {
   actualizarProductoPedido,
   eliminarProductoPedido,
   validarPedido,
+  confirmarPedidoComex,
   anularPedido,
   exportarPedidoExcel,
   exportarPurchaseOrder,

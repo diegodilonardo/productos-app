@@ -19,7 +19,7 @@ async function iniciarPedidos() {
   document.getElementById('mostrarAnuladosPedido')?.addEventListener('change', cambiarVisibilidadAnuladosPedido);
   document.getElementById('btnVistaTarjetasPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tarjetas'));
   document.getElementById('btnVistaTablaPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tabla'));
-  document.getElementById('tarjetasPedidos')?.addEventListener('click', descargarPurchaseOrderTarjeta);
+  document.getElementById('tarjetasPedidos')?.addEventListener('click', manejarAccionTarjetaPedido);
   aplicarVistaPedidos(vistaPedidos);
 
   try {
@@ -263,9 +263,36 @@ function pintarTarjetas(lista) {
       ${inhabilitados > 0 ? `<div class="mb-3"><span class="badge text-bg-danger">${num(inhabilitados)} producto${inhabilitados === 1 ? '' : 's'} inhabilitado${inhabilitados === 1 ? '' : 's'}</span></div>` : ''}
       <div class="pedido-summary-meta"><div><span>Rubro</span><strong>${esc(p.DETALLE_RUBRO || p.CODIGO_RUBRO || '-')}</strong></div><div><span>Año / Temporada</span><strong>${esc(p.CODIGO_ANO || '-')} · ${esc(p.DETALLE_TEMPORADA || p.CODIGO_TEMPORADA || '-')}</strong></div><div><span>Productos</span><strong>${num(p.CANTIDAD_PRODUCTOS)}</strong></div><div class="pedido-summary-emphasis"><span>Pares</span><strong>${num(p.TOTAL_PARES)}</strong></div><div class="pedido-summary-emphasis"><span>Total</span><strong>${esc(p.MONEDA || 'USD')} ${dinero(p.TOTAL_PEDIDO)}</strong></div><div><span>Exportación</span>${badgeExportacion(p)}</div></div>
       ${est === 'ANULADO' && p.MOTIVO_ANULACION ? `<div class="pedido-summary-cancel">${esc(p.MOTIVO_ANULACION)}</div>` : ''}
-      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><div class="d-flex flex-wrap gap-2">${['BORRADOR','VALIDADO'].includes(est)?`<button class="btn btn-sm btn-outline-success" type="button" data-purchase-order="${esc(p.ID_PEDIDO)}">Purchase Order</button>`:''}<a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div></div>
+      ${badgeComex(p)}
+      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><div class="d-flex flex-wrap gap-2">${est==='VALIDADO'&&!confirmadoComex(p)&&puedeEscribirPedido()?`<button class="btn btn-sm btn-success" type="button" data-confirmar-comex="${esc(p.ID_PEDIDO)}">Confirmar en COMEX</button>`:''}${['BORRADOR','VALIDADO'].includes(est)?`<button class="btn btn-sm btn-outline-success" type="button" data-purchase-order="${esc(p.ID_PEDIDO)}">Purchase Order</button>`:''}<a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div></div>
     </article>`;
   }).join('');
+}
+
+async function manejarAccionTarjetaPedido(event) {
+  if (event.target.closest('[data-confirmar-comex]')) return confirmarComexTarjeta(event);
+  return descargarPurchaseOrderTarjeta(event);
+}
+
+async function confirmarComexTarjeta(event) {
+  const boton = event.target.closest('[data-confirmar-comex]');
+  if (!boton) return;
+  if (!confirm('Esta acción dejará registrado que el pedido impactó correctamente en COMEX. ¿Confirmar?')) return;
+  const textoOriginal = boton.textContent;
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Confirmando...';
+    const respuesta = await api(
+      `/api/pedidos/${encodeURIComponent(boton.dataset.confirmarComex)}/confirmar-comex`,
+      opcionesEmpresa({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    );
+    mostrarAlerta(respuesta.mensaje || 'Pedido confirmado en COMEX.', 'success');
+    await cargarPedidos();
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
 }
 
 async function descargarPurchaseOrderTarjeta(event) {
@@ -335,6 +362,8 @@ function pintarTabla(lista) {
 function estado(p){return String(p?.ESTADO||'').toUpperCase();}
 function estadoExportacion(p){return String(p?.ESTADO_EXPORTACION||'NO_EXPORTADO').toUpperCase();}
 function badgeExportacion(p){const e=estadoExportacion(p);const clase=e==='COMPLETO'?'text-bg-success':e==='PARCIAL'?'text-bg-warning':'text-bg-secondary';const texto=e==='NO_EXPORTADO'?'NO EXPORTADO':e;const cantidad=Number(p?.CANTIDAD_EXPORTACIONES||0);const detalle=cantidad>0?`<div class="pedido-muted mt-1">${num(cantidad)} salida${cantidad===1?'':'s'}</div>`:'';return `<span class="badge ${clase}">${esc(texto)}</span>${detalle}`;}
+function confirmadoComex(p){return String(p?.ESTADO_COMEX||'').toUpperCase()==='CONFIRMADO';}
+function badgeComex(p){if(estado(p)!=='VALIDADO'&&!confirmadoComex(p))return '';if(!confirmadoComex(p))return '<div class="mb-3"><span class="badge text-bg-light border text-secondary">COMEX PENDIENTE</span></div>';const auditoria=[fecha(p.FECHA_CONFIRMACION_COMEX),p.USUARIO_CONFIRMACION_COMEX].filter(Boolean).join(' · ');return `<div class="mb-3"><span class="badge text-bg-info">CONFIRMADO EN COMEX</span>${auditoria?`<div class="pedido-muted mt-1">${esc(auditoria)}</div>`:''}</div>`;}
 function claseEstado(e){return e==='BORRADOR'?'text-bg-secondary':e==='VALIDADO'?'text-bg-success':e==='SINCRONIZADO'?'text-bg-primary':e==='ANULADO'?'text-bg-danger':'text-bg-secondary';}
 function num(v){return Number(v||0).toLocaleString('es-AR');}
 function dinero(v){return Number(v||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:4});}

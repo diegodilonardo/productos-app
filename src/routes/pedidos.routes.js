@@ -273,6 +273,20 @@ router.post('/:id/validar', requerirAccesoPedido, requerirEscrituraEmpresa, asyn
   }
 });
 
+router.post('/:id/confirmar-comex', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.confirmarPedidoComex(
+      req.params.id,
+      req.idEmpresa,
+      usuarioAuditoria(req),
+      { origen: 'MANUAL' }
+    );
+    return res.json({ ok: true, mensaje: 'Pedido confirmado en COMEX.', resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.post('/:id/anular', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.anularPedido(

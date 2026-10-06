@@ -636,6 +636,10 @@ async function listarPedidos(idEmpresa) {
         COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) AS TIENE_PEDIDO_EXCEL,
         COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) AS TIENE_MASTER_DATA_APP,
         COALESCE(EXP.TIENE_PREC_FOB, 0) AS TIENE_PREC_FOB,
+        COMEX.ESTADO AS ESTADO_COMEX,
+        COMEX.ORIGEN AS ORIGEN_CONFIRMACION_COMEX,
+        COMEX.FECHA_CONFIRMACION AS FECHA_CONFIRMACION_COMEX,
+        COMEX.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_COMEX,
         CASE
           WHEN COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) = 0 THEN 'NO_EXPORTADO'
           WHEN COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) = 1
@@ -659,6 +663,14 @@ async function listarPedidos(idEmpresa) {
           AND E.ID_PEDIDO = P.ID_PEDIDO
           AND E.ESTADO = 'OK'
       ) EXP
+      OUTER APPLY (
+        SELECT TOP 1
+          C.ESTADO, C.ORIGEN, C.FECHA_CONFIRMACION, C.USUARIO_CONFIRMACION
+        FROM dbo.PEDIDOS_CONFIRMACIONES_COMEX C
+        WHERE C.ID_EMPRESA = P.ID_EMPRESA
+          AND C.ID_PEDIDO = P.ID_PEDIDO
+        ORDER BY C.ID_CONFIRMACION_COMEX DESC
+      ) COMEX
       WHERE P.ID_EMPRESA = @ID_EMPRESA
       GROUP BY
         P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA,
@@ -672,7 +684,9 @@ async function listarPedidos(idEmpresa) {
         P.USUARIO_VALIDACION, P.FECHA_SINCRONIZACION,
         P.FECHA_ANULACION, P.USUARIO_ANULACION, P.MOTIVO_ANULACION,
         EXP.CANTIDAD_EXPORTACIONES, EXP.TIENE_PEDIDO_EXCEL,
-        EXP.TIENE_MASTER_DATA_APP, EXP.TIENE_PREC_FOB
+        EXP.TIENE_MASTER_DATA_APP, EXP.TIENE_PREC_FOB,
+        COMEX.ESTADO, COMEX.ORIGEN, COMEX.FECHA_CONFIRMACION,
+        COMEX.USUARIO_CONFIRMACION
       ORDER BY P.ID_PEDIDO DESC;
     `);
   return resultado.recordset;
@@ -697,13 +711,25 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
         A.CODIGO_ANO,
         A.CODIGO_TEMPORADA,
         A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
-        A.ESTADO AS ESTADO_ALTA
+        A.ESTADO AS ESTADO_ALTA,
+        COMEX.ESTADO AS ESTADO_COMEX,
+        COMEX.ORIGEN AS ORIGEN_CONFIRMACION_COMEX,
+        COMEX.FECHA_CONFIRMACION AS FECHA_CONFIRMACION_COMEX,
+        COMEX.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_COMEX
       FROM dbo.PEDIDOS P
       INNER JOIN dbo.ALTAS_PRODUCTOS A
         ON A.ID_EMPRESA = P.ID_EMPRESA
        AND A.ID_ALTA = P.ID_ALTA
       INNER JOIN dbo.EMPRESAS E
         ON E.ID_EMPRESA = P.ID_EMPRESA
+      OUTER APPLY (
+        SELECT TOP 1
+          C.ESTADO, C.ORIGEN, C.FECHA_CONFIRMACION, C.USUARIO_CONFIRMACION
+        FROM dbo.PEDIDOS_CONFIRMACIONES_COMEX C
+        WHERE C.ID_EMPRESA = P.ID_EMPRESA
+          AND C.ID_PEDIDO = P.ID_PEDIDO
+        ORDER BY C.ID_CONFIRMACION_COMEX DESC
+      ) COMEX
       WHERE P.ID_EMPRESA = @ID_EMPRESA
         AND P.ID_PEDIDO = @ID_PEDIDO;
     `);
@@ -1741,6 +1767,65 @@ async function listarExportacionesPedido(idPedido, idEmpresa) {
   return resultado.recordset;
 }
 
+/* ============================================================
+   CONFIRMAR IMPACTO EN COMEX
+   - Hoy se registra manualmente.
+   - ORIGEN permite reemplazar este paso por una API sin cambiar
+     el contrato que consume la interfaz.
+   - Es idempotente: una segunda confirmacion devuelve la existente.
+   ============================================================ */
+async function confirmarPedidoComex(idPedido, idEmpresa, usuarioConfirmacion, origen = 'MANUAL', respuestaExterna = null) {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+    const pedidoResult = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .query(`
+        SELECT TOP 1 ID_PEDIDO, ESTADO
+        FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
+        WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO;
+      `);
+    const pedido = pedidoResult.recordset[0] || null;
+    if (!pedido) throw new Error('Pedido no encontrado.');
+    if (String(pedido.ESTADO).toUpperCase() !== 'VALIDADO') {
+      throw new Error('Solo se puede confirmar en COMEX un pedido VALIDADO.');
+    }
+
+    const resultado = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .input('USUARIO_CONFIRMACION', sql.VarChar(100), usuarioConfirmacion)
+      .input('ORIGEN', sql.VarChar(20), origen)
+      .input('RESPUESTA_EXTERNA', sql.NVarChar(sql.MAX), respuestaExterna)
+      .query(`
+        IF NOT EXISTS (
+          SELECT 1 FROM dbo.PEDIDOS_CONFIRMACIONES_COMEX WITH (UPDLOCK, HOLDLOCK)
+          WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO
+        )
+        BEGIN
+          INSERT INTO dbo.PEDIDOS_CONFIRMACIONES_COMEX
+            (ID_EMPRESA, ID_PEDIDO, ESTADO, ORIGEN, USUARIO_CONFIRMACION, RESPUESTA_EXTERNA)
+          VALUES
+            (@ID_EMPRESA, @ID_PEDIDO, 'CONFIRMADO', @ORIGEN, @USUARIO_CONFIRMACION, @RESPUESTA_EXTERNA);
+        END;
+
+        SELECT TOP 1 *
+        FROM dbo.PEDIDOS_CONFIRMACIONES_COMEX
+        WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO
+        ORDER BY ID_CONFIRMACION_COMEX DESC;
+      `);
+
+    await transaction.commit();
+    return resultado.recordset[0] || null;
+  } catch (error) {
+    try { await transaction.rollback(); } catch (_) {}
+    throw error;
+  }
+}
+
 
 /* ============================================================
    DESTINOS DE EXPORTACION DEL PEDIDO POR EMPRESA / MARCA
@@ -1802,5 +1887,6 @@ module.exports = {
   obtenerDatosMasterPedido,
   registrarExportacionPedido,
   listarExportacionesPedido,
+  confirmarPedidoComex,
   obtenerConfiguracionExportacionPedido,
 };

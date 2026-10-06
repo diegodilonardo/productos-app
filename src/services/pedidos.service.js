@@ -12,6 +12,7 @@ const ESTADOS_ALTAS_HABILITADOS_PEDIDOS = Object.freeze([
   'GENERADO_OK_EN_ERP',
   'SIN_NOVEDADES_ERP',
 ]);
+const CODIGO_PROVEEDOR_NACIONAL = 'PB9999';
 
 /* ============================================================
    UTILIDADES
@@ -51,6 +52,19 @@ function validarIdPedido(idPedido) {
   }
 
   return id;
+}
+
+function esProveedorNacional(codigoProveedor) {
+  return texto(codigoProveedor).toUpperCase() === CODIGO_PROVEEDOR_NACIONAL;
+}
+
+function exigirCircuitoImportado(pedido) {
+  if (esProveedorNacional(pedido?.CODIGO_PROVEEDOR)) {
+    throw new Error(
+      `El proveedor ${CODIGO_PROVEEDOR_NACIONAL} es nacional. ` +
+      'Debe utilizar la exportación Pedido nacional DBI.'
+    );
+  }
 }
 
 function estadoAltaHabilitadoParaPedido(estado) {
@@ -1629,6 +1643,7 @@ async function exportarPedidoExcel(idPedido, idEmpresa, usuarioAutenticado) {
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
   }
+  exigirCircuitoImportado(pedido);
 
   const estado = texto(pedido.ESTADO).toUpperCase();
 
@@ -1756,6 +1771,7 @@ async function exportarPurchaseOrder(idPedido, idEmpresa, usuarioAutenticado) {
   const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
 
   if (!pedido) throw new Error('Pedido no encontrado.');
+  exigirCircuitoImportado(pedido);
   const estado = texto(pedido.ESTADO).toUpperCase();
   if (!['BORRADOR', 'VALIDADO'].includes(estado)) {
     throw new Error(
@@ -1848,6 +1864,7 @@ async function exportarMasterDataAppExcel(idPedido, idEmpresa, usuarioAutenticad
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
   }
+  exigirCircuitoImportado(pedido);
 
   const estado = texto(pedido.ESTADO).toUpperCase();
   if (estado !== 'VALIDADO') {
@@ -2053,6 +2070,7 @@ async function exportarPrecFobDBI(idPedido, idEmpresa, usuarioAutenticado) {
   if (!pedido) {
     throw new Error('Pedido no encontrado.');
   }
+  exigirCircuitoImportado(pedido);
 
   const estado = texto(pedido.ESTADO).toUpperCase();
   if (estado !== 'VALIDADO') {
@@ -2128,6 +2146,61 @@ async function exportarPrecFobDBI(idPedido, idEmpresa, usuarioAutenticado) {
   };
 }
 
+/* ============================================================
+   EXPORTAR PEDIDO NACIONAL
+   - Exclusivo para el proveedor PB9999.
+   - CODIGO: código interno ERP del producto asociado al COD_ALFA.
+   - CANTIDAD: unidades/pares cargados en la tarjeta del Pedido.
+   ============================================================ */
+const CAMPOS_PEDIDO_NACIONAL = [
+  { nombre: 'CODIGO', tipo: 'N', largo: 15, decimales: 0 },
+  { nombre: 'COD_ALFA', tipo: 'C', largo: 15, decimales: 0 },
+  { nombre: 'CANTIDAD', tipo: 'N', largo: 10, decimales: 0 },
+];
+
+async function exportarPedidoNacionalDBI(idPedido, idEmpresa, usuarioAutenticado) {
+  const id = validarIdPedido(idPedido);
+  const empresa = validarIdEmpresa(idEmpresa);
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
+
+  if (!pedido) throw new Error('Pedido no encontrado.');
+  if (!esProveedorNacional(pedido.CODIGO_PROVEEDOR)) {
+    throw new Error(`La exportación nacional es exclusiva para el proveedor ${CODIGO_PROVEEDOR_NACIONAL}.`);
+  }
+  if (texto(pedido.ESTADO).toUpperCase() !== 'VALIDADO') {
+    throw new Error('Solamente se pueden exportar pedidos nacionales VALIDADO.');
+  }
+
+  const detalles = await pedidosRepository.obtenerDatosMasterPedido(id, empresa);
+  if (!detalles?.length) throw new Error('El pedido no contiene productos para exportar.');
+
+  const registros = detalles.map(detalle => {
+    const codigo = texto(detalle.CODIGO_INTERNO_PRODUCTO);
+    const codigoAlfa = texto(detalle.CODIGO_ALFA);
+    const cantidad = Number(detalle.CANTIDAD_PARES);
+    if (!/^\d{1,15}$/.test(codigo)) {
+      throw new Error(`El producto ${codigoAlfa || detalle.ID_PEDIDO_DETALLE} no tiene un código interno ERP numérico válido.`);
+    }
+    if (!codigoAlfa || codigoAlfa.length > 15) {
+      throw new Error(`El producto ${codigoAlfa || detalle.ID_PEDIDO_DETALLE} no tiene un COD_ALFA válido de hasta 15 caracteres.`);
+    }
+    if (!Number.isInteger(cantidad) || cantidad <= 0) {
+      throw new Error(`El producto ${codigoAlfa} no tiene una cantidad válida cargada en el Pedido.`);
+    }
+    return { CODIGO: Number(codigo), COD_ALFA: codigoAlfa, CANTIDAD: cantidad };
+  });
+
+  const buffer = crearDBFBuffer(registros, CAMPOS_PEDIDO_NACIONAL);
+  const orden = limpiarNombreArchivoPedido(pedido.NUMERO_ORDEN || pedido.CODIGO_PEDIDO) || `PEDIDO_${id}`;
+  const nombreArchivo = `PEDIDO_NACIONAL_${orden}.DBI`;
+
+  await registrarExportacionGenerada(
+    id, empresa, 'PEDIDO_NACIONAL', nombreArchivo, registros.length, usuarioAutenticado
+  );
+
+  return { buffer, nombreArchivo, cantidadRegistros: registros.length };
+}
+
 module.exports = {
   listarPedidos,
   generarReportePedidos,
@@ -2167,6 +2240,7 @@ module.exports = {
   exportarPurchaseOrder,
   exportarMasterDataAppExcel,
   exportarPrecFobDBI,
+  exportarPedidoNacionalDBI,
   listarExportacionesPedido,
   obtenerDestinosExportacionPedido,
   _internals: {
@@ -2174,5 +2248,9 @@ module.exports = {
     evaluarDestinosExportacionPedido,
     estadoAltaHabilitadoParaPedido,
     ESTADOS_ALTAS_HABILITADOS_PEDIDOS,
+    CODIGO_PROVEEDOR_NACIONAL,
+    esProveedorNacional,
+    CAMPOS_PEDIDO_NACIONAL,
+    crearDBFBuffer,
   },
 };

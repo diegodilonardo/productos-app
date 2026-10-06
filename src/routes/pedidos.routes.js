@@ -354,6 +354,20 @@ router.get('/:id/exportacion/prec-fob', requerirAccesoPedido, requerirEscrituraE
   }
 });
 
+router.get('/:id/exportacion/pedido-nacional', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.exportarPedidoNacionalDBI(
+      req.params.id, req.idEmpresa, usuarioAuditoria(req)
+    );
+    res.setHeader('Content-Type','application/octet-stream');
+    res.setHeader('Content-Disposition',`attachment; filename="${resultado.nombreArchivo}"`);
+    res.setHeader('X-Cantidad-Registros',String(resultado.cantidadRegistros));
+    return res.send(resultado.buffer);
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.get('/:id/exportaciones', requerirAccesoPedido, async (req, res) => {
   try {
     const datos = await pedidosService.listarExportacionesPedido(req.params.id, req.idEmpresa);

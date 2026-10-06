@@ -264,15 +264,24 @@ function pintarTarjetas(lista) {
       <div class="pedido-summary-meta"><div><span>Rubro</span><strong>${esc(p.DETALLE_RUBRO || p.CODIGO_RUBRO || '-')}</strong></div><div><span>Año / Temporada</span><strong>${esc(p.CODIGO_ANO || '-')} · ${esc(p.DETALLE_TEMPORADA || p.CODIGO_TEMPORADA || '-')}</strong></div><div><span>Productos</span><strong>${num(p.CANTIDAD_PRODUCTOS)}</strong></div><div class="pedido-summary-emphasis"><span>Pares</span><strong>${num(p.TOTAL_PARES)}</strong></div><div class="pedido-summary-emphasis"><span>Total</span><strong>${esc(p.MONEDA || 'USD')} ${dinero(p.TOTAL_PEDIDO)}</strong></div><div><span>Exportación</span>${badgeExportacion(p)}</div></div>
       ${est === 'ANULADO' && p.MOTIVO_ANULACION ? `<div class="pedido-summary-cancel">${esc(p.MOTIVO_ANULACION)}</div>` : ''}
       ${badgeComex(p)}
-      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><div class="d-flex flex-wrap gap-2">${est==='VALIDADO'&&!confirmadoComex(p)&&puedeEscribirPedido()?`<button class="btn btn-sm btn-success" type="button" data-confirmar-comex="${esc(p.ID_PEDIDO)}">Confirmar en COMEX</button>`:''}${['BORRADOR','VALIDADO'].includes(est)?`<button class="btn btn-sm btn-outline-success" type="button" data-purchase-order="${esc(p.ID_PEDIDO)}">Purchase Order</button>`:''}<a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div></div>
+      <div class="pedido-summary-footer"><span>Creado ${fecha(p.FECHA_CREACION)} · ${esc(p.USUARIO_CREACION || 'SISTEMA')}</span><div class="d-flex flex-wrap gap-2">${est==='VALIDADO'&&!confirmadoComex(p)&&puedeEscribirPedido()?`<button class="btn btn-sm btn-success" type="button" data-confirmar-comex="${esc(p.ID_PEDIDO)}">Confirmar en COMEX</button>`:''}${est==='VALIDADO'&&esPedidoNacional(p)?`<button class="btn btn-sm btn-primary" type="button" data-pedido-nacional="${esc(p.ID_PEDIDO)}">Pedido nacional DBI</button>`:''}${['BORRADOR','VALIDADO'].includes(est)&&!esPedidoNacional(p)?`<button class="btn btn-sm btn-outline-success" type="button" data-purchase-order="${esc(p.ID_PEDIDO)}">Purchase Order</button>`:''}<a class="btn btn-sm btn-outline-primary" href="/pedidos/${encodeURIComponent(p.ID_PEDIDO)}">Ver pedido</a></div></div>
     </article>`;
   }).join('');
 }
 
 async function manejarAccionTarjetaPedido(event) {
   if (event.target.closest('[data-confirmar-comex]')) return confirmarComexTarjeta(event);
+  if (event.target.closest('[data-pedido-nacional]')) return descargarPedidoNacionalTarjeta(event);
   return descargarPurchaseOrderTarjeta(event);
 }
+
+async function descargarPedidoNacionalTarjeta(event) {
+  const boton = event.target.closest('[data-pedido-nacional]');
+  if (!boton) return;
+  return descargarArchivoTarjeta(boton, `/api/pedidos/${encodeURIComponent(boton.dataset.pedidoNacional)}/exportacion/pedido-nacional`, `PEDIDO_NACIONAL_${boton.dataset.pedidoNacional}.DBI`, 'Pedido nacional DBI');
+}
+
+async function descargarArchivoTarjeta(boton,url,nombrePredeterminado,etiqueta){const textoOriginal=boton.textContent;try{boton.disabled=true;boton.textContent='Generando...';const respuesta=await fetch(url,opcionesEmpresa());if(!respuesta.ok){let mensaje=`Error HTTP ${respuesta.status}`;try{mensaje=(await respuesta.json())?.mensaje||mensaje;}catch{}throw new Error(mensaje);}const blob=await respuesta.blob();const disposicion=respuesta.headers.get('Content-Disposition')||'';const coincidencia=disposicion.match(/filename="?([^";]+)"?/i);const nombre=coincidencia?.[1]||nombrePredeterminado;const objeto=URL.createObjectURL(blob);const enlace=document.createElement('a');enlace.href=objeto;enlace.download=nombre;document.body.appendChild(enlace);enlace.click();enlace.remove();setTimeout(()=>URL.revokeObjectURL(objeto),1500);mostrarAlerta(`${etiqueta} generado: ${nombre}`,'success');await cargarPedidos();}catch(error){mostrarAlerta(error.message,'danger');}finally{boton.disabled=false;boton.textContent=textoOriginal;}}
 
 async function confirmarComexTarjeta(event) {
   const boton = event.target.closest('[data-confirmar-comex]');
@@ -360,6 +369,7 @@ function pintarTabla(lista) {
 }
 
 function estado(p){return String(p?.ESTADO||'').toUpperCase();}
+function esPedidoNacional(p){return String(p?.CODIGO_PROVEEDOR||'').trim().toUpperCase()==='PB9999';}
 function estadoExportacion(p){return String(p?.ESTADO_EXPORTACION||'NO_EXPORTADO').toUpperCase();}
 function badgeExportacion(p){const e=estadoExportacion(p);const clase=e==='COMPLETO'?'text-bg-success':e==='PARCIAL'?'text-bg-warning':'text-bg-secondary';const texto=e==='NO_EXPORTADO'?'NO EXPORTADO':e;const cantidad=Number(p?.CANTIDAD_EXPORTACIONES||0);const detalle=cantidad>0?`<div class="pedido-muted mt-1">${num(cantidad)} salida${cantidad===1?'':'s'}</div>`:'';return `<span class="badge ${clase}">${esc(texto)}</span>${detalle}`;}
 function confirmadoComex(p){return String(p?.ESTADO_COMEX||'').toUpperCase()==='CONFIRMADO';}

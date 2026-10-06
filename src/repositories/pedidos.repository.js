@@ -641,6 +641,9 @@ async function listarPedidos(idEmpresa) {
         COMEX.ORIGEN AS ORIGEN_CONFIRMACION_COMEX,
         COMEX.FECHA_CONFIRMACION AS FECHA_CONFIRMACION_COMEX,
         COMEX.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_COMEX,
+        PRESEA.ESTADO AS ESTADO_PRESEA,
+        PRESEA.FECHA_CONFIRMACION AS FECHA_CONFIRMACION_PRESEA,
+        PRESEA.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_PRESEA,
         CASE
           WHEN COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) = 0 THEN 'NO_EXPORTADO'
           WHEN P.CODIGO_PROVEEDOR = 'PB9999'
@@ -675,6 +678,12 @@ async function listarPedidos(idEmpresa) {
           AND C.ID_PEDIDO = P.ID_PEDIDO
         ORDER BY C.ID_CONFIRMACION_COMEX DESC
       ) COMEX
+      OUTER APPLY (
+        SELECT TOP 1 C.ESTADO, C.FECHA_CONFIRMACION, C.USUARIO_CONFIRMACION
+        FROM dbo.PEDIDOS_CONFIRMACIONES_PRESEA C
+        WHERE C.ID_EMPRESA = P.ID_EMPRESA AND C.ID_PEDIDO = P.ID_PEDIDO
+        ORDER BY C.ID_CONFIRMACION_PRESEA DESC
+      ) PRESEA
       WHERE P.ID_EMPRESA = @ID_EMPRESA
       GROUP BY
         P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA,
@@ -691,7 +700,8 @@ async function listarPedidos(idEmpresa) {
         EXP.TIENE_MASTER_DATA_APP, EXP.TIENE_PREC_FOB,
         EXP.TIENE_PEDIDO_NACIONAL,
         COMEX.ESTADO, COMEX.ORIGEN, COMEX.FECHA_CONFIRMACION,
-        COMEX.USUARIO_CONFIRMACION
+        COMEX.USUARIO_CONFIRMACION,
+        PRESEA.ESTADO, PRESEA.FECHA_CONFIRMACION, PRESEA.USUARIO_CONFIRMACION
       ORDER BY P.ID_PEDIDO DESC;
     `);
   return resultado.recordset;
@@ -720,7 +730,10 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
         COMEX.ESTADO AS ESTADO_COMEX,
         COMEX.ORIGEN AS ORIGEN_CONFIRMACION_COMEX,
         COMEX.FECHA_CONFIRMACION AS FECHA_CONFIRMACION_COMEX,
-        COMEX.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_COMEX
+        COMEX.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_COMEX,
+        PRESEA.ESTADO AS ESTADO_PRESEA,
+        PRESEA.FECHA_CONFIRMACION AS FECHA_CONFIRMACION_PRESEA,
+        PRESEA.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_PRESEA
       FROM dbo.PEDIDOS P
       INNER JOIN dbo.ALTAS_PRODUCTOS A
         ON A.ID_EMPRESA = P.ID_EMPRESA
@@ -735,6 +748,12 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
           AND C.ID_PEDIDO = P.ID_PEDIDO
         ORDER BY C.ID_CONFIRMACION_COMEX DESC
       ) COMEX
+      OUTER APPLY (
+        SELECT TOP 1 C.ESTADO, C.FECHA_CONFIRMACION, C.USUARIO_CONFIRMACION
+        FROM dbo.PEDIDOS_CONFIRMACIONES_PRESEA C
+        WHERE C.ID_EMPRESA = P.ID_EMPRESA AND C.ID_PEDIDO = P.ID_PEDIDO
+        ORDER BY C.ID_CONFIRMACION_PRESEA DESC
+      ) PRESEA
       WHERE P.ID_EMPRESA = @ID_EMPRESA
         AND P.ID_PEDIDO = @ID_PEDIDO;
     `);
@@ -1831,6 +1850,46 @@ async function confirmarPedidoComex(idPedido, idEmpresa, usuarioConfirmacion, or
   }
 }
 
+async function confirmarPedidoPresea(idPedido, idEmpresa, usuarioConfirmacion) {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+  try {
+    await transaction.begin();
+    const pedidoResult = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .query(`SELECT TOP 1 ID_PEDIDO, ESTADO, CODIGO_PROVEEDOR
+              FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
+              WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;`);
+    const pedido = pedidoResult.recordset[0] || null;
+    if (!pedido) throw new Error('Pedido no encontrado.');
+    if (String(pedido.CODIGO_PROVEEDOR || '').trim().toUpperCase() !== 'PB9999') {
+      throw new Error('La confirmación en Presea corresponde únicamente a proveedores nacionales.');
+    }
+    if (String(pedido.ESTADO).toUpperCase() !== 'VALIDADO') {
+      throw new Error('Solo se puede confirmar en Presea un pedido VALIDADO.');
+    }
+    const resultado = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .input('USUARIO_CONFIRMACION', sql.VarChar(100), usuarioConfirmacion)
+      .query(`
+        IF NOT EXISTS (SELECT 1 FROM dbo.PEDIDOS_CONFIRMACIONES_PRESEA WITH (UPDLOCK, HOLDLOCK)
+                       WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO)
+          INSERT dbo.PEDIDOS_CONFIRMACIONES_PRESEA
+            (ID_EMPRESA,ID_PEDIDO,ESTADO,USUARIO_CONFIRMACION)
+          VALUES (@ID_EMPRESA,@ID_PEDIDO,'CONFIRMADO',@USUARIO_CONFIRMACION);
+        SELECT TOP 1 * FROM dbo.PEDIDOS_CONFIRMACIONES_PRESEA
+        WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO
+        ORDER BY ID_CONFIRMACION_PRESEA DESC;`);
+    await transaction.commit();
+    return resultado.recordset[0] || null;
+  } catch (error) {
+    try { await transaction.rollback(); } catch (_) {}
+    throw error;
+  }
+}
+
 
 /* ============================================================
    DESTINOS DE EXPORTACION DEL PEDIDO POR EMPRESA / MARCA
@@ -1893,5 +1952,6 @@ module.exports = {
   registrarExportacionPedido,
   listarExportacionesPedido,
   confirmarPedidoComex,
+  confirmarPedidoPresea,
   obtenerConfiguracionExportacionPedido,
 };

@@ -1303,6 +1303,12 @@ async function confirmarPedidoComex(idPedido, idEmpresa, usuarioAutenticado, opc
   if (usuario.length > 100) throw new Error('El usuario de confirmación supera los 100 caracteres.');
   if (!['MANUAL', 'API'].includes(origen)) throw new Error('Origen de confirmación COMEX inválido.');
 
+  const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
+  if (!pedido) throw new Error('Pedido no encontrado.');
+  if (esProveedorNacional(pedido.CODIGO_PROVEEDOR)) {
+    throw new Error('Los pedidos nacionales deben confirmarse en Presea.');
+  }
+
   return pedidosRepository.confirmarPedidoComex(
     id,
     empresa,
@@ -1310,6 +1316,14 @@ async function confirmarPedidoComex(idPedido, idEmpresa, usuarioAutenticado, opc
     origen,
     opciones.respuestaExterna ? JSON.stringify(opciones.respuestaExterna) : null
   );
+}
+
+async function confirmarPedidoPresea(idPedido, idEmpresa, usuarioAutenticado) {
+  const id = validarIdPedido(idPedido);
+  const empresa = validarIdEmpresa(idEmpresa);
+  const usuario = texto(usuarioAutenticado) || 'SISTEMA';
+  if (usuario.length > 100) throw new Error('El usuario de confirmación supera los 100 caracteres.');
+  return pedidosRepository.confirmarPedidoPresea(id, empresa, usuario);
 }
 
 
@@ -2235,6 +2249,7 @@ module.exports = {
   eliminarProductoPedido,
   validarPedido,
   confirmarPedidoComex,
+  confirmarPedidoPresea,
   anularPedido,
   exportarPedidoExcel,
   exportarPurchaseOrder,

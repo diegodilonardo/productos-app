@@ -287,6 +287,17 @@ router.post('/:id/confirmar-comex', requerirAccesoPedido, requerirEscrituraEmpre
   }
 });
 
+router.post('/:id/confirmar-presea', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.confirmarPedidoPresea(
+      req.params.id, req.idEmpresa, usuarioAuditoria(req)
+    );
+    return res.json({ ok: true, mensaje: 'Pedido confirmado en Presea.', resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.post('/:id/anular', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.anularPedido(

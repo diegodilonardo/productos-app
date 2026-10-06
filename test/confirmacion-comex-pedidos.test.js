@@ -18,9 +18,9 @@ test('el circuito COMEX exige escritura y se ofrece en tarjetas y detalle', () =
   const cards = leer('public/js/pedidos-index.js');
   const detail = leer('public/js/pedido-detalle.js');
   assert.match(routes, /\/:id\/confirmar-comex', requerirAccesoPedido, requerirEscrituraEmpresa/);
-  assert.match(cards, /data-confirmar-comex/);
-  assert.match(detail, /confirmarPedidoComex/);
-  assert.match(cards, /CONFIRMADO EN COMEX/);
+  assert.match(cards, /data-confirmar-impacto/);
+  assert.match(detail, /confirmarImpactoPedido/);
+  assert.match(cards, /destino=nacional\?'PRESEA':'COMEX'/);
 });
 
 test('la confirmacion manual solo admite pedidos validados y es idempotente', () => {

@@ -646,7 +646,8 @@ async function listarPedidos(idEmpresa) {
         PRESEA.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_PRESEA,
         CASE
           WHEN COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) = 0 THEN 'NO_EXPORTADO'
-          WHEN P.CODIGO_PROVEEDOR = 'PB9999'
+          WHEN (P.CODIGO_PROVEEDOR = 'PB9999'
+             OR UPPER(LTRIM(RTRIM(ISNULL(P.DETALLE_PROVEEDOR, '')))) LIKE '%NACIONAL%')
            AND COALESCE(EXP.TIENE_PEDIDO_NACIONAL, 0) = 1 THEN 'COMPLETO'
           WHEN COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) = 1
            AND COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) = 1
@@ -1858,12 +1859,14 @@ async function confirmarPedidoPresea(idPedido, idEmpresa, usuarioConfirmacion) {
     const pedidoResult = await new sql.Request(transaction)
       .input('ID_PEDIDO', sql.BigInt, idPedido)
       .input('ID_EMPRESA', sql.Int, idEmpresa)
-      .query(`SELECT TOP 1 ID_PEDIDO, ESTADO, CODIGO_PROVEEDOR
+      .query(`SELECT TOP 1 ID_PEDIDO, ESTADO, CODIGO_PROVEEDOR, DETALLE_PROVEEDOR
               FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
               WHERE ID_EMPRESA=@ID_EMPRESA AND ID_PEDIDO=@ID_PEDIDO;`);
     const pedido = pedidoResult.recordset[0] || null;
     if (!pedido) throw new Error('Pedido no encontrado.');
-    if (String(pedido.CODIGO_PROVEEDOR || '').trim().toUpperCase() !== 'PB9999') {
+    const esNacional = String(pedido.CODIGO_PROVEEDOR || '').trim().toUpperCase() === 'PB9999' ||
+      String(pedido.DETALLE_PROVEEDOR || '').trim().toUpperCase().includes('NACIONAL');
+    if (!esNacional) {
       throw new Error('La confirmación en Presea corresponde únicamente a proveedores nacionales.');
     }
     if (String(pedido.ESTADO).toUpperCase() !== 'VALIDADO') {

@@ -370,7 +370,7 @@ function pintarTabla(lista) {
 }
 
 function estado(p){return String(p?.ESTADO||'').toUpperCase();}
-function esPedidoNacional(p){return String(p?.CODIGO_PROVEEDOR||'').trim().toUpperCase()==='PB9999';}
+function esPedidoNacional(p){return String(p?.CODIGO_PROVEEDOR||'').trim().toUpperCase()==='PB9999'||String(p?.DETALLE_PROVEEDOR||'').trim().toUpperCase().includes('NACIONAL');}
 function estadoExportacion(p){return String(p?.ESTADO_EXPORTACION||'NO_EXPORTADO').toUpperCase();}
 function badgeExportacion(p){const e=estadoExportacion(p);const clase=e==='COMPLETO'?'text-bg-success':e==='PARCIAL'?'text-bg-warning':'text-bg-secondary';const texto=e==='NO_EXPORTADO'?'NO EXPORTADO':e;const cantidad=Number(p?.CANTIDAD_EXPORTACIONES||0);const detalle=cantidad>0?`<div class="pedido-muted mt-1">${num(cantidad)} salida${cantidad===1?'':'s'}</div>`:'';return `<span class="badge ${clase}">${esc(texto)}</span>${detalle}`;}
 function confirmadoImpacto(p){return String(esPedidoNacional(p)?p?.ESTADO_PRESEA:p?.ESTADO_COMEX||'').toUpperCase()==='CONFIRMADO';}

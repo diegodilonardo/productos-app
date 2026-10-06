@@ -54,14 +54,19 @@ function validarIdPedido(idPedido) {
   return id;
 }
 
-function esProveedorNacional(codigoProveedor) {
-  return texto(codigoProveedor).toUpperCase() === CODIGO_PROVEEDOR_NACIONAL;
+function esProveedorNacional(codigoProveedor, detalleProveedor = '') {
+  if (codigoProveedor && typeof codigoProveedor === 'object') {
+    detalleProveedor = codigoProveedor.DETALLE_PROVEEDOR;
+    codigoProveedor = codigoProveedor.CODIGO_PROVEEDOR;
+  }
+  return texto(codigoProveedor).toUpperCase() === CODIGO_PROVEEDOR_NACIONAL ||
+    texto(detalleProveedor).toUpperCase().includes('NACIONAL');
 }
 
 function exigirCircuitoImportado(pedido) {
-  if (esProveedorNacional(pedido?.CODIGO_PROVEEDOR)) {
+  if (esProveedorNacional(pedido)) {
     throw new Error(
-      `El proveedor ${CODIGO_PROVEEDOR_NACIONAL} es nacional. ` +
+      'El proveedor seleccionado es nacional. ' +
       'Debe utilizar la exportación Pedido nacional DBI.'
     );
   }
@@ -1305,7 +1310,7 @@ async function confirmarPedidoComex(idPedido, idEmpresa, usuarioAutenticado, opc
 
   const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
   if (!pedido) throw new Error('Pedido no encontrado.');
-  if (esProveedorNacional(pedido.CODIGO_PROVEEDOR)) {
+  if (esProveedorNacional(pedido)) {
     throw new Error('Los pedidos nacionales deben confirmarse en Presea.');
   }
 
@@ -2178,8 +2183,8 @@ async function exportarPedidoNacionalDBI(idPedido, idEmpresa, usuarioAutenticado
   const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
 
   if (!pedido) throw new Error('Pedido no encontrado.');
-  if (!esProveedorNacional(pedido.CODIGO_PROVEEDOR)) {
-    throw new Error(`La exportación nacional es exclusiva para el proveedor ${CODIGO_PROVEEDOR_NACIONAL}.`);
+  if (!esProveedorNacional(pedido)) {
+    throw new Error('La exportación nacional es exclusiva para proveedores nacionales.');
   }
   if (texto(pedido.ESTADO).toUpperCase() !== 'VALIDADO') {
     throw new Error('Solamente se pueden exportar pedidos nacionales VALIDADO.');

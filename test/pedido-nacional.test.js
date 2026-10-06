@@ -3,10 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const service = require('../src/services/pedidos.service');
 
-test('PB9999 identifica exclusivamente el circuito de proveedor nacional', () => {
+test('PB9999 y los proveedores identificados como nacionales usan el circuito nacional', () => {
   const { esProveedorNacional, CODIGO_PROVEEDOR_NACIONAL } = service._internals;
   assert.equal(CODIGO_PROVEEDOR_NACIONAL, 'PB9999');
   assert.equal(esProveedorNacional(' pb9999 '), true);
+  assert.equal(esProveedorNacional('PB0076', 'PROVEEDOR GENERICO NACIONAL'), true);
   assert.equal(esProveedorNacional('PB0001'), false);
 });
 

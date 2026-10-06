@@ -12,6 +12,7 @@ const encabezadosEsperados = [
   'DETALLE RUBRO',
   'DETALLE AÑO',
   'DETALLE TEMPORADA',
+  'CODIGO_MODELO',
   'DETALLE_MODELO',
   'DETALLE_CURVA',
   'PARES',
@@ -98,17 +99,19 @@ test('el Excel incluye la información adicional durante todo el circuito del Al
 
       assert.match(String(hoja.getCell('A1').value), new RegExp(`^${caso[2]}`));
       assert.deepEqual(hoja.getRow(3).values.slice(1), encabezadosEsperados);
+      assert.equal(hoja.getCell('E4').value, 'M1');
+      assert.equal(hoja.getCell('F4').value, 'MODELO TEST');
       assert.deepEqual(
-        hoja.getRow(4).values.slice(12, 21),
+        hoja.getRow(4).values.slice(13, 22),
         ['CO-1', 'MUESTRA-1', 'Comentario', 'Corrección', 'Cuero', 'Goma', 'Cordón', 'Descripción extendida', 'FLOW-1']
       );
       assert.ok(
-        hoja.getCell('K4').value === '262147048810641',
-        'El CODIGO_ALFA no fue exportado en la columna K.'
+        hoja.getCell('L4').value === '262147048810641',
+        'El CODIGO_ALFA no fue exportado en la columna L.'
       );
       assert.ok(
-        hoja.autoFilter === 'A3:T3' ||
-        hoja.autoFilter?.to?.column === 20,
+        hoja.autoFilter === 'A3:U3' ||
+        hoja.autoFilter?.to?.column === 21,
         `Rango de autofiltro inesperado: ${JSON.stringify(hoja.autoFilter)}`
       );
     }
@@ -169,7 +172,7 @@ test('el Excel de un Alta BORRADOR PAR SUELTO incorpora el producto y su imagen'
 
     assert.equal(resultado.nombreArchivo, 'BORRADOR_ALT-BORRADOR-IMAGEN.xlsx');
     assert.equal(hoja.getImages().length, 1);
-    assert.equal(hoja.getCell('F4').value, '36');
+    assert.equal(hoja.getCell('G4').value, '36');
     assert.equal(resultado.cantidadProductos, 1);
     assert.equal(resultado.cantidadModulos, 0);
   } finally {

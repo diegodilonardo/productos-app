@@ -292,7 +292,7 @@ async function generarBorradorExcel(
 
 
     hoja.mergeCells(
-        'A1:T2'
+        'A1:U2'
     );
 
 
@@ -384,6 +384,7 @@ async function generarBorradorExcel(
         'DETALLE RUBRO',
         'DETALLE AÑO',
         'DETALLE TEMPORADA',
+        'CODIGO_MODELO',
         'DETALLE_MODELO',
         'DETALLE_CURVA',
         'PARES',
@@ -535,6 +536,13 @@ async function generarBorradorExcel(
         },
         {
             key:
+                'codigoModelo',
+
+            width:
+                18
+        },
+        {
+            key:
                 'modelo',
 
             width:
@@ -630,6 +638,9 @@ async function generarBorradorExcel(
                 detalleAno,
                 detalleTemporada,
                 texto(
+                    detalle.CODIGO_MODELO
+                ),
+                texto(
                     detalle.DETALLE_MODELO
                 ),
                 texto(
@@ -681,7 +692,7 @@ async function generarBorradorExcel(
 
                 celda.alignment = {
                     horizontal:
-                        celda.col === 7
+                        celda.col === 8
                             ? 'center'
                             : 'left',
 
@@ -739,7 +750,7 @@ async function generarBorradorExcel(
 
 
         fila.getCell(
-            7
+            8
         ).font = {
             bold:
                 true
@@ -815,7 +826,7 @@ async function generarBorradorExcel(
                 3,
 
             column:
-                20
+                21
         }
     };
 

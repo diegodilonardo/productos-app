@@ -24,6 +24,14 @@ function texto(valor) {
   return String(valor).trim();
 }
 
+function normalizarLicenciaExportacion(valor) {
+  const licencia = texto(valor);
+  if (!licencia || licencia.toUpperCase() === '__SIN_LICENCIA__') {
+    return 'SIN LICENCIA';
+  }
+  return licencia;
+}
+
 function normalizarTipoProducto(valor) {
   return texto(valor).toUpperCase().replace(/\s+/g, "_").replace(/-+/g, "_");
 }
@@ -129,7 +137,7 @@ function armarRegistroERP(alta, detalle) {
 
     COD_DISCIP: texto(detalle.CODIGO_DEPORTE),
 
-    LICENCIAS: texto(detalle.LICENCIA),
+    LICENCIAS: normalizarLicenciaExportacion(detalle.LICENCIA),
 
     DCLASIFIC: texto(detalle.DETALLE_CLASIFICACION),
 
@@ -794,7 +802,7 @@ function armarRegistrosMODELOS(alta, detalles) {
 
       COLOR: texto(detalle.DETALLE_COLOR),
 
-      LICENCIAS: texto(detalle.LICENCIA),
+      LICENCIAS: normalizarLicenciaExportacion(detalle.LICENCIA),
 
       CO_PROV: texto(detalle.CODIGO_PROVEEDOR),
     });
@@ -1801,4 +1809,6 @@ module.exports = {
   regenerarArchivosAlta,
 
   armarRegistrosPRIMERAS_SEGUNDAS,
+
+  normalizarLicenciaExportacion,
 };

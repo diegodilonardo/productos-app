@@ -28,8 +28,21 @@ test('SQL posee límites para conexión y consultas', () => {
 });
 
 test('las fechas locales de SQL no reciben una conversión UTC adicional en el navegador', () => {
+  const app = fs.readFileSync(path.join(raiz, 'src/app.js'), 'utf8');
+  const serializador = fs.readFileSync(path.join(raiz, 'src/utils/jsonFechaLocal.js'), 'utf8');
   const pedido = fs.readFileSync(path.join(raiz, 'public/js/pedido-detalle.js'), 'utf8');
   const seguimiento = fs.readFileSync(path.join(raiz, 'public/js/seguimiento-detalle.js'), 'utf8');
+  assert.match(app, /json replacer/);
+  assert.match(serializador, /fechaLocalSinZona/);
   assert.doesNotMatch(pedido, /endsWith\('Z'\).*slice\(0,-1\)/);
   assert.doesNotMatch(seguimiento, /endsWith\('Z'\).*slice\(0, -1\)/);
+});
+
+test('el JSON conserva la hora local de SQL sin agregar una zona UTC', () => {
+  const { reemplazarFechaLocalJson } = require('../src/utils/jsonFechaLocal');
+  const salida = JSON.stringify(
+    { FECHA_CREACION: new Date('2026-10-06T12:22:59.000Z') },
+    reemplazarFechaLocalJson
+  );
+  assert.equal(salida, '{"FECHA_CREACION":"2026-10-06T12:22:59.000"}');
 });

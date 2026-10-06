@@ -15,10 +15,15 @@ const perfilRoutes = require("./routes/perfil.routes");
 const altasMaestrosRoutes = require('./routes/altasMaestros.routes');
 const sesionesActivasService = require('./services/sesionesActivas.service');
 const { obtenerEstadoEventLoop } = require('./observability/eventLoopMonitor');
+const { reemplazarFechaLocalJson } = require('./utils/jsonFechaLocal');
 
 const { configurarHandlebars } = require("./config/handlebars");
 
 const app = express();
+
+// Los DATETIME de SQL Server representan hora local de Buenos Aires.
+// Evita que JSON los marque como UTC y el navegador reste tres horas.
+app.set('json replacer', reemplazarFechaLocalJson);
 
 /* ============================================================
    SESIONES / AUTENTICACION

@@ -37,3 +37,13 @@ test('las exportaciones importadas quedan bloqueadas para el proveedor nacional'
   assert.match(fuente, /Debe utilizar la exportación Pedido nacional DBI/);
   assert.ok((fuente.match(/exigirCircuitoImportado\(pedido\)/g)||[]).length >= 4);
 });
+
+test('la base admite registrar PEDIDO_NACIONAL en el historial de exportaciones', () => {
+  const migracion = fs.readFileSync('sql/31_habilitar_exportacion_pedido_nacional.sql', 'utf8');
+  assert.match(migracion, /DROP CONSTRAINT CK_PEDIDOS_EXPORTACIONES_TIPO/);
+  assert.match(migracion, /'PEDIDO_EXCEL'/);
+  assert.match(migracion, /'MASTER_DATA_APP'/);
+  assert.match(migracion, /'PREC_FOB'/);
+  assert.match(migracion, /'PEDIDO_NACIONAL'/);
+  assert.match(migracion, /WITH CHECK/);
+});

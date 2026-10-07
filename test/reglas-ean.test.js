@@ -38,7 +38,7 @@ test('Seguimiento identifica y excluye visualmente los EAN no requeridos',()=>{
   const cliente=fs.readFileSync(path.join(__dirname,'../public/js/seguimiento.js'),'utf8');
   assert.match(servicio,/fila\.REQUIERE_EAN === false[\s\S]*'NO_REQUERIDO'/);
   assert.match(cliente,/EAN NO REQUERIDO/);
-  assert.match(cliente,/estadoEan === 'NO_REQUERIDO' \? 'disabled'/);
+  assert.match(cliente,/estadoEan === 'NO_REQUERIDO' \|\| inhabilitado \? 'disabled'/);
 });
 
 test('Maestros presenta el control EAN como una sección independiente',()=>{

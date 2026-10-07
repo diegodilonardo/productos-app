@@ -31,3 +31,16 @@ test('Pedidos conserva y señala productos que fueron inhabilitados posteriormen
   assert.match(detalle, /pintarDetalleConEstadoPresea/);
   assert.match(detalle, /INHABILITADO/);
 });
+
+test('Seguimiento EAN muestra los inhabilitados pero impide gestionarlos', () => {
+  const repositorio = fs.readFileSync(path.join(__dirname, '../src/repositories/seguimiento.repository.js'), 'utf8');
+  const servicio = fs.readFileSync(path.join(__dirname, '../src/services/seguimiento.service.js'), 'utf8');
+  const vista = fs.readFileSync(path.join(__dirname, '../views/seguimiento/index.hbs'), 'utf8');
+  const cliente = fs.readFileSync(path.join(__dirname, '../public/js/seguimiento.js'), 'utf8');
+  assert.match(repositorio, /INHABILITADO_PRESEA/);
+  assert.match(servicio, /'INHABILITADO_PRESEA'/);
+  assert.match(vista, /Inactivos en Presea/);
+  assert.match(vista, /value="INHABILITADO_PRESEA"/);
+  assert.match(cliente, /INACTIVO EN PRESEA/);
+  assert.match(cliente, /inhabilitado \? 'disabled'/);
+});

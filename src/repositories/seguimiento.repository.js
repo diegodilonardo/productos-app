@@ -340,6 +340,13 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 E.COD_ALFA,
                 E.CODIGO_ERP,
                 E.EAN_ERP,
+                PE.C_ESTADIO,
+                CASE
+                    WHEN LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) = '9'
+                      OR ISNULL(PE.ACTIVO, 1) = 0
+                    THEN CONVERT(BIT, 1)
+                    ELSE CONVERT(BIT, 0)
+                END AS INHABILITADO_PRESEA,
                 GE.EAN_GS1,
                 GE.FECHA_ENVIO_PRESEA,
                 GE.USUARIO_ENVIO_PRESEA,
@@ -414,7 +421,6 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 INNER JOIN dbo.PRODUCTOS PR
                     ON PR.ID_EMPRESA = X.ID_EMPRESA
                    AND PR.CODIGO_ALFA = X.CODIGO_ALFA
-                   AND ISNULL(PR.ACTIVO, 1) = 1
                 WHERE X.ID_EMPRESA = @ID_EMPRESA
                   AND A0.ESTADO = 'SIN_NOVEDADES_ERP'
                   AND NOT EXISTS (
@@ -431,8 +437,6 @@ async function listarProductosSeguimientoEan(idEmpresa) {
             INNER JOIN dbo.PRODUCTOS PE
                 ON PE.ID_EMPRESA = E.ID_EMPRESA
                AND PE.CODIGO_ALFA = E.COD_ALFA
-               AND ISNULL(PE.ACTIVO, 1) = 1
-               AND LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) <> '9'
             LEFT JOIN dbo.GS1_PRODUCTOS_URLS G
                 ON G.ID_EMPRESA = E.ID_EMPRESA
                AND G.ID_ALTA = E.ID_ALTA

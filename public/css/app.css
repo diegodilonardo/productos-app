@@ -1368,6 +1368,16 @@ main .progress {
     background: #f8fbff;
 }
 
+.seguimiento-ean-inhabilitado > td {
+    background: #f1f3f5 !important;
+    color: #6c757d;
+}
+
+.seguimiento-ean-inhabilitado .seguimiento-ean-image {
+    filter: grayscale(1);
+    opacity: .6;
+}
+
 .seguimiento-ean-child-label {
     color: #176bc9;
     font-size: .7rem;

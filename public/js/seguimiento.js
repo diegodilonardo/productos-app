@@ -232,7 +232,7 @@ function pintarCargaSeguimiento() {
 
   const tarjetas = document.getElementById('tarjetasSeguimiento');
   if (tarjetas) tarjetas.innerHTML = '<div class="seguimiento-cards-loading">Actualizando seguimiento</div>';
-  for (const id of ['eanTotal', 'eanPendientesGs1', 'eanAsignados', 'eanPendientesErp', 'eanConfirmadosErp', 'eanNoRequeridos', 'eanSinEan']) setTexto(id, '—');
+  for (const id of ['eanTotal', 'eanPendientesGs1', 'eanAsignados', 'eanPendientesErp', 'eanConfirmadosErp', 'eanNoRequeridos', 'eanSinEan', 'eanInhabilitados']) setTexto(id, '—');
   const tablaEan = document.getElementById('tablaSeguimientoEan');
   if (tablaEan) tablaEan.innerHTML = '<tr><td colspan="7" class="text-center py-4">Actualizando seguimiento EAN...</td></tr>';
 }
@@ -245,6 +245,7 @@ function pintarResumenEan(resumen) {
   setTexto('eanConfirmadosErp', resumen.confirmadosErp ?? 0);
   setTexto('eanNoRequeridos', resumen.noRequeridos ?? 0);
   setTexto('eanSinEan', resumen.sinEan ?? 0);
+  setTexto('eanInhabilitados', resumen.inhabilitados ?? 0);
   const aviso = document.getElementById('eanAvisoGs1');
   const pendientes = numero(resumen.pendientesGs1);
   if (aviso) {
@@ -288,7 +289,9 @@ function pintarSeguimientoEan() {
   paginaSeguimientoEan = Math.min(Math.max(1, paginaSeguimientoEan), totalPaginas);
   const gruposPagina = paginas[paginaSeguimientoEan - 1] || [];
   clavesEanVisibles = [...new Set(grupos.flatMap(grupo =>
-    grupo.visibles.map(producto => claveProductoEan(producto))
+    grupo.visibles
+      .filter(producto => producto.ESTADO_EAN !== 'INHABILITADO_PRESEA')
+      .map(producto => claveProductoEan(producto))
   ))];
   setTexto('cantidadEanVisible', `${grupos.length} familias · ${cantidadProductos} productos · ${seleccionEan.size} seleccionados`);
   pintarPaginacionSeguimientoEan(paginas, cantidadProductos);
@@ -311,9 +314,11 @@ function pintarSeguimientoEan() {
     const boton = esModulo && primerasVisibles.length
       ? `<button type="button" class="btn btn-sm btn-outline-secondary seguimiento-ean-toggle" data-ean-family="${clave}" aria-expanded="${familiaAbierta}">${familiaAbierta ? 'Ocultar primeras' : `Ver primeras (${primerasVisibles.length})`}</button>`
       : '';
-    const clavesFamilia = esModulo
-      ? [grupo.principal, ...(grupo.primeras || [])].map(claveProductoEan)
-      : [claveProductoEan(principal)];
+    const clavesFamilia = (esModulo
+      ? [grupo.principal, ...(grupo.primeras || [])]
+      : [principal])
+      .filter(producto => producto.ESTADO_EAN !== 'INHABILITADO_PRESEA')
+      .map(claveProductoEan);
     return pintarFilaEan(principal, { resumenFamilia, boton, clavesSeleccion: clavesFamilia }) +
       primerasVisibles.map(producto => pintarFilaEan(producto, { claseFila: `${clave} ${familiaAbierta ? '' : 'd-none'} seguimiento-ean-child`, prefijo: '↳ Primera' })).join('');
   }).join('');
@@ -435,20 +440,23 @@ function pintarFilaEan(producto, { resumenFamilia = '', boton = '', claseFila = 
       : estadoEan === 'EAN_ASIGNADO' ? 'EAN ASIGNADO'
       : estadoEan === 'PENDIENTE_ERP' ? 'ENVIADO · PENDIENTE ERP'
       : estadoEan === 'CONFIRMADO_ERP' ? 'CONFIRMADO EN ERP'
-      : estadoEan === 'NO_REQUERIDO' ? 'EAN NO REQUERIDO' : 'SIN EAN';
+      : estadoEan === 'NO_REQUERIDO' ? 'EAN NO REQUERIDO'
+      : estadoEan === 'INHABILITADO_PRESEA' ? 'INACTIVO EN PRESEA' : 'SIN EAN';
     const clase = estadoEan === 'PENDIENTE_GS1' ? 'text-bg-warning'
       : estadoEan === 'EAN_ASIGNADO' ? 'text-bg-info'
       : estadoEan === 'PENDIENTE_ERP' ? 'text-bg-warning'
       : estadoEan === 'CONFIRMADO_ERP' ? 'text-bg-success'
-      : estadoEan === 'NO_REQUERIDO' ? 'text-bg-secondary' : 'text-bg-danger';
+      : estadoEan === 'NO_REQUERIDO' ? 'text-bg-secondary'
+      : estadoEan === 'INHABILITADO_PRESEA' ? 'text-bg-dark' : 'text-bg-danger';
+    const inhabilitado = estadoEan === 'INHABILITADO_PRESEA';
     const estadoUrl = producto.URL_IMAGEN_GS1
       ? '<span class="badge seguimiento-ean-url-badge">URL GS1 ASOCIADA</span>'
       : '<span class="badge seguimiento-ean-url-pending">URL PENDIENTE</span>';
     const idAlta = producto.ID_ALTA;
     const claves = clavesSeleccion || [claveProductoEan(producto)];
-    const checked = claves.every(clave => seleccionEan.has(clave));
-    return `<tr class="${claseFila}">
-      <td><div class="seguimiento-ean-image-cell"><input class="form-check-input seguimiento-ean-check" type="checkbox" data-ean-selection="${escapar(claves.join(';;'))}" ${checked ? 'checked' : ''} ${estadoEan === 'NO_REQUERIDO' ? 'disabled' : ''} aria-label="Seleccionar ${escapar(producto.COD_ALFA)}"><img class="seguimiento-ean-image" src="${escapar(producto.URL_IMAGEN)}" alt="" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')"><span class="seguimiento-ean-no-image d-none">Sin foto</span></div></td>
+    const checked = claves.length > 0 && claves.every(clave => seleccionEan.has(clave));
+    return `<tr class="${claseFila} ${inhabilitado ? 'seguimiento-ean-inhabilitado' : ''}">
+      <td><div class="seguimiento-ean-image-cell"><input class="form-check-input seguimiento-ean-check" type="checkbox" data-ean-selection="${escapar(claves.join(';;'))}" ${checked ? 'checked' : ''} ${estadoEan === 'NO_REQUERIDO' || inhabilitado ? 'disabled' : ''} aria-label="Seleccionar ${escapar(producto.COD_ALFA)}"><img class="seguimiento-ean-image" src="${escapar(producto.URL_IMAGEN)}" alt="" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')"><span class="seguimiento-ean-no-image d-none">Sin foto</span></div></td>
       <td><strong>${prefijo ? `<span class="seguimiento-ean-child-label">${prefijo}</span> ` : ''}${escapar(producto.COD_ALFA || '-')}</strong><div class="small text-secondary">ERP ${escapar(producto.CODIGO_ERP || '-')}</div>${resumenFamilia}</td>
       <td><strong>${escapar(producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-')}</strong><div class="small text-secondary">${escapar(producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-')}</div></td>
       <td>${escapar(producto.TALLE_CURVA || '-')}</td>

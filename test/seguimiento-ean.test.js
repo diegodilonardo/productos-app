@@ -81,6 +81,7 @@ test('resume productos confirmados según el estado de su EAN', async () => {
       pendientesErp: 0,
       confirmadosErp: 0,
       noRequeridos: 1,
+      inhabilitados: 0,
     });
     assert.equal(resultado.productos[0].TALLE_CURVA, '36-40');
     assert.equal(resultado.productos[1].TALLE_CURVA, '38');

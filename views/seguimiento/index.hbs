@@ -152,6 +152,7 @@
     <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-green">✓</span><div><div class="app-info-label">Confirmados ERP</div><div id="eanConfirmadosErp" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">EAN conciliado</div></div></div></div></div>
     <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-gray">—</span><div><div class="app-info-label">EAN no requerido</div><div id="eanNoRequeridos" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Fuera de gestión</div></div></div></div></div>
     <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-red">×</span><div><div class="app-info-label">Sin EAN</div><div id="eanSinEan" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Requieren revisión</div></div></div></div></div>
+    <div class="col-6 col-xl-2"><div class="card shadow-sm h-100 seguimiento-metric-card"><div class="card-body"><span class="seguimiento-metric-icon seguimiento-tone-gray">⊘</span><div><div class="app-info-label">Inactivos en Presea</div><div id="eanInhabilitados" class="seguimiento-metric-value">-</div><div class="seguimiento-metric-help">Solo seguimiento histórico</div></div></div></div></div>
   </div>
 
   <div id="eanAvisoGs1" class="alert alert-warning d-none seguimiento-ean-alert" role="status"></div>
@@ -171,6 +172,7 @@
           <option value="CONFIRMADO_ERP">Confirmado en ERP</option>
           <option value="SIN_EAN">Sin EAN</option>
           <option value="NO_REQUERIDO">EAN no requerido</option>
+          <option value="INHABILITADO_PRESEA">Inactivo en Presea</option>
         </select>
         <select id="filtroTemporadaEan" class="form-select" aria-label="Filtrar por temporada"><option value="">Todas las temporadas</option></select>
         <select id="filtroAnoEan" class="form-select" aria-label="Filtrar por año"><option value="">Todos los años</option></select>
@@ -189,4 +191,4 @@
 
 </div>
 
-<script src="/js/seguimiento.js?v=19"></script>
+<script src="/js/seguimiento.js?v=20"></script>

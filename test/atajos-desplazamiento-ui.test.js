@@ -10,6 +10,8 @@ test('Altas y Pedidos disponen de atajos para ir al comienzo y al final', () => 
   assert.match(layout, /id="atajoIrArriba"/);
   assert.match(layout, /id="atajoIrAbajo"/);
   assert.match(frontend, /\^\\\/\(altas\|pedidos\)/);
-  assert.match(frontend, /scrollTo\(\{ top: 0, behavior: 'smooth' \}\)/);
-  assert.match(frontend, /document\.documentElement\.scrollHeight/);
+  assert.match(frontend, /document\.scrollingElement/);
+  assert.match(frontend, /desplazarA\(0\)/);
+  assert.match(frontend, /superficie\.scrollTo\(\{ top: destino, behavior: 'smooth' \}\)/);
+  assert.match(frontend, /superficie\.scrollTop = destino/);
 });

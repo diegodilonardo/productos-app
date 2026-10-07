@@ -205,7 +205,8 @@ async function obtenerAccesos(idUsuario) {
         UA.TODAS_MARCAS,
         UA.TODOS_RUBROS,
         UA.TODAS_LICENCIAS,
-        UA.PUEDE_VER_REPORTES
+        UA.PUEDE_VER_REPORTES,
+        UA.PUEDE_USAR_TALLES_MIXTOS
       FROM dbo.USUARIOS_ACCESOS UA
       INNER JOIN dbo.EMPRESAS E
               ON E.ID_EMPRESA = UA.ID_EMPRESA
@@ -521,6 +522,7 @@ async function actualizarUsuarioPermisos({
             .input('TODOS_RUBROS', sql.Bit, acceso.todosRubros ? 1 : 0)
             .input('TODAS_LICENCIAS', sql.Bit, acceso.todasLicencias ? 1 : 0)
             .input('PUEDE_VER_REPORTES', sql.Bit, acceso.puedeVerReportes ? 1 : 0)
+            .input('PUEDE_USAR_TALLES_MIXTOS', sql.Bit, acceso.puedeUsarTallesMixtos ? 1 : 0)
             .query(`
               UPDATE dbo.USUARIOS_ACCESOS
               SET
@@ -529,7 +531,8 @@ async function actualizarUsuarioPermisos({
                 TODAS_MARCAS = @TODAS_MARCAS,
                 TODOS_RUBROS = @TODOS_RUBROS,
                 TODAS_LICENCIAS = @TODAS_LICENCIAS,
-                PUEDE_VER_REPORTES = @PUEDE_VER_REPORTES
+                PUEDE_VER_REPORTES = @PUEDE_VER_REPORTES,
+                PUEDE_USAR_TALLES_MIXTOS = @PUEDE_USAR_TALLES_MIXTOS
               WHERE ID_ACCESO = @ID_ACCESO;
             `);
         } else {
@@ -541,6 +544,7 @@ async function actualizarUsuarioPermisos({
             .input('TODOS_RUBROS', sql.Bit, acceso.todosRubros ? 1 : 0)
             .input('TODAS_LICENCIAS', sql.Bit, acceso.todasLicencias ? 1 : 0)
             .input('PUEDE_VER_REPORTES', sql.Bit, acceso.puedeVerReportes ? 1 : 0)
+            .input('PUEDE_USAR_TALLES_MIXTOS', sql.Bit, acceso.puedeUsarTallesMixtos ? 1 : 0)
             .query(`
               INSERT INTO dbo.USUARIOS_ACCESOS
               (
@@ -553,7 +557,8 @@ async function actualizarUsuarioPermisos({
                 TODAS_MARCAS,
                 TODOS_RUBROS,
                 TODAS_LICENCIAS,
-                PUEDE_VER_REPORTES
+                PUEDE_VER_REPORTES,
+                PUEDE_USAR_TALLES_MIXTOS
               )
               OUTPUT INSERTED.ID_ACCESO
               VALUES
@@ -567,7 +572,8 @@ async function actualizarUsuarioPermisos({
                 @TODAS_MARCAS,
                 @TODOS_RUBROS,
                 @TODAS_LICENCIAS,
-                @PUEDE_VER_REPORTES
+                @PUEDE_VER_REPORTES,
+                @PUEDE_USAR_TALLES_MIXTOS
               );
             `);
 

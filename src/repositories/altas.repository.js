@@ -730,6 +730,25 @@ async function buscarColor(codigo, idEmpresa) {
   return resultado.recordset[0] || await require('../services/maestrosPendientes.service').buscar(idEmpresa, 'COLOR', codigo);
 }
 
+async function buscarColorMix(idEmpresa) {
+  const pool = await getConnection();
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .query(`
+      SELECT TOP 1 CODIGO_COLOR, DETALLE_COLOR
+      FROM dbo.MAESTRO_COLORES
+      WHERE ID_EMPRESA = @ID_EMPRESA
+        AND ACTIVO = 1
+        AND (
+          UPPER(LTRIM(RTRIM(CODIGO_COLOR))) = 'MIX'
+          OR UPPER(LTRIM(RTRIM(DETALLE_COLOR))) = 'MIX'
+        )
+      ORDER BY CASE WHEN UPPER(LTRIM(RTRIM(CODIGO_COLOR))) = 'MIX' THEN 0 ELSE 1 END,
+               CODIGO_COLOR;
+    `);
+  return resultado.recordset[0] || null;
+}
+
 async function buscarPais(codigo, idEmpresa) {
   const pool = await getConnection();
 
@@ -1454,6 +1473,7 @@ async function crearDetalles(
         .input("ID_ALTA", sql.BigInt, idAlta)
         .input("ID_DETALLE_PADRE", sql.BigInt, idPadre)
         .input("ID_DETALLE_HIJO", sql.BigInt, idHijo)
+        .input("CANTIDAD", sql.Int, relacion.cantidad || null)
         .query(`
           IF NOT EXISTS
           (
@@ -1470,6 +1490,7 @@ async function crearDetalles(
               ID_ALTA,
               ID_DETALLE_PADRE,
               ID_DETALLE_HIJO,
+              CANTIDAD,
               FECHA_CREACION
             )
             VALUES
@@ -1477,6 +1498,7 @@ async function crearDetalles(
               @ID_ALTA,
               @ID_DETALLE_PADRE,
               @ID_DETALLE_HIJO,
+              @CANTIDAD,
               SYSDATETIME()
             );
           END;
@@ -1965,6 +1987,7 @@ module.exports = {
   buscarClasificacion,
   buscarClasificacionPorDetalles,
   buscarColor,
+  buscarColorMix,
   buscarPais,
   buscarOrigen,
   buscarTalle,

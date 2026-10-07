@@ -208,6 +208,7 @@ async function obtenerUsuario(idUsuario, contextoActual = null) {
       todosRubros: booleano(acceso.TODOS_RUBROS),
       todasLicencias: booleano(acceso.TODAS_LICENCIAS),
       puedeVerReportes: booleano(acceso.PUEDE_VER_REPORTES),
+      puedeUsarTallesMixtos: booleano(acceso.PUEDE_USAR_TALLES_MIXTOS),
       marcas: marcas.map(item => ({
         idEmpresaMarca: item.ID_EMPRESA_MARCA,
         codigoMarca: item.CODIGO_MARCA,
@@ -445,6 +446,7 @@ function normalizarAccesos(accesos) {
     const todosRubros = Boolean(item?.todosRubros);
     const todasLicencias = Boolean(item?.todasLicencias);
     const puedeVerReportes = Boolean(item?.puedeVerReportes);
+    const puedeUsarTallesMixtos = Boolean(item?.puedeUsarTallesMixtos);
 
     const marcas = todasMarcas
       ? []
@@ -492,6 +494,7 @@ function normalizarAccesos(accesos) {
       todosRubros,
       todasLicencias,
       puedeVerReportes,
+      puedeUsarTallesMixtos,
       marcas,
       rubros,
       licencias

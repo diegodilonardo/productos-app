@@ -3,20 +3,20 @@ function rellenar(valor, largo = 2) {
 }
 
 /*
- * SQL Server guarda DATETIME con hora local y sin zona horaria. El driver
- * entrega esos valores como Date y JSON.stringify les agrega una Z, haciendo
- * que el navegador reste tres horas. Se conserva la hora de pared de SQL y se
- * envía sin sufijo de zona para que el navegador no vuelva a convertirla.
+ * SQL Server guarda DATETIME con hora local y sin zona horaria. La conexión
+ * usa useUTC:false, por lo que los componentes locales del Date representan
+ * exactamente la hora de pared guardada en SQL. Se envían sin sufijo de zona
+ * para impedir una conversión adicional en el navegador.
  */
 function fechaLocalSinZona(fecha) {
   return [
-    rellenar(fecha.getUTCFullYear(), 4), '-',
-    rellenar(fecha.getUTCMonth() + 1), '-',
-    rellenar(fecha.getUTCDate()), 'T',
-    rellenar(fecha.getUTCHours()), ':',
-    rellenar(fecha.getUTCMinutes()), ':',
-    rellenar(fecha.getUTCSeconds()), '.',
-    rellenar(fecha.getUTCMilliseconds(), 3),
+    rellenar(fecha.getFullYear(), 4), '-',
+    rellenar(fecha.getMonth() + 1), '-',
+    rellenar(fecha.getDate()), 'T',
+    rellenar(fecha.getHours()), ':',
+    rellenar(fecha.getMinutes()), ':',
+    rellenar(fecha.getSeconds()), '.',
+    rellenar(fecha.getMilliseconds(), 3),
   ].join('');
 }
 

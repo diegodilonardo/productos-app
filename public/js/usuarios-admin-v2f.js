@@ -381,6 +381,7 @@ function pintarAcceso(acceso) {
         <div class="col-12">
           <div class="text-secondary fw-semibold mb-1">Funciones</div>
           <span class="badge ${acceso.puedeVerReportes ? 'text-bg-success' : 'text-bg-light border'}">${acceso.puedeVerReportes ? 'Puede ver reportes' : 'Sin acceso a reportes'}</span>
+          <span class="badge ${acceso.puedeUsarTallesMixtos ? 'text-bg-success' : 'text-bg-light border'}">${acceso.puedeUsarTallesMixtos ? 'Puede usar talles mixtos' : 'Sin talles mixtos'}</span>
         </div>
       </div>
     </div>
@@ -813,6 +814,13 @@ function crearTarjetaAcceso(acceso = {}, opciones = {}) {
         <div class="form-text">Permite consultar pares e importes de los pedidos de esta empresa.</div>
       </div>
 
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input permiso-talles-mixtos" type="checkbox" role="switch"
+               id="permisoTallesMixtos${indice}" ${acceso.puedeUsarTallesMixtos ? 'checked' : ''}>
+        <label class="form-check-label fw-semibold" for="permisoTallesMixtos${indice}">Permitir talles mixtos</label>
+        <div class="form-text">Habilita la distribución de talles y colores dentro de un mismo módulo para esta empresa.</div>
+      </div>
+
       ${crearBloqueScope(
         'marcas',
         'Marcas',
@@ -902,6 +910,7 @@ function agregarAccesoVacio() {
     todosRubros: false,
     todasLicencias: true,
     puedeVerReportes: false,
+    puedeUsarTallesMixtos: false,
     marcas: [],
     rubros: [],
     licencias: []
@@ -1088,7 +1097,8 @@ function leerAccesosFormulario() {
       rubros: rubros.valores,
       todasLicencias: licencias.todos,
       licencias: licencias.valores,
-      puedeVerReportes: Boolean(tarjeta.querySelector('.permiso-ver-reportes')?.checked)
+      puedeVerReportes: Boolean(tarjeta.querySelector('.permiso-ver-reportes')?.checked),
+      puedeUsarTallesMixtos: Boolean(tarjeta.querySelector('.permiso-talles-mixtos')?.checked)
     });
   });
 

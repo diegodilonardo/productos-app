@@ -80,6 +80,9 @@ async function construirContextoUsuario(usuarioDb) {
             todasLicencias:
               true,
 
+            puedeUsarTallesMixtos:
+              true,
+
             marcas:
               [],
 
@@ -154,6 +157,9 @@ async function construirContextoUsuario(usuarioDb) {
 
       puedeVerReportes:
         Boolean(acceso.PUEDE_VER_REPORTES),
+
+      puedeUsarTallesMixtos:
+        Boolean(acceso.PUEDE_USAR_TALLES_MIXTOS),
 
       marcas:
         marcas.map(

@@ -531,9 +531,14 @@ function armarRegistrosRELFORMU(alta, detalles) {
 
 function armarRegistrosRELACION(relaciones) {
   return relaciones.map((relacion) => {
-    const columnaCantidad = obtenerColumnaCantidadModulo(relacion);
+    const cantidadRelacion = Number(relacion.CANTIDAD_RELACION || 0);
+    const columnaCantidad = cantidadRelacion > 0
+      ? null
+      : obtenerColumnaCantidadModulo(relacion);
 
-    const cantidad = Number(relacion[columnaCantidad] || 0);
+    const cantidad = cantidadRelacion > 0
+      ? cantidadRelacion
+      : Number(relacion[columnaCantidad] || 0);
 
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
       throw new Error(
@@ -1809,6 +1814,8 @@ module.exports = {
   regenerarArchivosAlta,
 
   armarRegistrosPRIMERAS_SEGUNDAS,
+
+  armarRegistrosRELACION,
 
   normalizarLicenciaExportacion,
 };

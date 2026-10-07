@@ -265,7 +265,7 @@ router.get(
     res.render('usuarios/index', {
       title: 'Usuarios y Permisos',
       pagina: 'usuarios',
-      script: '/js/usuarios-admin-v2f.js?v=4',
+      script: '/js/usuarios-admin-v2f.js?v=5',
       esSuperAdmin: Boolean(req.session?.usuario?.superAdmin)
     });
   }

@@ -211,6 +211,7 @@ function obtenerAccesoEmpresaContexto(
             todasMarcas: true,
             todosRubros: true,
             todasLicencias: true,
+            puedeUsarTallesMixtos: true,
             marcas: [],
             rubros: [],
             licencias: []
@@ -1546,6 +1547,17 @@ async function prepararDetalleProducto(
     const codigoModulo = normalizarTexto(datosEntrada.codigoModulo);
     const codigoTalle = normalizarTexto(datosEntrada.codigoTalle);
     const usuario = normalizarTexto(datosEntrada.usuario) || 'SISTEMA';
+    const tallesMixtos = Boolean(datosEntrada.tallesMixtos);
+
+    if (tallesMixtos) {
+        if (tipoProducto !== 'MODULO') {
+            throw new Error('Los talles mixtos solamente están disponibles para productos de tipo MÓDULO.');
+        }
+        const acceso = obtenerAccesoEmpresaContexto(contextoUsuario, idEmpresa);
+        if (!contextoUsuario?.superAdmin && acceso?.puedeUsarTallesMixtos !== true) {
+            throw new Error('No tiene permiso para generar módulos con talles mixtos.');
+        }
+    }
 
     const informacionAdicional = {
         CO_NEW: normalizarTextoLimitado(datosEntrada.coNew, 'CO_NEW', 50),
@@ -1805,6 +1817,14 @@ async function prepararDetalleProducto(
         colores.push(color);
     }
 
+    let colorMix = null;
+    if (tallesMixtos) {
+        colorMix = await altasRepository.buscarColorMix(idEmpresa);
+        if (!colorMix) {
+            throw new Error('No existe un color activo MIX en el maestro de colores de la empresa.');
+        }
+    }
+
     /* Talles que se deben generar en forma automática. */
     let tallesAutomaticos = [];
 
@@ -1856,7 +1876,8 @@ async function prepararDetalleProducto(
 
     function agregarRelacionFamilia(
         padreTemporal,
-        codigoAlfaHijo
+        codigoAlfaHijo,
+        cantidad = null
     ) {
         if (!padreTemporal || !codigoAlfaHijo) {
             return;
@@ -1871,7 +1892,8 @@ async function prepararDetalleProducto(
         if (!existe) {
             relacionesFamilia.push({
                 padreTemporal,
-                codigoAlfaHijo
+                codigoAlfaHijo,
+                cantidad
             });
         }
     }
@@ -2019,7 +2041,8 @@ async function prepararDetalleProducto(
         clasificacion,
         padreTemporal,
         sufijoClave,
-        codigoRubroCodAlfa = null
+        codigoRubroCodAlfa = null,
+        cantidadRelacion = null
     }) {
         const codigoAlfa =
             construirCodigoAlfa({
@@ -2040,7 +2063,8 @@ async function prepararDetalleProducto(
              */
             agregarRelacionFamilia(
                 padreTemporal,
-                codigoAlfa
+                codigoAlfa,
+                cantidadRelacion
             );
 
             omitidos.push({
@@ -2063,7 +2087,8 @@ async function prepararDetalleProducto(
              */
             agregarRelacionFamilia(
                 padreTemporal,
-                codigoAlfa
+                codigoAlfa,
+                cantidadRelacion
             );
 
             omitidos.push({
@@ -2114,7 +2139,8 @@ async function prepararDetalleProducto(
 
         agregarRelacionFamilia(
             padreTemporal,
-            codigoAlfa
+            codigoAlfa,
+            cantidadRelacion
         );
 
         detallesAGuardar.push(
@@ -2148,6 +2174,120 @@ async function prepararDetalleProducto(
                 clasificacionAplicada
             )
             : null;
+
+    if (tallesMixtos) {
+        const entrada = Array.isArray(datosEntrada.distribucionTallesMixtos)
+            ? datosEntrada.distribucionTallesMixtos
+            : [];
+        if (!entrada.length) {
+            throw new Error('Debe informar la distribución de talles y colores del módulo mixto.');
+        }
+
+        const coloresPorCodigo = new Map(
+            colores.map(color => [normalizarTexto(color.CODIGO_COLOR), color])
+        );
+        const tallesPorCodigo = new Map();
+        for (const talle of tallesAutomaticos) {
+            for (const clave of [talle.CODIGO_TALLE, talle.DETALLE_TALLE]) {
+                const normalizada = normalizarTexto(clave).toUpperCase();
+                if (normalizada) tallesPorCodigo.set(normalizada, talle);
+            }
+        }
+
+        const usados = new Set();
+        const distribucion = entrada.map((fila, indice) => {
+            const codigoTalleFila = normalizarTexto(fila?.codigoTalle).toUpperCase();
+            const codigoColorFila = normalizarTexto(fila?.codigoColor);
+            const cantidad = Number(fila?.pares);
+            const talle = tallesPorCodigo.get(codigoTalleFila);
+            const color = coloresPorCodigo.get(codigoColorFila);
+            if (!talle) throw new Error(`El talle de la fila ${indice + 1} no pertenece a la curva seleccionada.`);
+            if (!color) throw new Error(`El color de la fila ${indice + 1} no está seleccionado.`);
+            if (!Number.isInteger(cantidad) || cantidad <= 0) {
+                throw new Error(`La cantidad de la fila ${indice + 1} debe ser un entero mayor que cero.`);
+            }
+            const clave = normalizarTexto(talle.DETALLE_TALLE).toUpperCase();
+            if (usados.has(clave)) throw new Error(`El talle ${talle.DETALLE_TALLE} está repetido en la distribución.`);
+            usados.add(clave);
+            return { talle, color, cantidad };
+        });
+
+        if (usados.size !== tallesAutomaticos.length) {
+            throw new Error('Debe asignar un color y una cantidad a cada talle activo de la curva.');
+        }
+        const totalDistribuido = distribucion.reduce((total, fila) => total + fila.cantidad, 0);
+        if (totalDistribuido !== Number(modulo.PARES)) {
+            throw new Error(`La distribución suma ${totalDistribuido} pares y el módulo requiere ${modulo.PARES}.`);
+        }
+
+        const codigoAlfaModulo = construirCodigoAlfa({
+            alta,
+            modelo,
+            clasificacion: clasificacionAplicada,
+            color: colorMix,
+            codigoModulo: modulo.CODIGO_MODULO,
+            detalleTalle: null,
+            tipoProductoDetalle: 'MODULO'
+        });
+        const existenteERPModulo = await validarPrincipal(codigoAlfaModulo, 'MODULO');
+        const detalleModulo = construirDetalleProducto({
+            alta: { ...alta, TIPO_PRODUCTO: 'MODULO' },
+            modelo,
+            color: colorMix,
+            clasificacion: clasificacionAplicada,
+            modulo,
+            talle: null
+        });
+        const prefijoClave = contexto.prefijoClave || modelo.CODIGO_MODELO;
+        const claveModulo = `${prefijoClave}_MOD_MIX_${modulo.CODIGO_MODULO}`;
+
+        detallesAGuardar.push(armarObjetoDetalle({
+            color: colorMix,
+            clasificacion: clasificacionAplicada,
+            tipoDetalle: 'MODULO',
+            talle: null,
+            moduloDetalle: modulo,
+            pares: totalDistribuido,
+            rubroFact: rubroFactPrincipal,
+            codigoAlfa: codigoAlfaModulo,
+            detalleProducto: detalleModulo,
+            claveTemporal: claveModulo,
+            padreTemporal: null,
+            generadoAutomatico: false,
+            estadoValidacion: existenteERPModulo ? 'EXISTE_ERP' : 'VALIDO',
+            observacionValidacion: existenteERPModulo ? observacionExisteERP(existenteERPModulo) : null
+        }));
+
+        for (const fila of distribucion) {
+            await agregarAutomaticoSiCorresponde({
+                color: fila.color,
+                talle: fila.talle,
+                clasificacion: clasificacionPrimera,
+                padreTemporal: claveModulo,
+                sufijoClave: `PRI_${fila.color.CODIGO_COLOR}`,
+                codigoRubroCodAlfa: codigoRubroHijosModulo,
+                cantidadRelacion: fila.cantidad
+            });
+            await agregarAutomaticoSiCorresponde({
+                color: fila.color,
+                talle: fila.talle,
+                clasificacion: clasificacionSegunda,
+                padreTemporal: claveModulo,
+                sufijoClave: `SEG_${fila.color.CODIGO_COLOR}`,
+                codigoRubroCodAlfa: codigoRubroHijosModulo,
+                cantidadRelacion: fila.cantidad
+            });
+        }
+
+        return {
+            idAlta: id,
+            tipoProducto,
+            usuario,
+            detallesAGuardar,
+            omitidos,
+            relacionesFamilia
+        };
+    }
 
 
     for (const color of colores) {
@@ -2218,7 +2358,8 @@ async function prepararDetalleProducto(
                     clasificacion: clasificacionPrimera,
                     padreTemporal: claveModulo,
                     sufijoClave: 'PRI',
-                    codigoRubroCodAlfa: codigoRubroHijosModulo
+                    codigoRubroCodAlfa: codigoRubroHijosModulo,
+                    cantidadRelacion: talle.CANTIDAD_EN_MODULO
                 });
 
                 await agregarAutomaticoSiCorresponde({
@@ -2227,7 +2368,8 @@ async function prepararDetalleProducto(
                     clasificacion: clasificacionSegunda,
                     padreTemporal: claveModulo,
                     sufijoClave: 'SEG',
-                    codigoRubroCodAlfa: codigoRubroHijosModulo
+                    codigoRubroCodAlfa: codigoRubroHijosModulo,
+                    cantidadRelacion: talle.CANTIDAD_EN_MODULO
                 });
             }
         } else {
@@ -2356,6 +2498,10 @@ function expandirCombinatoriaCurvas(datosEntrada) {
                 ? 'Debe seleccionar al menos una curva/módulo.'
                 : 'Debe seleccionar al menos un talle.'
         );
+    }
+
+    if (usaModulos && datosEntrada.tallesMixtos && codigos.length !== 1) {
+        throw new Error('Los talles mixtos requieren seleccionar una sola curva por operación.');
     }
 
     const {

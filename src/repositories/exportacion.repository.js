@@ -896,6 +896,8 @@ async function obtenerRelacionesModuloPrimera(
                     H.DETALLE_TALLE AS DETALLE_TALLE_INSUMO,
                     H.ESTADO_VALIDACION AS ESTADO_INSUMO,
 
+                    R.CANTIDAD AS CANTIDAD_RELACION,
+
                     M.*
 
                 FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE R
@@ -1003,6 +1005,8 @@ async function obtenerRelacionesModuloPrimeraPrueba(
                     H.CODIGO_TALLE AS CODIGO_TALLE_INSUMO,
                     H.DETALLE_TALLE AS DETALLE_TALLE_INSUMO,
                     H.ESTADO_VALIDACION AS ESTADO_INSUMO,
+
+                    R.CANTIDAD AS CANTIDAD_RELACION,
 
                     M.*
 

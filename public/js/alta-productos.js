@@ -13,6 +13,18 @@ let zonaImagenPegadoActiva = null;
 let tallesParSuelto = [];
 let clasificacionesMaestro = [];
 let familiasSeleccionadas = new Set();
+let contextoUsuarioActual = null;
+let puedeUsarTallesMixtos = false;
+let distribucionTallesMixtos = new Map();
+
+const columnasTallesModuloMixto = [
+  ['T01','01'],['T02','02'],['T03','03'],['T04','04'],['T05','05'],['T06','06'],['T07','07'],['T08','08'],
+  ['T10','10'],['T12','12'],['T14','14'],['T15','15'],['T16','16'],['T17','17'],['T18','18'],['T19','19'],
+  ['T20','20'],['T21','21'],['T22','22'],['T23','23'],['T24','24'],['T25','25'],['T26','26'],['T27','27'],['T28','28'],['T29','29'],
+  ['T30','30'],['T31','31'],['T32','32'],['T33','33'],['T34','34'],['T35','35'],['T36','36'],['T37','37'],['T38','38'],['T385','38.5'],['T39','39'],['T395','39.5'],
+  ['T40','40'],['T405','40.5'],['T41','41'],['T415','41.5'],['T42','42'],['T425','42.5'],['T43','43'],['T435','43.5'],['T44','44'],['T445','44.5'],['T45','45'],['T455','45.5'],
+  ['T46','46'],['T47','47'],['T48','48'],['T49','49'],['T50','50'],['T_XS','XS'],['T_S','S'],['T_M','M'],['T_L','L'],['T_XL','XL'],['T_2XL','2XL'],['T_3XL','3XL']
+];
 
 document.addEventListener('DOMContentLoaded', iniciar);
 
@@ -41,6 +53,11 @@ async function cargarUsuarioAutenticado() {
 
     if (response.ok && data?.autenticado && data?.usuario) {
       const contexto = data.usuario;
+      contextoUsuarioActual = contexto;
+
+      const idEmpresa = obtenerIdEmpresaContextoAlta();
+      const acceso = (contexto.empresas || []).find(item => Number(item.idEmpresa) === Number(idEmpresa));
+      puedeUsarTallesMixtos = Boolean(contexto.superAdmin || acceso?.puedeUsarTallesMixtos);
 
       usuario = String(
         contexto.nombre ??
@@ -71,6 +88,7 @@ async function cargarUsuarioAutenticado() {
 
   input.value = usuario;
   input.readOnly = true;
+  actualizarDisponibilidadTallesMixtos();
 }
 
 function obtenerIdEmpresaContextoAlta() {
@@ -1994,6 +2012,7 @@ function renderizarModulosSeleccionados() {
   }
 
   aplicarClasificacionSugeridaPorCurvas();
+  renderizarDistribucionTallesMixtos();
 }
 
 
@@ -3011,6 +3030,110 @@ function actualizarCantidadColores() {
   const cantidad = document.querySelectorAll('.color-check:checked').length;
   document.getElementById('cantidadColores').textContent = `${cantidad} seleccionado${cantidad === 1 ? '' : 's'}`;
   pintarColoresSeleccionados();
+  renderizarDistribucionTallesMixtos();
+}
+
+function actualizarDisponibilidadTallesMixtos() {
+  const contenedor = document.getElementById('contenedorTallesMixtos');
+  const disponible = puedeUsarTallesMixtos && normalizarTipo(altaActual?.TIPO_PRODUCTO) === 'MODULO';
+  contenedor?.classList.toggle('d-none', !disponible);
+  if (!disponible) {
+    const switchMixto = document.getElementById('tallesMixtos');
+    if (switchMixto) switchMixto.checked = false;
+    distribucionTallesMixtos.clear();
+  }
+  renderizarDistribucionTallesMixtos();
+}
+
+function moduloSeleccionadoParaMixto() {
+  if (codigosModulosSeleccionados.length !== 1) return null;
+  return modulos.find(fila => obtenerDatosModulo(fila).codigo === codigosModulosSeleccionados[0]) || null;
+}
+
+function coloresSeleccionadosParaMixto() {
+  const seleccionados = new Set(
+    [...document.querySelectorAll('.color-check:checked')].map(input => String(input.value))
+  );
+  return colores.filter(fila => seleccionados.has(String(obtenerCampo(fila, ['CODIGO_COLOR','codigoColor']))));
+}
+
+function renderizarDistribucionTallesMixtos() {
+  const activado = Boolean(document.getElementById('tallesMixtos')?.checked);
+  const panel = document.getElementById('panelDistribucionTallesMixtos');
+  const tabla = document.getElementById('tablaTallesMixtos');
+  const aviso = document.getElementById('avisoTallesMixtos');
+  const resumen = document.getElementById('resumenTallesMixtos');
+  panel?.classList.toggle('d-none', !activado);
+  if (!activado || !tabla) return;
+
+  const modulo = moduloSeleccionadoParaMixto();
+  const listaColores = coloresSeleccionadosParaMixto();
+  tabla.innerHTML = '';
+  if (!modulo) {
+    if (aviso) aviso.textContent = 'Seleccioná exactamente una curva para configurar talles mixtos.';
+    if (resumen) resumen.textContent = '';
+    return;
+  }
+  if (!listaColores.length) {
+    if (aviso) aviso.textContent = 'Seleccioná los colores que se asignarán a los talles.';
+    if (resumen) resumen.textContent = '';
+    return;
+  }
+
+  const talles = columnasTallesModuloMixto
+    .map(([columna, talle]) => ({ columna, talle, pares: Number(modulo[columna] || 0) }))
+    .filter(item => item.pares > 0);
+  if (aviso) aviso.textContent = 'El total debe coincidir con los pares de la curva. Cada talle debe tener un color asociado.';
+
+  const codigosDisponibles = new Set(listaColores.map(color => String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor']))));
+  for (const item of talles) {
+    const anterior = distribucionTallesMixtos.get(item.talle) || {};
+    const codigoColor = codigosDisponibles.has(String(anterior.codigoColor))
+      ? String(anterior.codigoColor)
+      : String(obtenerCampo(listaColores[0], ['CODIGO_COLOR','codigoColor']));
+    const pares = Number.isInteger(Number(anterior.pares)) && Number(anterior.pares) > 0
+      ? Number(anterior.pares)
+      : item.pares;
+    distribucionTallesMixtos.set(item.talle, { codigoColor, pares });
+
+    const tr = document.createElement('tr');
+    const opciones = listaColores.map(color => {
+      const codigo = String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor']));
+      const detalle = String(obtenerCampo(color, ['DETALLE_COLOR','detalleColor']) || codigo);
+      return `<option value="${escapar(codigo)}" ${codigo === codigoColor ? 'selected' : ''}>${escapar(codigo)} - ${escapar(detalle)}</option>`;
+    }).join('');
+    tr.innerHTML = `<td><strong>${escapar(item.talle)}</strong></td><td><select class="form-select form-select-sm talle-mixto-color" data-talle="${escapar(item.talle)}">${opciones}</select></td><td><input class="form-control form-control-sm text-end talle-mixto-pares" data-talle="${escapar(item.talle)}" type="number" min="1" step="1" value="${pares}"></td>`;
+    tabla.appendChild(tr);
+  }
+
+  for (const clave of [...distribucionTallesMixtos.keys()]) {
+    if (!talles.some(item => item.talle === clave)) distribucionTallesMixtos.delete(clave);
+  }
+  tabla.querySelectorAll('.talle-mixto-color,.talle-mixto-pares').forEach(campo => {
+    campo.addEventListener('change', actualizarFilaTalleMixto);
+    campo.addEventListener('input', actualizarFilaTalleMixto);
+  });
+  actualizarResumenTallesMixtos();
+}
+
+function actualizarFilaTalleMixto(event) {
+  const talle = event.currentTarget.dataset.talle;
+  const fila = distribucionTallesMixtos.get(talle) || {};
+  const tr = event.currentTarget.closest('tr');
+  fila.codigoColor = tr?.querySelector('.talle-mixto-color')?.value || '';
+  fila.pares = Number(tr?.querySelector('.talle-mixto-pares')?.value || 0);
+  distribucionTallesMixtos.set(talle, fila);
+  actualizarResumenTallesMixtos();
+}
+
+function actualizarResumenTallesMixtos() {
+  const modulo = moduloSeleccionadoParaMixto();
+  const asignados = [...distribucionTallesMixtos.values()].reduce((total, fila) => total + (Number(fila.pares) || 0), 0);
+  const requeridos = Number(modulo?.PARES || modulo?.pares || 0);
+  const resumen = document.getElementById('resumenTallesMixtos');
+  if (!resumen) return;
+  resumen.textContent = `Pares asignados: ${asignados} de ${requeridos}`;
+  resumen.className = `fw-semibold text-end ${asignados === requeridos ? 'text-success' : 'text-danger'}`;
 }
 
 function filtrarColores() {
@@ -3134,6 +3257,13 @@ function configurarEventos() {
   document.getElementById('buscarTalle')?.addEventListener('keydown', seleccionarTalleConEnter);
   document.getElementById('buscarColor').addEventListener('input', filtrarColores);
   document.getElementById('buscarColor').addEventListener('keydown', seleccionarColorConEnter);
+  document.getElementById('tallesMixtos')?.addEventListener('change', event => {
+    if (event.currentTarget.checked && codigosModulosSeleccionados.length > 1) {
+      mostrarAlerta('Para utilizar talles mixtos debe seleccionar una sola curva.', 'warning');
+    }
+    distribucionTallesMixtos.clear();
+    renderizarDistribucionTallesMixtos();
+  });
   document.getElementById('btnActualizarAlta').addEventListener('click', actualizarAltaYColores);
   document.getElementById('btnVolverAltas').addEventListener('click', volverAAltas);
   document.getElementById('btnAnularAlta')?.addEventListener('click', anularAlta);
@@ -3293,6 +3423,35 @@ async function agregarProducto(event) {
     // Edad y Sexo se conservan como información del producto, pero no deciden el módulo.
     payload.codigoClasificacion = valor('codigoClasificacion');
 
+    if (document.getElementById('tallesMixtos')?.checked) {
+      if (!puedeUsarTallesMixtos) {
+        mostrarAlerta('No tiene permiso para generar módulos con talles mixtos.', 'danger');
+        return;
+      }
+      if (codigosModulosSeleccionados.length !== 1) {
+        mostrarAlerta('Los talles mixtos requieren seleccionar exactamente una curva.', 'warning');
+        return;
+      }
+      const filas = [...document.querySelectorAll('#tablaTallesMixtos tr')].map(tr => ({
+        codigoTalle: tr.querySelector('.talle-mixto-color')?.dataset.talle || '',
+        codigoColor: tr.querySelector('.talle-mixto-color')?.value || '',
+        pares: Number(tr.querySelector('.talle-mixto-pares')?.value || 0)
+      }));
+      const modulo = moduloSeleccionadoParaMixto();
+      const total = filas.reduce((suma, fila) => suma + fila.pares, 0);
+      const requerido = Number(modulo?.PARES || modulo?.pares || 0);
+      if (!filas.length || filas.some(fila => !fila.codigoColor || !Number.isInteger(fila.pares) || fila.pares <= 0)) {
+        mostrarAlerta('Completá el color y una cantidad válida para cada talle.', 'warning');
+        return;
+      }
+      if (total !== requerido) {
+        mostrarAlerta(`La distribución suma ${total} pares y la curva requiere ${requerido}.`, 'warning');
+        return;
+      }
+      payload.tallesMixtos = true;
+      payload.distribucionTallesMixtos = filas;
+    }
+
   } else {
     payload.codigosTalle = [
       ...document.querySelectorAll('.talle-check:checked')
@@ -3415,6 +3574,10 @@ async function agregarProducto(event) {
 
     // Conservamos los colores seleccionados después de generar la familia.
     // Esto permite cargar otra familia con la misma paleta sin volver a marcarlos.
+    const switchTallesMixtos = document.getElementById('tallesMixtos');
+    if (switchTallesMixtos) switchTallesMixtos.checked = false;
+    distribucionTallesMixtos.clear();
+    renderizarDistribucionTallesMixtos();
     actualizarCantidadColores();
     actualizarImagenesProducto();
     await cargarAlta();

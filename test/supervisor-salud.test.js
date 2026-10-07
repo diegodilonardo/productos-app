@@ -38,11 +38,9 @@ test('las fechas locales de SQL no reciben una conversión UTC adicional en el n
   assert.doesNotMatch(seguimiento, /endsWith\('Z'\).*slice\(0, -1\)/);
 });
 
-test('el JSON conserva la hora local de SQL sin agregar una zona UTC', () => {
+test('el JSON conserva los componentes locales de SQL sin agregar una zona UTC', () => {
   const { reemplazarFechaLocalJson } = require('../src/utils/jsonFechaLocal');
-  const salida = JSON.stringify(
-    { FECHA_CREACION: new Date('2026-10-06T12:22:59.000Z') },
-    reemplazarFechaLocalJson
-  );
-  assert.equal(salida, '{"FECHA_CREACION":"2026-10-06T12:22:59.000"}');
+  const fechaSqlLocal = new Date(2026, 9, 6, 9, 22, 59, 0);
+  const salida = JSON.stringify({ FECHA_CREACION: fechaSqlLocal }, reemplazarFechaLocalJson);
+  assert.equal(salida, '{"FECHA_CREACION":"2026-10-06T09:22:59.000"}');
 });

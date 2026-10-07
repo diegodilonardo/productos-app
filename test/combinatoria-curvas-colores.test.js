@@ -84,3 +84,35 @@ test('la combinatoria rechaza mezclar curvas y talles', () => {
     /No se pueden combinar curvas y talles/
   );
 });
+
+test('talles mixtos exige exactamente una curva', () => {
+  assert.throws(
+    () => expandirCombinatoriaCurvas({
+      codigosModulo: ['A', 'B'],
+      tallesMixtos: true,
+      distribucionTallesMixtos: [
+        { codigoTalle: '31', codigoColor: '01', pares: 2 }
+      ]
+    }),
+    /una sola curva/
+  );
+});
+
+test('talles mixtos conserva la distribución al expandir la curva', () => {
+  const distribucion = [
+    { codigoTalle: '31', codigoColor: '01', pares: 2 },
+    { codigoTalle: '32', codigoColor: '02', pares: 3 }
+  ];
+
+  const resultado = expandirCombinatoriaCurvas({
+    codigosModulo: ['MIX5'],
+    codigosColor: ['01', '02'],
+    tallesMixtos: true,
+    distribucionTallesMixtos: distribucion
+  });
+
+  assert.equal(resultado.productos.length, 1);
+  assert.equal(resultado.productos[0].codigoModulo, 'MIX5');
+  assert.equal(resultado.productos[0].tallesMixtos, true);
+  assert.deepEqual(resultado.productos[0].distribucionTallesMixtos, distribucion);
+});

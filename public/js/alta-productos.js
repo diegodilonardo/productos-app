@@ -3083,27 +3083,35 @@ function renderizarDistribucionTallesMixtos() {
   const talles = columnasTallesModuloMixto
     .map(([columna, talle]) => ({ columna, talle, pares: Number(modulo[columna] || 0) }))
     .filter(item => item.pares > 0);
-  if (aviso) aviso.textContent = 'El total debe coincidir con los pares de la curva. Cada talle debe tener un color asociado.';
+  if (aviso) aviso.textContent = 'Distribuí los pares de cada talle entre uno o más colores. El subtotal de cada talle debe coincidir con la curva.';
 
   const codigosDisponibles = new Set(listaColores.map(color => String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor']))));
   for (const item of talles) {
-    const anterior = distribucionTallesMixtos.get(item.talle) || {};
-    const codigoColor = codigosDisponibles.has(String(anterior.codigoColor))
-      ? String(anterior.codigoColor)
-      : String(obtenerCampo(listaColores[0], ['CODIGO_COLOR','codigoColor']));
-    const pares = Number.isInteger(Number(anterior.pares)) && Number(anterior.pares) > 0
-      ? Number(anterior.pares)
-      : item.pares;
-    distribucionTallesMixtos.set(item.talle, { codigoColor, pares });
+    const guardado = distribucionTallesMixtos.get(item.talle);
+    const anteriores = Array.isArray(guardado) ? guardado : guardado ? [guardado] : [];
+    const asignaciones = anteriores
+      .filter(fila => codigosDisponibles.has(String(fila.codigoColor)))
+      .map(fila => ({ codigoColor: String(fila.codigoColor), pares: Number(fila.pares) || 0 }));
+    if (!asignaciones.length) {
+      asignaciones.push({
+        codigoColor: String(obtenerCampo(listaColores[0], ['CODIGO_COLOR','codigoColor'])),
+        pares: item.pares
+      });
+    }
+    distribucionTallesMixtos.set(item.talle, asignaciones);
 
-    const tr = document.createElement('tr');
-    const opciones = listaColores.map(color => {
-      const codigo = String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor']));
-      const detalle = String(obtenerCampo(color, ['DETALLE_COLOR','detalleColor']) || codigo);
-      return `<option value="${escapar(codigo)}" ${codigo === codigoColor ? 'selected' : ''}>${escapar(codigo)} - ${escapar(detalle)}</option>`;
-    }).join('');
-    tr.innerHTML = `<td><strong>${escapar(item.talle)}</strong></td><td><select class="form-select form-select-sm talle-mixto-color" data-talle="${escapar(item.talle)}">${opciones}</select></td><td><input class="form-control form-control-sm text-end talle-mixto-pares" data-talle="${escapar(item.talle)}" type="number" min="1" step="1" value="${pares}"></td>`;
-    tabla.appendChild(tr);
+    asignaciones.forEach((asignacion, indice) => {
+      const tr = document.createElement('tr');
+      tr.dataset.talle = item.talle;
+      tr.dataset.indice = String(indice);
+      const opciones = listaColores.map(color => {
+        const codigo = String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor']));
+        const detalle = String(obtenerCampo(color, ['DETALLE_COLOR','detalleColor']) || codigo);
+        return `<option value="${escapar(codigo)}" ${codigo === asignacion.codigoColor ? 'selected' : ''}>${escapar(codigo)} - ${escapar(detalle)}</option>`;
+      }).join('');
+      tr.innerHTML = `<td>${indice === 0 ? `<strong>${escapar(item.talle)}</strong><div class="small text-secondary">${item.pares} par${item.pares === 1 ? '' : 'es'} en curva</div>` : ''}</td><td><select class="form-select form-select-sm talle-mixto-color" data-talle="${escapar(item.talle)}">${opciones}</select></td><td><input class="form-control form-control-sm text-end talle-mixto-pares" data-talle="${escapar(item.talle)}" type="number" min="1" step="1" value="${asignacion.pares}"></td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary talle-mixto-agregar" title="Agregar otro color al talle">+</button>${asignaciones.length > 1 ? ' <button type="button" class="btn btn-sm btn-outline-danger talle-mixto-quitar" title="Quitar color">×</button>' : ''}</td>`;
+      tabla.appendChild(tr);
+    });
   }
 
   for (const clave of [...distribucionTallesMixtos.keys()]) {
@@ -3113,22 +3121,59 @@ function renderizarDistribucionTallesMixtos() {
     campo.addEventListener('change', actualizarFilaTalleMixto);
     campo.addEventListener('input', actualizarFilaTalleMixto);
   });
+  tabla.querySelectorAll('.talle-mixto-agregar').forEach(boton => boton.addEventListener('click', agregarColorATalleMixto));
+  tabla.querySelectorAll('.talle-mixto-quitar').forEach(boton => boton.addEventListener('click', quitarColorDeTalleMixto));
   actualizarResumenTallesMixtos();
 }
 
 function actualizarFilaTalleMixto(event) {
   const talle = event.currentTarget.dataset.talle;
-  const fila = distribucionTallesMixtos.get(talle) || {};
   const tr = event.currentTarget.closest('tr');
-  fila.codigoColor = tr?.querySelector('.talle-mixto-color')?.value || '';
-  fila.pares = Number(tr?.querySelector('.talle-mixto-pares')?.value || 0);
-  distribucionTallesMixtos.set(talle, fila);
+  const indice = Number(tr?.dataset.indice || 0);
+  const filas = distribucionTallesMixtos.get(talle) || [];
+  filas[indice] = {
+    codigoColor: tr?.querySelector('.talle-mixto-color')?.value || '',
+    pares: Number(tr?.querySelector('.talle-mixto-pares')?.value || 0)
+  };
+  distribucionTallesMixtos.set(talle, filas);
   actualizarResumenTallesMixtos();
+}
+
+function agregarColorATalleMixto(event) {
+  const tr = event.currentTarget.closest('tr');
+  const talle = tr?.dataset.talle;
+  const filas = distribucionTallesMixtos.get(talle) || [];
+  const usados = new Set(filas.map(fila => String(fila.codigoColor)));
+  const disponible = coloresSeleccionadosParaMixto().find(color =>
+    !usados.has(String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor'])))
+  );
+  if (!disponible) {
+    mostrarAlerta('No quedan colores seleccionados para agregar a este talle.', 'warning');
+    return;
+  }
+  const donante = filas.find(fila => Number(fila.pares) > 1);
+  if (donante) donante.pares = Number(donante.pares) - 1;
+  filas.push({
+    codigoColor: String(obtenerCampo(disponible, ['CODIGO_COLOR','codigoColor'])),
+    pares: 1
+  });
+  distribucionTallesMixtos.set(talle, filas);
+  renderizarDistribucionTallesMixtos();
+}
+
+function quitarColorDeTalleMixto(event) {
+  const tr = event.currentTarget.closest('tr');
+  const talle = tr?.dataset.talle;
+  const indice = Number(tr?.dataset.indice || 0);
+  const filas = distribucionTallesMixtos.get(talle) || [];
+  filas.splice(indice, 1);
+  distribucionTallesMixtos.set(talle, filas);
+  renderizarDistribucionTallesMixtos();
 }
 
 function actualizarResumenTallesMixtos() {
   const modulo = moduloSeleccionadoParaMixto();
-  const asignados = [...distribucionTallesMixtos.values()].reduce((total, fila) => total + (Number(fila.pares) || 0), 0);
+  const asignados = [...distribucionTallesMixtos.values()].flat().reduce((total, fila) => total + (Number(fila.pares) || 0), 0);
   const requeridos = Number(modulo?.PARES || modulo?.pares || 0);
   const resumen = document.getElementById('resumenTallesMixtos');
   if (!resumen) return;
@@ -3443,6 +3488,26 @@ async function agregarProducto(event) {
       if (!filas.length || filas.some(fila => !fila.codigoColor || !Number.isInteger(fila.pares) || fila.pares <= 0)) {
         mostrarAlerta('Completá el color y una cantidad válida para cada talle.', 'warning');
         return;
+      }
+      const combinaciones = new Set();
+      for (const fila of filas) {
+        const clave = `${fila.codigoTalle}|${fila.codigoColor}`;
+        if (combinaciones.has(clave)) {
+          mostrarAlerta(`El color elegido está repetido para el talle ${fila.codigoTalle}.`, 'warning');
+          return;
+        }
+        combinaciones.add(clave);
+      }
+      for (const [columna, talle] of columnasTallesModuloMixto) {
+        const esperado = Number(modulo?.[columna] || 0);
+        if (esperado <= 0) continue;
+        const subtotal = filas
+          .filter(fila => fila.codigoTalle === talle)
+          .reduce((suma, fila) => suma + fila.pares, 0);
+        if (subtotal !== esperado) {
+          mostrarAlerta(`El talle ${talle} suma ${subtotal} pares y la curva requiere ${esperado}.`, 'warning');
+          return;
+        }
       }
       if (total !== requerido) {
         mostrarAlerta(`La distribución suma ${total} pares y la curva requiere ${requerido}.`, 'warning');

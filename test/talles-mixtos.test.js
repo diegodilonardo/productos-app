@@ -18,6 +18,17 @@ test('el backend exige permiso y utiliza el color MIX para el principal', () => 
   assert.match(servicio, /buscarColorMix/);
   assert.match(servicio, /_MOD_MIX_/);
   assert.match(servicio, /distribucionTallesMixtos/);
+  assert.match(servicio, /combinacionesUsadas/);
+  assert.match(servicio, /totalTalle/);
+});
+
+test('la interfaz permite repartir un talle entre más de un color', () => {
+  const vista = fs.readFileSync('views/altas/productos.hbs', 'utf8');
+  const js = fs.readFileSync('public/js/alta-productos.js', 'utf8');
+  assert.match(vista, /repartir la cantidad de cada talle entre varios colores/);
+  assert.match(js, /agregarColorATalleMixto/);
+  assert.match(js, /quitarColorDeTalleMixto/);
+  assert.match(js, /El talle \$\{talle\} suma \$\{subtotal\} pares/);
 });
 
 test('RELACION utiliza la cantidad personalizada de la distribución mixta', () => {

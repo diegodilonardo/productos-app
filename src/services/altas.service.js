@@ -2194,7 +2194,8 @@ async function prepararDetalleProducto(
             }
         }
 
-        const usados = new Set();
+        const combinacionesUsadas = new Set();
+        const tallesUsados = new Set();
         const distribucion = entrada.map((fila, indice) => {
             const codigoTalleFila = normalizarTexto(fila?.codigoTalle).toUpperCase();
             const codigoColorFila = normalizarTexto(fila?.codigoColor);
@@ -2206,14 +2207,28 @@ async function prepararDetalleProducto(
             if (!Number.isInteger(cantidad) || cantidad <= 0) {
                 throw new Error(`La cantidad de la fila ${indice + 1} debe ser un entero mayor que cero.`);
             }
-            const clave = normalizarTexto(talle.DETALLE_TALLE).toUpperCase();
-            if (usados.has(clave)) throw new Error(`El talle ${talle.DETALLE_TALLE} está repetido en la distribución.`);
-            usados.add(clave);
+            const claveTalle = normalizarTexto(talle.DETALLE_TALLE).toUpperCase();
+            const claveCombinacion = `${claveTalle}|${codigoColorFila}`;
+            if (combinacionesUsadas.has(claveCombinacion)) {
+                throw new Error(`El color ${color.DETALLE_COLOR} está repetido para el talle ${talle.DETALLE_TALLE}.`);
+            }
+            combinacionesUsadas.add(claveCombinacion);
+            tallesUsados.add(claveTalle);
             return { talle, color, cantidad };
         });
 
-        if (usados.size !== tallesAutomaticos.length) {
-            throw new Error('Debe asignar un color y una cantidad a cada talle activo de la curva.');
+        if (tallesUsados.size !== tallesAutomaticos.length) {
+            throw new Error('Debe asignar al menos un color a cada talle activo de la curva.');
+        }
+        for (const talle of tallesAutomaticos) {
+            const totalTalle = distribucion
+                .filter(fila => fila.talle === talle)
+                .reduce((total, fila) => total + fila.cantidad, 0);
+            if (totalTalle !== Number(talle.CANTIDAD_EN_MODULO)) {
+                throw new Error(
+                    `El talle ${talle.DETALLE_TALLE} suma ${totalTalle} pares y la curva requiere ${talle.CANTIDAD_EN_MODULO}.`
+                );
+            }
         }
         const totalDistribuido = distribucion.reduce((total, fila) => total + fila.cantidad, 0);
         if (totalDistribuido !== Number(modulo.PARES)) {

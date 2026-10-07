@@ -3312,7 +3312,8 @@ function configurarEventos() {
   document.getElementById('btnActualizarAlta').addEventListener('click', actualizarAltaYColores);
   document.getElementById('btnVolverAltas').addEventListener('click', volverAAltas);
   document.getElementById('btnAnularAlta')?.addEventListener('click', anularAlta);
-  document.getElementById('btnBorradorExcel')?.addEventListener('click', exportarBorradorExcel);
+  document.getElementById('btnBorradorExcel')?.addEventListener('click', () => exportarBorradorExcel('MODULOS'));
+  document.getElementById('btnBorradorExcelSueltos')?.addEventListener('click', () => exportarBorradorExcel('SUELTOS'));
   document.getElementById('btnDescargarImagenesAlta')?.addEventListener('click', descargarImagenesAlta);
   document.getElementById('btnEnviarFotosErp')?.addEventListener('click', enviarFotosErp);
   document.getElementById('btnValidarAlta').addEventListener('click', validarAlta);
@@ -5574,6 +5575,7 @@ function actualizarControlesEstado() {
   const mensajeGuardadoAutomatico = document.getElementById('mensajeGuardadoAutomatico');
   const btnAnular = document.getElementById('btnAnularAlta');
   const btnBorradorExcel = document.getElementById('btnBorradorExcel');
+  const btnBorradorExcelSueltos = document.getElementById('btnBorradorExcelSueltos');
   const btnDescargarImagenesAlta = document.getElementById('btnDescargarImagenesAlta');
   const btnValidar = document.getElementById('btnValidarAlta');
   const btnPreview = document.getElementById('btnPreviewAlta');
@@ -5657,12 +5659,11 @@ function actualizarControlesEstado() {
   }
 
   if (btnBorradorExcel) {
-    const tieneProductosPrincipales =
+    const tieneModulos =
       detalleActual().some(
         item =>
-          !esValorVerdadero(
-            item?.GENERADO_AUTOMATICO
-          )
+          normalizarTipo(item?.TIPO_PRODUCTO_DETALLE) === 'MODULO' &&
+          !esValorVerdadero(item?.GENERADO_AUTOMATICO)
       );
 
     const puedeDescargarExcel =
@@ -5674,7 +5675,7 @@ function actualizarControlesEstado() {
         'GENERADO_OK_EN_ERP',
         'SIN_NOVEDADES_ERP'
       ].includes(estado) &&
-      tieneProductosPrincipales;
+      tieneModulos;
 
     btnBorradorExcel.disabled =
       !puedeDescargarExcel;
@@ -5686,9 +5687,23 @@ function actualizarControlesEstado() {
 
     if (!btnBorradorExcel.disabled || btnBorradorExcel.textContent !== 'Generando Excel...') {
       btnBorradorExcel.textContent =
-        esBorrador
-          ? 'Exportar Excel con imágenes'
-          : 'Descargar Excel del Alta';
+        'Descargar Alta módulos';
+    }
+  }
+
+  if (btnBorradorExcelSueltos) {
+    const tienePrimerasSueltas = detalleActual().some(item =>
+      normalizarTipo(item?.TIPO_PRODUCTO_DETALLE) === 'PAR_SUELTO' &&
+      normalizarTipo(item?.DETALLE_CLASIFICACION) === 'PRIMERA'
+    );
+    const puedeDescargarSueltos = [
+      'BORRADOR', 'VALIDADO', 'EXPORTADO', 'PARCIAL_ERP',
+      'GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP'
+    ].includes(estado) && tienePrimerasSueltas;
+    btnBorradorExcelSueltos.disabled = !puedeDescargarSueltos;
+    btnBorradorExcelSueltos.classList.toggle('d-none', !puedeDescargarSueltos);
+    if (btnBorradorExcelSueltos.textContent !== 'Generando Excel...') {
+      btnBorradorExcelSueltos.textContent = 'Descargar Alta sueltos';
     }
   }
 
@@ -6366,7 +6381,7 @@ async function eliminarFamiliasSeleccionadas() {
 }
 
 
-async function exportarBorradorExcel() {
+async function exportarBorradorExcel(tipoReporte = 'MODULOS') {
 
   if (
     ![
@@ -6389,7 +6404,7 @@ async function exportarBorradorExcel() {
 
   const btn =
     document.getElementById(
-      'btnBorradorExcel'
+      tipoReporte === 'SUELTOS' ? 'btnBorradorExcelSueltos' : 'btnBorradorExcel'
     );
 
 
@@ -6406,7 +6421,7 @@ async function exportarBorradorExcel() {
 
     const respuesta =
       await fetch(
-        `/api/altas/${ID_ALTA}/borrador-excel`,
+        `/api/altas/${ID_ALTA}/borrador-excel?tipo=${encodeURIComponent(tipoReporte)}`,
         {
           method:
             'GET',

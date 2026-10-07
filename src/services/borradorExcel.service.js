@@ -109,7 +109,8 @@ async function cargarImagenModulo(
 
 async function generarBorradorExcel(
     idAlta,
-    baseUrl
+    baseUrl,
+    tipoReporte = 'TODOS'
 ) {
 
     const id =
@@ -173,21 +174,33 @@ async function generarBorradorExcel(
      * quedan excluidos para no repetir la misma imagen e información.
      * Esto contempla tanto MÓDULO como PAR SUELTO.
      */
-    const productosPrincipales =
-        (detallesTodos || [])
-            .filter(
-                detalle =>
-                    !esValorVerdadero(
-                        detalle.GENERADO_AUTOMATICO
-                    )
-            );
+    const reporte = normalizarTipoProducto(tipoReporte || 'TODOS');
+    if (!['TODOS', 'MODULOS', 'SUELTOS'].includes(reporte)) {
+        throw new Error('Tipo de reporte de Alta inválido.');
+    }
+
+    const productosPrincipales = (detallesTodos || []).filter(detalle => {
+        const tipo = normalizarTipoProducto(detalle.TIPO_PRODUCTO_DETALLE || alta.TIPO_PRODUCTO);
+        if (reporte === 'MODULOS') {
+            return tipo === 'MODULO' && !esValorVerdadero(detalle.GENERADO_AUTOMATICO);
+        }
+        if (reporte === 'SUELTOS') {
+            return tipo === 'PAR_SUELTO' &&
+                normalizarTipoProducto(detalle.DETALLE_CLASIFICACION) === 'PRIMERA';
+        }
+        return !esValorVerdadero(detalle.GENERADO_AUTOMATICO);
+    });
 
 
     if (
         productosPrincipales.length === 0
     ) {
         throw new Error(
-            'El Alta no contiene productos para incluir en el Excel.'
+            reporte === 'SUELTOS'
+                ? 'El Alta no contiene pares sueltos de clasificación PRIMERA.'
+                : reporte === 'MODULOS'
+                    ? 'El Alta no contiene módulos para incluir en el Excel.'
+                    : 'El Alta no contiene productos para incluir en el Excel.'
         );
     }
 
@@ -302,11 +315,15 @@ async function generarBorradorExcel(
         );
 
 
+    const nombreReporte = reporte === 'MODULOS'
+        ? 'ALTA MÓDULOS'
+        : reporte === 'SUELTOS'
+            ? 'ALTA SUELTOS · SOLO PRIMERAS'
+            : (estadoAlta !== 'BORRADOR' ? 'ALTA VALIDADA' : 'BORRADOR');
+
     titulo.value =
         [
-            estadoAlta !== 'BORRADOR'
-                ? 'ALTA VALIDADA'
-                : 'BORRADOR',
+            nombreReporte,
             codigoAlta,
             detalleAno,
             detalleTemporada,
@@ -854,7 +871,7 @@ async function generarBorradorExcel(
             ),
 
         nombreArchivo:
-            `${estadoAlta !== 'BORRADOR' ? 'ALTA_VALIDADA' : 'BORRADOR'}_${limpiarNombreArchivo(
+            `${reporte === 'MODULOS' ? 'ALTA_MODULOS' : reporte === 'SUELTOS' ? 'ALTA_SUELTOS' : (estadoAlta !== 'BORRADOR' ? 'ALTA_VALIDADA' : 'BORRADOR')}_${limpiarNombreArchivo(
                 codigoAlta
             )}.xlsx`,
 

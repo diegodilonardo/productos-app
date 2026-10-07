@@ -349,7 +349,8 @@ router.get('/:id/borrador-excel', requerirAccesoAlta, async (req, res) => {
             await borradorExcelService
                 .generarBorradorExcel(
                     req.params.id,
-                    baseUrl
+                    baseUrl,
+                    req.query.tipo
                 );
 
 

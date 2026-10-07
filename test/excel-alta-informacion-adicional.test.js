@@ -183,3 +183,39 @@ test('el Excel de un Alta BORRADOR PAR SUELTO incorpora el producto y su imagen'
     fsPromises.readFile = originales.readFile;
   }
 });
+
+test('los reportes separan módulos y pares sueltos de clasificación PRIMERA', async () => {
+  const originales = {
+    obtenerAltaPorId: altasRepository.obtenerAltaPorId,
+    obtenerDetalleAlta: altasRepository.obtenerDetalleAlta,
+    buscarAno: altasRepository.buscarAno,
+    buscarImagenProducto: imagenesAltaService.buscarImagenProducto,
+  };
+  altasRepository.obtenerAltaPorId = async () => ({
+    ID_ALTA: 3, CODIGO_ALTA: 'ALT-SEPARADA', ESTADO: 'VALIDADO',
+    CODIGO_ANO: '27', DETALLE_TEMPORADA: 'VE', DETALLE_RUBRO: 'CALZADO'
+  });
+  altasRepository.buscarAno = async () => ({ DETALLE_ANO: '2027' });
+  imagenesAltaService.buscarImagenProducto = async () => null;
+  altasRepository.obtenerDetalleAlta = async () => [
+    { TIPO_PRODUCTO_DETALLE: 'MODULO', GENERADO_AUTOMATICO: false, CODIGO_ALFA: 'MOD-1', DETALLE_MODULO: 'IS', PARES: 12 },
+    { TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', GENERADO_AUTOMATICO: true, CODIGO_ALFA: 'PRI-21', DETALLE_TALLE: '21', DETALLE_CLASIFICACION: 'PRIMERA', PARES: 1 },
+    { TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', GENERADO_AUTOMATICO: true, CODIGO_ALFA: 'SEG-21', DETALLE_TALLE: '21', DETALLE_CLASIFICACION: 'SEGUNDA', PARES: 1 },
+  ];
+  try {
+    const modulos = await borradorExcelService.generarBorradorExcel(3, 'http://productos.test', 'MODULOS');
+    const sueltos = await borradorExcelService.generarBorradorExcel(3, 'http://productos.test', 'SUELTOS');
+    const libroModulos = new ExcelJS.Workbook();
+    const libroSueltos = new ExcelJS.Workbook();
+    await libroModulos.xlsx.load(modulos.buffer);
+    await libroSueltos.xlsx.load(sueltos.buffer);
+    assert.equal(libroModulos.worksheets[0].getCell('L4').value, 'MOD-1');
+    assert.equal(libroSueltos.worksheets[0].getCell('L4').value, 'PRI-21');
+    assert.equal(libroSueltos.worksheets[0].getCell('L5').value, null);
+    assert.equal(modulos.nombreArchivo, 'ALTA_MODULOS_ALT-SEPARADA.xlsx');
+    assert.equal(sueltos.nombreArchivo, 'ALTA_SUELTOS_ALT-SEPARADA.xlsx');
+  } finally {
+    Object.assign(altasRepository, originales);
+    imagenesAltaService.buscarImagenProducto = originales.buscarImagenProducto;
+  }
+});

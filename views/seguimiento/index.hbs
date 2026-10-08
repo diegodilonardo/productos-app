@@ -113,6 +113,7 @@
       </tbody>
     </table>
   </div>
+  <div id="paginacionSeguimientoAltas" class="seguimiento-ean-pagination d-none" aria-label="Paginación de Altas exportadas"></div>
 </div>
 
 <section class="seguimiento-ean-section" aria-labelledby="tituloSeguimientoEan">
@@ -166,7 +167,7 @@
         <select id="filtroAltaEan" class="form-select" aria-label="Filtrar productos por Alta"><option value="">Todas las altas</option></select>
         <select id="filtroEstadoEan" class="form-select" aria-label="Filtrar por estado EAN">
           <option value="">Todos los estados</option>
-          <option value="PENDIENTE_GS1">Gestionar en GS1</option>
+          <option value="PENDIENTE_GS1" selected>Gestionar en GS1</option>
           <option value="EAN_ASIGNADO">EAN asignado</option>
           <option value="PENDIENTE_ERP">Enviado · pendiente ERP</option>
           <option value="CONFIRMADO_ERP">Confirmado en ERP</option>
@@ -191,4 +192,4 @@
 
 </div>
 
-<script src="/js/seguimiento.js?v=20"></script>
+<script src="/js/seguimiento.js?v=21"></script>

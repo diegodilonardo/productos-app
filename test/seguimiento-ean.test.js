@@ -170,11 +170,13 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(vista, /Seguimiento EAN \/ GS1/);
   assert.match(vista, /id="buscarSeguimientoEan"/);
   assert.match(vista, /id="filtroEstadoEan"/);
+  assert.match(vista, /value="PENDIENTE_GS1" selected>Gestionar en GS1/);
   assert.match(vista, /id="filtroAltaEan"/);
   assert.match(vista, /id="filtroTemporadaEan"/);
   assert.match(vista, /id="filtroAnoEan"/);
   assert.match(vista, /id="filtroRubroEan"/);
   assert.match(vista, /id="paginacionSeguimientoEan"/);
+  assert.match(vista, /id="paginacionSeguimientoAltas"/);
   assert.match(vista, /id="listadoProductosEan"/);
   assert.match(vista, /seguimiento-ean-action-group/);
   assert.match(vista, /pendientes\.xlsx/);
@@ -194,6 +196,10 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /URL GS1 ASOCIADA/);
   assert.match(frontend, /GESTIONAR EN GS1/);
   assert.match(frontend, /PRODUCTOS_POR_PAGINA_EAN = 50/);
+  assert.match(frontend, /ALTAS_POR_PAGINA = 12/);
+  assert.match(frontend, /function pintarPaginacionSeguimientoAltas/);
+  assert.match(frontend, /filas\.slice\(desdeIndice, desdeIndice \+ ALTAS_POR_PAGINA\)/);
+  assert.match(frontend, /const promesaEan = apiSeguimiento\('\/api\/seguimiento\/ean'\)/);
   assert.match(frontend, /MAX_PRODUCTOS_OPERACION_EAN = 2500/);
   assert.match(frontend, /paginarGruposSeguimientoEan/);
   assert.match(frontend, /poblarFiltrosSeguimientoEan/);

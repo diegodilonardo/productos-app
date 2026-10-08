@@ -10,8 +10,10 @@ let asociacionesUrlsGs1 = [];
 let idEmpresaSeguimiento = null;
 let vistaSeguimiento = sessionStorage.getItem('seguimiento.vista') === 'tabla' ? 'tabla' : 'tarjetas';
 let paginaSeguimientoEan = 1;
+let paginaSeguimientoAltas = 1;
 let temporizadorToastSeguimiento = null;
 const PRODUCTOS_POR_PAGINA_EAN = 50;
+const ALTAS_POR_PAGINA = 12;
 const MAX_PRODUCTOS_OPERACION_EAN = 2500;
 
 function excedeMaximoOperacionEan(cantidad) {
@@ -85,10 +87,7 @@ async function iniciarSeguimiento() {
       filtroEstado.appendChild(option);
     }
 
-    filtroEstado.addEventListener(
-      'change',
-      pintarAltasFiltradas
-    );
+    filtroEstado.addEventListener('change', cambiarFiltroSeguimientoAltas);
   }
 
   document.getElementById('buscarSeguimientoEan')?.addEventListener('input', reiniciarPaginaSeguimientoEan);
@@ -97,6 +96,7 @@ async function iniciarSeguimiento() {
     document.getElementById(id)?.addEventListener('change', reiniciarPaginaSeguimientoEan);
   }
   document.getElementById('paginacionSeguimientoEan')?.addEventListener('click', cambiarPaginaSeguimientoEan);
+  document.getElementById('paginacionSeguimientoAltas')?.addEventListener('click', cambiarPaginaSeguimientoAltas);
   document.getElementById('btnExportarPendientesEan')?.addEventListener('click', prepararDescargaEan);
   document.getElementById('tablaSeguimientoEan')?.addEventListener('click', alternarFamiliaEan);
   document.getElementById('tablaSeguimientoEan')?.addEventListener('change', cambiarSeleccionEan);
@@ -148,6 +148,7 @@ function actualizarEmpresaSeguimiento(event) {
   asociacionesUrlsGs1 = [];
   familiasEanAbiertas.clear();
   paginaSeguimientoEan = 1;
+  paginaSeguimientoAltas = 1;
   actualizarBotonImagenesEan();
   cargarTodo();
 }
@@ -162,14 +163,19 @@ async function cargarTodo() {
     btn.disabled = true;
     btn.textContent = 'Actualizando...';
 
-    const [resumenData, altasData, eanData] = await Promise.all([
-      apiSeguimiento('/api/seguimiento/resumen'),
-      apiSeguimiento('/api/seguimiento/altas'),
-      apiSeguimiento('/api/seguimiento/ean')
-    ]);
+    const promesaResumen = apiSeguimiento('/api/seguimiento/resumen');
+    const promesaAltas = apiSeguimiento('/api/seguimiento/altas');
+    const promesaEan = apiSeguimiento('/api/seguimiento/ean');
+    const [resumenData, altasData] = await Promise.all([promesaResumen, promesaAltas]);
 
     const resumen = extraerResultado(resumenData) || {};
     altasSeguimiento = normalizarLista(extraerResultado(altasData));
+    pintarResumen(resumen);
+    pintarAltasFiltradas();
+
+    // El seguimiento EAN es considerablemente más pesado. Se carga en
+    // paralelo, pero no demora la presentación inicial de las Altas.
+    const eanData = await promesaEan;
     const seguimientoEan = extraerResultado(eanData) || {};
     productosSeguimientoEan = Array.isArray(seguimientoEan.productos)
       ? seguimientoEan.productos
@@ -186,8 +192,6 @@ async function cargarTodo() {
 
     poblarFiltrosSeguimientoEan();
 
-    pintarResumen(resumen);
-    pintarAltasFiltradas();
     pintarResumenEan(seguimientoEan.resumen || {});
     pintarSeguimientoEan();
     actualizarBotonImagenesEan();
@@ -232,6 +236,11 @@ function pintarCargaSeguimiento() {
 
   const tarjetas = document.getElementById('tarjetasSeguimiento');
   if (tarjetas) tarjetas.innerHTML = '<div class="seguimiento-cards-loading">Actualizando seguimiento</div>';
+  const paginacionAltas = document.getElementById('paginacionSeguimientoAltas');
+  if (paginacionAltas) {
+    paginacionAltas.classList.add('d-none');
+    paginacionAltas.innerHTML = '';
+  }
   for (const id of ['eanTotal', 'eanPendientesGs1', 'eanAsignados', 'eanPendientesErp', 'eanConfirmadosErp', 'eanNoRequeridos', 'eanSinEan', 'eanInhabilitados']) setTexto(id, '—');
   const tablaEan = document.getElementById('tablaSeguimientoEan');
   if (tablaEan) tablaEan.innerHTML = '<tr><td colspan="7" class="text-center py-4">Actualizando seguimiento EAN...</td></tr>';
@@ -933,13 +942,44 @@ function pintarAltasFiltradas() {
     return !estadoFiltro || estado === estadoFiltro;
   });
 
-  setTexto(
-    'cantidadSeguimientoVisible',
-    `${filas.length} de ${altasSeguimiento.length}`
+  const totalPaginas = Math.max(1, Math.ceil(filas.length / ALTAS_POR_PAGINA));
+  paginaSeguimientoAltas = Math.min(Math.max(1, paginaSeguimientoAltas), totalPaginas);
+  const desdeIndice = (paginaSeguimientoAltas - 1) * ALTAS_POR_PAGINA;
+  const pagina = filas.slice(desdeIndice, desdeIndice + ALTAS_POR_PAGINA);
+  const desde = filas.length ? desdeIndice + 1 : 0;
+  const hasta = Math.min(desdeIndice + pagina.length, filas.length);
+
+  setTexto('cantidadSeguimientoVisible',
+    filas.length ? `${desde}–${hasta} de ${filas.length}` : `0 de ${altasSeguimiento.length}`
   );
 
-  pintarTarjetasSeguimiento(filas);
-  pintarAltas(filas);
+  pintarTarjetasSeguimiento(pagina);
+  pintarAltas(pagina);
+  pintarPaginacionSeguimientoAltas(filas.length, totalPaginas);
+}
+
+function cambiarFiltroSeguimientoAltas() {
+  paginaSeguimientoAltas = 1;
+  pintarAltasFiltradas();
+}
+
+function cambiarPaginaSeguimientoAltas(event) {
+  const boton = event.target.closest('[data-altas-page]');
+  if (!boton || boton.disabled) return;
+  paginaSeguimientoAltas = Number(boton.dataset.altasPage) || 1;
+  pintarAltasFiltradas();
+  document.querySelector('.seguimiento-list-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pintarPaginacionSeguimientoAltas(total, totalPaginas) {
+  const contenedor = document.getElementById('paginacionSeguimientoAltas');
+  if (!contenedor) return;
+  contenedor.classList.toggle('d-none', totalPaginas <= 1);
+  if (totalPaginas <= 1) {
+    contenedor.innerHTML = '';
+    return;
+  }
+  contenedor.innerHTML = `<span class="text-secondary">${total} Altas</span><div class="btn-group" role="group" aria-label="Cambiar página de Altas"><button class="btn btn-outline-secondary" type="button" data-altas-page="${paginaSeguimientoAltas - 1}" ${paginaSeguimientoAltas === 1 ? 'disabled' : ''}>Anterior</button><span class="btn btn-light disabled">Página ${paginaSeguimientoAltas} de ${totalPaginas}</span><button class="btn btn-outline-secondary" type="button" data-altas-page="${paginaSeguimientoAltas + 1}" ${paginaSeguimientoAltas === totalPaginas ? 'disabled' : ''}>Siguiente</button></div>`;
 }
 
 function cambiarVisibilidadAnuladasSeguimiento() {
@@ -948,7 +988,7 @@ function cambiarVisibilidadAnuladasSeguimiento() {
   const opcionAnulado = filtro?.querySelector('option[value="ANULADO"]');
   if (opcionAnulado) opcionAnulado.disabled = !mostrar;
   if (!mostrar && filtro?.value === 'ANULADO') filtro.value = '';
-  pintarAltasFiltradas();
+  cambiarFiltroSeguimientoAltas();
 }
 
 function aplicarVistaSeguimiento(vista) {

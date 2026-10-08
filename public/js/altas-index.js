@@ -4,6 +4,8 @@ let vistaAltas =
     ? 'tabla'
     : 'tarjetas';
 let modalProductosAlta = null;
+let paginaAltas = 1;
+const ALTAS_POR_PAGINA = 12;
 const filtrosMultiplesAltas = {
   ano: new Set(),
   temporada: new Set(),
@@ -28,11 +30,13 @@ async function iniciarPantallaAltas() {
 
   document
     .getElementById('buscarAlta')
-    .addEventListener('input', pintarAltasFiltradas);
+    .addEventListener('input', cambiarFiltrosAltas);
 
   document
     .getElementById('filtroEstadoAlta')
-    .addEventListener('change', pintarAltasFiltradas);
+    .addEventListener('change', cambiarFiltrosAltas);
+
+  document.getElementById('paginacionAltas')?.addEventListener('click', cambiarPaginaAltas);
 
   document.getElementById('btnLimpiarFiltrosAltas')?.addEventListener('click', limpiarFiltrosAltas);
 
@@ -64,6 +68,7 @@ function actualizarEmpresaAltas(event) {
   event.preventDefault();
 
   altasCargadas = [];
+  paginaAltas = 1;
   pintarContadores();
   pintarAltasFiltradas();
   cargarAltas();
@@ -295,8 +300,37 @@ function pintarAltasFiltradas() {
       return bolsa.includes(texto);
     });
 
-  pintarTarjetasAltas(filtradas);
-  pintarTablaAltas(filtradas);
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / ALTAS_POR_PAGINA));
+  paginaAltas = Math.min(Math.max(1, paginaAltas), totalPaginas);
+  const desdeIndice = (paginaAltas - 1) * ALTAS_POR_PAGINA;
+  const pagina = filtradas.slice(desdeIndice, desdeIndice + ALTAS_POR_PAGINA);
+  pintarTarjetasAltas(pagina);
+  pintarTablaAltas(pagina);
+  pintarPaginacionAltas(filtradas.length, totalPaginas);
+}
+
+function cambiarFiltrosAltas() {
+  paginaAltas = 1;
+  pintarAltasFiltradas();
+}
+
+function cambiarPaginaAltas(event) {
+  const boton = event.target.closest('[data-altas-page]');
+  if (!boton || boton.disabled) return;
+  paginaAltas = Number(boton.dataset.altasPage) || 1;
+  pintarAltasFiltradas();
+  document.querySelector('.altas-list-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pintarPaginacionAltas(total, totalPaginas) {
+  const contenedor = document.getElementById('paginacionAltas');
+  if (!contenedor) return;
+  contenedor.classList.toggle('d-none', totalPaginas <= 1);
+  if (totalPaginas <= 1) {
+    contenedor.innerHTML = '';
+    return;
+  }
+  contenedor.innerHTML = `<span class="text-secondary">${total} Altas</span><div class="btn-group" role="group" aria-label="Cambiar página de Altas"><button class="btn btn-outline-secondary" type="button" data-altas-page="${paginaAltas - 1}" ${paginaAltas === 1 ? 'disabled' : ''}>Anterior</button><span class="btn btn-light disabled">Página ${paginaAltas} de ${totalPaginas}</span><button class="btn btn-outline-secondary" type="button" data-altas-page="${paginaAltas + 1}" ${paginaAltas === totalPaginas ? 'disabled' : ''}>Siguiente</button></div>`;
 }
 
 function normalizarFiltroAlta(valor) {
@@ -378,7 +412,7 @@ function poblarFiltroAlta(clave, idOpciones, idBoton, opcionTodos, etiquetaCorta
       if (input.checked) filtrosMultiplesAltas[clave].add(input.value);
       else filtrosMultiplesAltas[clave].delete(input.value);
       actualizarBotonFiltroAlta(clave, idBoton, opcionTodos, etiquetaCorta);
-      pintarAltasFiltradas();
+      cambiarFiltrosAltas();
     });
   });
   actualizarBotonFiltroAlta(clave, idBoton, opcionTodos, etiquetaCorta);
@@ -397,7 +431,7 @@ function limpiarFiltrosAltas() {
   document.getElementById('filtroEstadoAlta').value = '';
   Object.values(filtrosMultiplesAltas).forEach(seleccion => seleccion.clear());
   completarFiltrosAltas();
-  pintarAltasFiltradas();
+  cambiarFiltrosAltas();
 }
 
 function cambiarVisibilidadAnuladasAlta(event) {
@@ -413,7 +447,7 @@ function cambiarVisibilidadAnuladasAlta(event) {
     filtro.value = '';
   }
 
-  pintarAltasFiltradas();
+  cambiarFiltrosAltas();
 }
 
 function aplicarVistaAltas(vista) {

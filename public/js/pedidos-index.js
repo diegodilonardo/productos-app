@@ -4,6 +4,8 @@ let contextoUsuario = null;
 let idEmpresaPedido = null;
 let accesoEmpresaPedido = null;
 let vistaPedidos = sessionStorage.getItem('pedidos.vista') === 'tabla' ? 'tabla' : 'tarjetas';
+let paginaPedidos = 1;
+const PEDIDOS_POR_PAGINA = 12;
 
 async function iniciarPedidos() {
   window.addEventListener(
@@ -13,9 +15,10 @@ async function iniciarPedidos() {
   window.addEventListener('app:datos-actualizar', cargarPedidos);
 
   document.getElementById('btnActualizarPedidos')?.addEventListener('click', cargarPedidos);
-  document.getElementById('buscarPedido')?.addEventListener('input', pintarPedidosFiltrados);
-  document.getElementById('filtroEstadoPedido')?.addEventListener('change', pintarPedidosFiltrados);
-  document.getElementById('filtroExportacionPedido')?.addEventListener('change', pintarPedidosFiltrados);
+  document.getElementById('buscarPedido')?.addEventListener('input', cambiarFiltrosPedidos);
+  document.getElementById('filtroEstadoPedido')?.addEventListener('change', cambiarFiltrosPedidos);
+  document.getElementById('filtroExportacionPedido')?.addEventListener('change', cambiarFiltrosPedidos);
+  document.getElementById('paginacionPedidos')?.addEventListener('click', cambiarPaginaPedidos);
   document.getElementById('mostrarAnuladosPedido')?.addEventListener('change', cambiarVisibilidadAnuladosPedido);
   document.getElementById('btnVistaTarjetasPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tarjetas'));
   document.getElementById('btnVistaTablaPedidos')?.addEventListener('click', () => aplicarVistaPedidos('tabla'));
@@ -55,6 +58,7 @@ async function actualizarEmpresaPedidos(event) {
   );
 
   pedidos = [];
+  paginaPedidos = 1;
   pintarMetricas();
   pintarPedidosFiltrados();
   actualizarPermisosVisuales();
@@ -214,12 +218,40 @@ function pintarPedidosFiltrados() {
     const texto = [p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN,p.DETALLE_RUBRO,p.CODIGO_ANO,p.DETALLE_TEMPORADA].join(' ').toUpperCase();
     return (mostrarAnulados || estado(p) !== 'ANULADO') && (!q || texto.includes(q)) && (!e || estado(p)===e) && (!ex || estadoExportacion(p)===ex);
   });
-  setTexto(
-    'cantidadPedidosVisible',
-    `${lista.length} de ${pedidos.length}`
-  );
-  pintarTarjetas(lista);
-  pintarTabla(lista);
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / PEDIDOS_POR_PAGINA));
+  paginaPedidos = Math.min(Math.max(1, paginaPedidos), totalPaginas);
+  const desdeIndice = (paginaPedidos - 1) * PEDIDOS_POR_PAGINA;
+  const pagina = lista.slice(desdeIndice, desdeIndice + PEDIDOS_POR_PAGINA);
+  const desde = lista.length ? desdeIndice + 1 : 0;
+  const hasta = Math.min(desdeIndice + pagina.length, lista.length);
+  setTexto('cantidadPedidosVisible', lista.length ? `${desde}–${hasta} de ${lista.length}` : `0 de ${pedidos.length}`);
+  pintarTarjetas(pagina);
+  pintarTabla(pagina);
+  pintarPaginacionPedidos(lista.length, totalPaginas);
+}
+
+function cambiarFiltrosPedidos() {
+  paginaPedidos = 1;
+  pintarPedidosFiltrados();
+}
+
+function cambiarPaginaPedidos(event) {
+  const boton = event.target.closest('[data-pedidos-page]');
+  if (!boton || boton.disabled) return;
+  paginaPedidos = Number(boton.dataset.pedidosPage) || 1;
+  pintarPedidosFiltrados();
+  document.querySelector('.pedidos-list-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pintarPaginacionPedidos(total, totalPaginas) {
+  const contenedor = document.getElementById('paginacionPedidos');
+  if (!contenedor) return;
+  contenedor.classList.toggle('d-none', totalPaginas <= 1);
+  if (totalPaginas <= 1) {
+    contenedor.innerHTML = '';
+    return;
+  }
+  contenedor.innerHTML = `<span class="text-secondary">${total} Pedidos</span><div class="btn-group" role="group" aria-label="Cambiar página de Pedidos"><button class="btn btn-outline-secondary" type="button" data-pedidos-page="${paginaPedidos - 1}" ${paginaPedidos === 1 ? 'disabled' : ''}>Anterior</button><span class="btn btn-light disabled">Página ${paginaPedidos} de ${totalPaginas}</span><button class="btn btn-outline-secondary" type="button" data-pedidos-page="${paginaPedidos + 1}" ${paginaPedidos === totalPaginas ? 'disabled' : ''}>Siguiente</button></div>`;
 }
 
 function cambiarVisibilidadAnuladosPedido(event) {
@@ -230,7 +262,7 @@ function cambiarVisibilidadAnuladosPedido(event) {
   if (opcionAnulado) opcionAnulado.disabled = !mostrar;
   if (!mostrar && filtro?.value === 'ANULADO') filtro.value = '';
 
-  pintarPedidosFiltrados();
+  cambiarFiltrosPedidos();
 }
 
 function aplicarVistaPedidos(vista) {

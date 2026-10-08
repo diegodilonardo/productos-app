@@ -1,0 +1,154 @@
+<div class="help-page">
+  <section class="help-hero">
+    <div class="help-hero-icon" aria-hidden="true">?</div>
+    <div>
+      <div class="help-kicker">MANUAL FUNCIONAL</div>
+      <h1 class="h3 mb-1">Ayuda de PRODUCTOS APP</h1>
+      <p class="text-secondary mb-0">Una guía rápida de las funciones disponibles en cada solapa.</p>
+    </div>
+  </section>
+
+  <div class="help-layout">
+    <aside class="help-index">
+      <strong>Contenido</strong>
+      <nav aria-label="Secciones de ayuda">
+        <a href="#dashboard">Dashboard</a>
+        <a href="#maestros">Maestros</a>
+        <a href="#reportes">Reportes</a>
+        <a href="#altas">Altas</a>
+        <a href="#pedidos">Pedidos</a>
+        <a href="#seguimiento">Seguimiento</a>
+        <a href="#usuarios">Usuarios</a>
+        <a href="#estados">Estados principales</a>
+      </nav>
+      <div class="help-index-note">Las opciones visibles dependen de la empresa, el rol y los permisos asignados.</div>
+    </aside>
+
+    <div class="help-content">
+      <section id="dashboard" class="help-card">
+        <div class="help-card-heading"><span>1</span><div><div class="help-kicker">INICIO</div><h2>Dashboard</h2></div></div>
+        <p>Ofrece un panorama general de la operación de la empresa activa.</p>
+        <ul>
+          <li>Resume productos, Altas y situación comercial.</li>
+          <li>Muestra Altas y Pedidos recientes.</li>
+          <li>Permite filtrar por proveedor, rubro, año y temporada.</li>
+          <li>Brinda accesos rápidos a los registros y a la creación de Pedidos.</li>
+        </ul>
+      </section>
+
+      <section id="maestros" class="help-card">
+        <div class="help-card-heading"><span>2</span><div><div class="help-kicker">DATOS BASE</div><h2>Maestros</h2></div></div>
+        <p>Centraliza los datos necesarios para generar productos.</p>
+        <ul>
+          <li>Solicita modelos, módulos/curvas y otros maestros habilitados.</li>
+          <li>Valida códigos existentes y distribuciones de talles repetidas.</li>
+          <li>Admite carga masiva de modelos mediante una plantilla Excel.</li>
+          <li>Permite consultar, buscar, filtrar y exportar maestros.</li>
+          <li>Genera y envía los DBI pendientes a Presea cuando el usuario tiene permiso.</li>
+          <li>Incluye el mantenimiento de reglas EAN para usuarios autorizados.</li>
+        </ul>
+        <div class="help-callout">Algunos maestros son compartidos por varias empresas; pueden estar disponibles aunque se hayan incorporado originalmente desde otra empresa del grupo.</div>
+      </section>
+
+      <section id="reportes" class="help-card">
+        <div class="help-card-heading"><span>3</span><div><div class="help-kicker">ANÁLISIS</div><h2>Reportes</h2></div></div>
+        <p>Consolida la información comercial de los Pedidos.</p>
+        <ul>
+          <li>Resumen de pares e importes por proveedor y orden.</li>
+          <li>Detalle de productos por temporada.</li>
+          <li>Filtros por estado, proveedor, rubro, temporada y año.</li>
+          <li>Exportación del resultado a Excel.</li>
+        </ul>
+      </section>
+
+      <section id="altas" class="help-card">
+        <div class="help-card-heading"><span>4</span><div><div class="help-kicker">PRODUCTOS</div><h2>Altas</h2></div></div>
+        <p>Administra todo el circuito de creación y exportación de productos.</p>
+        <h3>Listado y creación</h3>
+        <ul>
+          <li>Busca y filtra por estado, año, temporada, rubro, licencia, EAN y fotos.</li>
+          <li>Muestra indicadores de Presea, fotos y EAN definitivo.</li>
+          <li>Permite crear la cabecera de una nueva Alta con sus datos generales.</li>
+          <li>Si no se selecciona una licencia, el producto se exporta como <strong>SIN LICENCIA</strong>.</li>
+        </ul>
+        <h3>Productos del Alta</h3>
+        <ul>
+          <li>Agrega productos principales, familias, primeras, segundas y pares sueltos.</li>
+          <li>Permite cargar imágenes de al menos 300 × 300 píxeles y hasta 350 KB.</li>
+          <li>Admite talles mixtos por talle, color y cantidad para usuarios habilitados.</li>
+          <li>Permite editar color, curva/módulo, clasificación e información adicional mientras el lote esté abierto.</li>
+        </ul>
+        <h3>Exportación</h3>
+        <ul>
+          <li>Vista previa y generación del DBI.</li>
+          <li>Excel de módulos y Excel de pares sueltos de primera.</li>
+          <li>Descarga de imágenes ZIP y envío de fotos a Presea.</li>
+        </ul>
+        <div class="help-callout help-callout-warning">Una Alta exportada queda cerrada. Las correcciones o anulaciones posteriores requieren un procedimiento administrativo controlado.</div>
+      </section>
+
+      <section id="pedidos" class="help-card">
+        <div class="help-card-heading"><span>5</span><div><div class="help-kicker">COMERCIAL</div><h2>Pedidos</h2></div></div>
+        <p>Permite armar Pedidos a partir de los productos generados en las Altas.</p>
+        <ul>
+          <li>Selecciona proveedor, orden, moneda, Altas y modelos.</li>
+          <li>Administra cantidades, valores y validación del Pedido.</li>
+          <li>Para importados genera Purchase Order, Excel, Master Data y PREC_FOB, según corresponda.</li>
+          <li>Los Pedidos nacionales del proveedor <strong>PB9999</strong> generan solamente un DBI con código, COD_ALFA y cantidad.</li>
+          <li>Los Pedidos nacionales se confirman en Presea; los importados siguen el circuito de COMEX.</li>
+        </ul>
+      </section>
+
+      <section id="seguimiento" class="help-card">
+        <div class="help-card-heading"><span>6</span><div><div class="help-kicker">CONCILIACIÓN</div><h2>Seguimiento</h2></div></div>
+        <h3>Seguimiento ERP</h3>
+        <ul>
+          <li>Muestra las Altas exportadas y su avance en Presea.</li>
+          <li>Informa productos registrados, exportables y confirmados.</li>
+          <li>Distingue el envío de fotos y permite consultar el detalle del lote.</li>
+        </ul>
+        <h3>EAN / GS1</h3>
+        <ul>
+          <li>El filtro inicial muestra los productos que deben gestionarse en GS1.</li>
+          <li>Descarga imágenes, genera archivos GS1 e importa URLs y EAN definitivos.</li>
+          <li>Genera GTIN.DBI, envía GTIN a Presea y permite imprimir etiquetas.</li>
+          <li>Admite hasta 2.500 productos por operación.</li>
+          <li>Conserva productos desactivados como <strong>INACTIVO EN PRESEA</strong> para mantener su trazabilidad.</li>
+        </ul>
+      </section>
+
+      <section id="usuarios" class="help-card">
+        <div class="help-card-heading"><span>7</span><div><div class="help-kicker">SEGURIDAD</div><h2>Usuarios</h2></div></div>
+        <p>Disponible solamente para usuarios autorizados.</p>
+        <ul>
+          <li>Crea, edita, activa o desactiva usuarios.</li>
+          <li>Asigna roles, empresas, marcas y permisos funcionales.</li>
+          <li>Configura permisos especiales, como talles mixtos, por empresa.</li>
+          <li>Los superadministradores pueden consultar usuarios conectados recientemente.</li>
+        </ul>
+      </section>
+
+      <section id="estados" class="help-card">
+        <div class="help-card-heading"><span>8</span><div><div class="help-kicker">REFERENCIA</div><h2>Estados principales</h2></div></div>
+        <div class="help-status-grid">
+          <div><strong>Borrador</strong><span>Admite modificaciones.</span></div>
+          <div><strong>Validado</strong><span>Información confirmada.</span></div>
+          <div><strong>Exportado</strong><span>Archivos del circuito generados.</span></div>
+          <div><strong>Generado OK en ERP</strong><span>Registro confirmado en Presea.</span></div>
+          <div><strong>Pendiente</strong><span>Falta una acción o confirmación.</span></div>
+          <div><strong>Anulado</strong><span>Fuera del circuito, disponible para consulta.</span></div>
+        </div>
+      </section>
+
+      <section class="help-tips">
+        <h2 class="h5">Antes de confirmar una operación</h2>
+        <ol>
+          <li>Verificá que la empresa activa sea la correcta.</li>
+          <li>Revisá la vista previa antes de exportar una Alta o validar un Pedido.</li>
+          <li>Esperá el mensaje final antes de repetir una operación.</li>
+          <li>Consultá Seguimiento para confirmar el impacto en Presea.</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</div>

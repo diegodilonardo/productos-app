@@ -15,7 +15,8 @@
     "organizar-imagenes": "node scripts/organizar-imagenes-productos.js",
     "registrar-imagenes-existentes": "node scripts/registrar-imagenes-altas-existentes.js",
     "registrar-imagenes-existentes:aplicar": "node scripts/registrar-imagenes-altas-existentes.js --apply",
-    "regenerar-dbi-alta": "node scripts/regenerar-dbi-alta.js"
+    "regenerar-dbi-alta": "node scripts/regenerar-dbi-alta.js",
+    "reenviar-maestros": "node scripts/reenviar-altas-maestros.js"
   },
   "keywords": [],
   "author": "",

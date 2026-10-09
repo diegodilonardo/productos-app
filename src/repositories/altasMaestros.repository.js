@@ -317,6 +317,7 @@ async function obtenerPendientesYConfiguracion(idEmpresa) {
   return { registros: pendientes.recordset, rutaDestino: configuracion.recordset[0]?.RUTA_DESTINO || null };
 }
 
+
 async function marcarEnviados(idEmpresa, ids, archivos, usuario) {
   if (!ids.length) return;
   const pool = await getConnection();

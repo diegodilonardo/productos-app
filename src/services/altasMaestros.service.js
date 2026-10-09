@@ -541,6 +541,7 @@ async function enviarPresea({ idEmpresa, usuario }) {
   return { archivos, registros: datos.registros.length, rutaDestino };
 }
 
+
 async function listarReglasEan(idEmpresa) {
   const [reglas, configuracion] = await Promise.all([
     repository.listarReglasEan(idEmpresa),

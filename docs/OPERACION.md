@@ -17,6 +17,42 @@ El supervisor debe ser iniciado a su vez como servicio de Windows para que vuelv
 
 ## Incidentes FTP
 
+### Recuperar un archivo de Altas de Maestros
+
+Si un DBI de colores, modelos o módulos fue eliminado del FTP después de su
+envío, puede regenerarse desde el historial de `ALTAS_MAESTROS`.
+
+Primero ejecutar una vista previa indicando la empresa y los IDs exactos:
+
+```powershell
+node scripts/reenviar-altas-maestros.js --empresa 70000 --ids 151,152,153
+```
+
+La vista previa genera una copia local bajo
+`salidas/recuperacion-altas-maestros`, pero no modifica el FTP. Después de
+revisar empresa, códigos, archivos y destinos, realizar el envío:
+
+```powershell
+node scripts/reenviar-altas-maestros.js --empresa 70000 --ids 151,152,153 --enviar
+```
+
+Si el archivo ya existe, el script se detiene. `--sobrescribir` debe utilizarse
+solamente después de comprobar que el archivo remoto puede reemplazarse. Cada
+reenvío exitoso queda registrado en `ALTAS_MAESTROS_HISTORIAL` sin cambiar el
+estado funcional de la solicitud.
+
+También puede recuperarse un período y limitarlo por tipo:
+
+```powershell
+node scripts/reenviar-altas-maestros.js --empresa 70000 --desde 2026-10-08 --hasta 2026-10-09 --tipo MODELO
+```
+
+Consultar todas las opciones con:
+
+```powershell
+node scripts/reenviar-altas-maestros.js --ayuda
+```
+
 Los errores transitorios se reintentan. El circuit breaker abre después del umbral y bloquea temporalmente nuevas operaciones. Una exportación fallida conserva archivos locales. No cambiar rutas para sortear permisos: corregir la configuración de la marca.
 
 ## Limpieza de pruebas

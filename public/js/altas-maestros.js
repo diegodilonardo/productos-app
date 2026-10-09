@@ -285,7 +285,48 @@ function accionEliminarSolicitudMaestro(registro) {
   return `<button class="btn btn-sm btn-outline-danger" type="button" data-eliminar-solicitud-maestro="${Number(registro.ID_ALTA_MAESTRO)}" data-codigo-solicitud="${textoSeguro(registro.CODIGO)}">Eliminar</button>`;
 }
 
-async function cargar() { try { const d = await api('/api/altas-maestros'); $('tablaAltasMaestros').innerHTML = d.registros.map(x => { const estado = presentacionEstadoMaestro(x.ESTADO); return `<tr><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.MARCA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`; }).join('') || '<tr><td colspan="9" class="text-center text-secondary py-4">Todavía no hay solicitudes.</td></tr>'; } catch (e) { alerta(e.message, 'danger'); } }
+async function cargar() {
+  try {
+    const d = await api('/api/altas-maestros');
+    const registros = Array.isArray(d.registros) ? d.registros : [];
+    $('tablaAltasMaestros').innerHTML = registros.map(x => {
+      const estado = presentacionEstadoMaestro(x.ESTADO);
+      const id = Number(x.ID_ALTA_MAESTRO);
+      return `<tr><td><button class="btn btn-sm btn-light border font-monospace fw-bold" type="button" data-copiar-id-maestro="${id}" title="Copiar ID ${id}">${id}</button></td><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.MARCA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`;
+    }).join('') || '<tr><td colspan="10" class="text-center text-secondary py-4">Todavía no hay solicitudes.</td></tr>';
+  } catch (e) {
+    alerta(e.message, 'danger');
+  }
+}
+
+async function copiarTextoPortapapeles(texto) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(texto);
+    return;
+  }
+  const campo = document.createElement('textarea');
+  campo.value = texto;
+  campo.style.position = 'fixed';
+  campo.style.opacity = '0';
+  document.body.appendChild(campo);
+  campo.select();
+  document.execCommand('copy');
+  campo.remove();
+}
+
+async function manejarSeleccionIdsMaestros(evento) {
+  const copiar = evento.target.closest('[data-copiar-id-maestro]');
+  if (copiar) {
+    const id = copiar.dataset.copiarIdMaestro;
+    try {
+      await copiarTextoPortapapeles(id);
+      alerta(`ID ${id} copiado.`, 'success');
+    } catch (error) {
+      alerta(`No se pudo copiar automáticamente. ID: ${id}`, 'warning');
+    }
+    return;
+  }
+}
 
 async function eliminarSolicitudMaestro(evento) {
   const boton = evento.target.closest('[data-eliminar-solicitud-maestro]');
@@ -515,7 +556,10 @@ async function iniciar() {
   $('tablaVistaPreviaModelos').addEventListener('input', actualizarNombreModeloVistaPrevia);
   $('btnConfirmarModelosMasivos').addEventListener('click', confirmarModelosMasivos);
   $('btnConfirmarSolicitudMaestro').addEventListener('click', confirmarSolicitudMaestro);
-  $('tablaAltasMaestros').addEventListener('click', eliminarSolicitudMaestro);
+  $('tablaAltasMaestros').addEventListener('click', evento => {
+    eliminarSolicitudMaestro(evento);
+    manejarSeleccionIdsMaestros(evento);
+  });
   $('formAltaMaestro').addEventListener('submit', guardar);
   window.addEventListener('app:empresa-cambiada', event => {
     event.preventDefault();

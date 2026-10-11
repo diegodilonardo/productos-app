@@ -1,5 +1,8 @@
 # Operación
 
+La referencia completa de comandos y scripts se encuentra en
+[Scripts operativos](SCRIPTS_OPERATIVOS.md).
+
 ## Inicio
 
 1. Verificar SQL Server y `.env`.

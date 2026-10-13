@@ -4,7 +4,7 @@
   else raiz.ReglasTallesParSuelto = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function fabrica() {
   const indumentaria = new Set(['T_XS','T_S','T_M','T_L','T_XL','T_2X','T_3X','T_2XL','T_3XL']);
-  const accesorios = new Set(['T00','T01','T02','T03','XS','S','M','L','XL','2X','3X']);
+  const accesorios = new Set(['T00','T01','T02','T03','T04','T05','T06','T07','XS','S','M','L','XL','2X','3X']);
   const pop = new Set(['T00']);
 
   const texto = valor => String(valor ?? '').trim().toUpperCase();

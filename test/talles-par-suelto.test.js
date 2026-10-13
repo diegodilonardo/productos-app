@@ -33,3 +33,10 @@ test('ACCESORIOS y POP respetan sus conjuntos habilitados', () => {
 test('un rubro desconocido no expone talles indiscriminadamente', () => {
   assert.deepEqual(reglas.filtrar(talles, 'OTRO'), []);
 });
+
+
+test('ACCESORIOS habilita 04 a 07 conservando ceros y orden', () => {
+  const filas = ['07','04','06','05'].map(talle => ({ CODIGO_TALLE: 'T' + talle, DETALLE_TALLE: talle }));
+  assert.deepEqual(reglas.filtrar(filas, 'ACCESORIOS').map(row => row.DETALLE_TALLE), ['04','05','06','07']);
+  assert.deepEqual(reglas.filtrar(filas, 'POP'), []);
+});

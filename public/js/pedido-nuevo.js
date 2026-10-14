@@ -409,6 +409,7 @@ async function mostrarModelosAlta(idAlta) {
     tbody.innerHTML = filas.map(fila => `
       <tr>
         <td><strong>${esc(fila.DETALLE_MODELO || fila.CODIGO_MODELO || '-')}</strong><div class="pedido-muted">${esc(fila.CODIGO_MODELO || '')}</div></td>
+        <td><strong>${esc(fila.DETALLE_PROVEEDOR || fila.CODIGO_PROVEEDOR || '-')}</strong><div class="pedido-muted">${esc(fila.CODIGO_PROVEEDOR || '')}</div></td>
         <td>${esc(fila.DETALLE_COLOR || fila.CODIGO_COLOR || '-')}</td>
         <td>${esc(fila.CURVA_TALLE || '-')}</td>
         <td>${esc(formatearTipo(fila.TIPO_PRODUCTO_DETALLE))}</td>

@@ -58,11 +58,13 @@ test('nuevo pedido expone el boton y el resumen visual de modelos', () => {
 
   assert.match(vista, /id="modalModelosAlta"/);
   assert.match(vista, />Modelo</);
+  assert.match(vista, />Proveedor</);
   assert.match(vista, />Color</);
   assert.match(vista, />Curva \/ Talle</);
   assert.match(vista, />Pares \/ Unidades</);
   assert.match(cliente, /data-ver-modelos-alta/);
   assert.match(cliente, /\/resumen-modelos/);
+  assert.match(cliente, /DETALLE_PROVEEDOR/);
 });
 
 test('el resumen del nuevo pedido lista todos los productos de las Altas seleccionadas', async () => {

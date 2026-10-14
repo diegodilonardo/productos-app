@@ -392,6 +392,7 @@ async function obtenerResumenModelosAlta(idAlta, idEmpresa) {
     .query(`
       SELECT
         D.CODIGO_MODELO, D.DETALLE_MODELO,
+        D.CODIGO_PROVEEDOR, D.DETALLE_PROVEEDOR,
         D.CODIGO_COLOR, D.DETALLE_COLOR,
         D.TIPO_PRODUCTO_DETALLE,
         D.CODIGO_MODULO, D.DETALLE_MODULO,

@@ -13,7 +13,7 @@ let paginaSeguimientoEan = 1;
 let paginaSeguimientoAltas = 1;
 let temporizadorToastSeguimiento = null;
 const PRODUCTOS_POR_PAGINA_EAN = 50;
-const ALTAS_POR_PAGINA = 12;
+const ALTAS_POR_PAGINA = 20;
 const MAX_PRODUCTOS_OPERACION_EAN = 2500;
 
 function excedeMaximoOperacionEan(cantidad) {

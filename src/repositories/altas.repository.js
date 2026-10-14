@@ -334,7 +334,6 @@ async function listarAltas(idEmpresa) {
                     INNER JOIN dbo.PRODUCTOS PE
                         ON PE.ID_EMPRESA = DE.ID_EMPRESA
                        AND PE.CODIGO_ALFA = DE.CODIGO_ALFA
-                       AND ISNULL(PE.ACTIVO, 1) = 1
                        AND LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) <> '9'
                     LEFT JOIN dbo.ALTAS_PRODUCTOS_EXPORTADOS EX
                         ON EX.ID_EMPRESA = DE.ID_EMPRESA

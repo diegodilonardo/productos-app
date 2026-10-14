@@ -5,7 +5,7 @@ let idEmpresaPedido = null;
 let accesoEmpresaPedido = null;
 let vistaPedidos = sessionStorage.getItem('pedidos.vista') === 'tabla' ? 'tabla' : 'tarjetas';
 let paginaPedidos = 1;
-const PEDIDOS_POR_PAGINA = 12;
+const PEDIDOS_POR_PAGINA = 20;
 
 async function iniciarPedidos() {
   window.addEventListener(

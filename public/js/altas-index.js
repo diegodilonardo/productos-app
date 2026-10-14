@@ -5,7 +5,7 @@ let vistaAltas =
     : 'tarjetas';
 let modalProductosAlta = null;
 let paginaAltas = 1;
-const ALTAS_POR_PAGINA = 12;
+const ALTAS_POR_PAGINA = 20;
 const filtrosMultiplesAltas = {
   ano: new Set(),
   temporada: new Set(),

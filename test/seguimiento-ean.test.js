@@ -196,7 +196,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /URL GS1 ASOCIADA/);
   assert.match(frontend, /GESTIONAR EN GS1/);
   assert.match(frontend, /PRODUCTOS_POR_PAGINA_EAN = 50/);
-  assert.match(frontend, /ALTAS_POR_PAGINA = 12/);
+  assert.match(frontend, /ALTAS_POR_PAGINA = 20/);
   assert.match(frontend, /function pintarPaginacionSeguimientoAltas/);
   assert.match(frontend, /filas\.slice\(desdeIndice, desdeIndice \+ ALTAS_POR_PAGINA\)/);
   assert.match(frontend, /const promesaEan = apiSeguimiento\('\/api\/seguimiento\/ean'\)/);

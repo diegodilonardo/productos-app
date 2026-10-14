@@ -17,6 +17,7 @@ test('las tarjetas resumen la cobertura EAN definitiva sin contar el código gen
   assert.match(repositorio, /CANTIDAD_EAN_REQUERIDOS/);
   assert.match(repositorio, /CANTIDAD_EAN_DEFINITIVOS/);
   assert.match(repositorio, /REGLAS_REQUERIMIENTO_EAN/);
+  assert.doesNotMatch(repositorio, /AND ISNULL\(PE\.ACTIVO, 1\) = 1/);
   assert.match(cliente, /EAN COMPLETOS/);
   assert.match(cliente, /EAN PARCIALES/);
   assert.match(cliente, /SIN EAN/);

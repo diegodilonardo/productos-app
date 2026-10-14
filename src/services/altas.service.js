@@ -1125,6 +1125,24 @@ function obtenerRubroCodigoAlfaHijoModulo(
     return null;
 }
 
+function obtenerRubroCodigoAlfaHijoSegunPrincipal(
+    clasificacionModulo,
+    principalExistenteERP
+) {
+    /*
+     * Cuando el módulo ya existe en el maestro de productos de Presea,
+     * el Alta solamente reconstruye su historia dentro de la aplicación.
+     * Sus sueltos deben conservar el COD_ALFA real, sin aplicar F/M.
+     */
+    if (principalExistenteERP) {
+        return null;
+    }
+
+    return obtenerRubroCodigoAlfaHijoModulo(
+        clasificacionModulo
+    );
+}
+
 
 function normalizarTalleCodigoAlfa(detalleTalle) {
 
@@ -2168,13 +2186,6 @@ async function prepararDetalleProducto(
         );
     }
 
-    const codigoRubroHijosModulo =
-        tipoProducto === 'MODULO'
-            ? obtenerRubroCodigoAlfaHijoModulo(
-                clasificacionAplicada
-            )
-            : null;
-
     if (tallesMixtos) {
         const entrada = Array.isArray(datosEntrada.distribucionTallesMixtos)
             ? datosEntrada.distribucionTallesMixtos
@@ -2245,6 +2256,11 @@ async function prepararDetalleProducto(
             tipoProductoDetalle: 'MODULO'
         });
         const existenteERPModulo = await validarPrincipal(codigoAlfaModulo, 'MODULO');
+        const codigoRubroHijosAplicable =
+            obtenerRubroCodigoAlfaHijoSegunPrincipal(
+                clasificacionAplicada,
+                existenteERPModulo
+            );
         const detalleModulo = construirDetalleProducto({
             alta: { ...alta, TIPO_PRODUCTO: 'MODULO' },
             modelo,
@@ -2280,7 +2296,7 @@ async function prepararDetalleProducto(
                 clasificacion: clasificacionPrimera,
                 padreTemporal: claveModulo,
                 sufijoClave: `PRI_${fila.color.CODIGO_COLOR}`,
-                codigoRubroCodAlfa: codigoRubroHijosModulo,
+                codigoRubroCodAlfa: codigoRubroHijosAplicable,
                 cantidadRelacion: fila.cantidad
             });
             await agregarAutomaticoSiCorresponde({
@@ -2289,7 +2305,7 @@ async function prepararDetalleProducto(
                 clasificacion: clasificacionSegunda,
                 padreTemporal: claveModulo,
                 sufijoClave: `SEG_${fila.color.CODIGO_COLOR}`,
-                codigoRubroCodAlfa: codigoRubroHijosModulo,
+                codigoRubroCodAlfa: codigoRubroHijosAplicable,
                 cantidadRelacion: fila.cantidad
             });
         }
@@ -2322,6 +2338,11 @@ async function prepararDetalleProducto(
                 await validarPrincipal(
                     codigoAlfaModulo,
                     'MODULO'
+                );
+            const codigoRubroHijosAplicable =
+                obtenerRubroCodigoAlfaHijoSegunPrincipal(
+                    clasificacionAplicada,
+                    existenteERPModulo
                 );
 
             const detalleModulo =
@@ -2373,7 +2394,7 @@ async function prepararDetalleProducto(
                     clasificacion: clasificacionPrimera,
                     padreTemporal: claveModulo,
                     sufijoClave: 'PRI',
-                    codigoRubroCodAlfa: codigoRubroHijosModulo,
+                    codigoRubroCodAlfa: codigoRubroHijosAplicable,
                     cantidadRelacion: talle.CANTIDAD_EN_MODULO
                 });
 
@@ -2383,7 +2404,7 @@ async function prepararDetalleProducto(
                     clasificacion: clasificacionSegunda,
                     padreTemporal: claveModulo,
                     sufijoClave: 'SEG',
-                    codigoRubroCodAlfa: codigoRubroHijosModulo,
+                    codigoRubroCodAlfa: codigoRubroHijosAplicable,
                     cantidadRelacion: talle.CANTIDAD_EN_MODULO
                 });
             }
@@ -3394,6 +3415,7 @@ module.exports = {
         validarEdadSexoClasificacion,
         normalizarTextoLimitado,
         normalizarCodigoModeloCodigoAlfa,
+        obtenerRubroCodigoAlfaHijoSegunPrincipal,
         determinarRubroFact,
         expandirCombinatoriaCurvas
         ,clasificacionesPorCurva

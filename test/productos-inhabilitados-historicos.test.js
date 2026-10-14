@@ -32,6 +32,14 @@ test('Pedidos conserva y señala productos que fueron inhabilitados posteriormen
   assert.match(detalle, /INHABILITADO/);
 });
 
+test('Pedidos no confunde una ausencia transitoria del maestro con una baja de Presea', () => {
+  const repositorio = fs.readFileSync(path.join(__dirname, '../src/repositories/pedidos.repository.js'), 'utf8');
+  assert.doesNotMatch(repositorio, /P\.ACTIVO\s*=\s*1/);
+  assert.doesNotMatch(repositorio, /PP\.ACTIVO\s*=\s*1/);
+  assert.doesNotMatch(repositorio, /P2\.ACTIVO\s*=\s*1/);
+  assert.match(repositorio, /P\.C_ESTADIO[\s\S]*<> '9'/);
+});
+
 test('Seguimiento EAN muestra los inhabilitados pero impide gestionarlos', () => {
   const repositorio = fs.readFileSync(path.join(__dirname, '../src/repositories/seguimiento.repository.js'), 'utf8');
   const servicio = fs.readFileSync(path.join(__dirname, '../src/services/seguimiento.service.js'), 'utf8');

@@ -23,7 +23,7 @@ async function obtenerAltasDisponibles(idEmpresa) {
           INNER JOIN dbo.PRODUCTOS PP
             ON PP.ID_EMPRESA = DP.ID_EMPRESA
            AND PP.CODIGO_ALFA = DP.CODIGO_ALFA
-           AND PP.ACTIVO = 1
+           AND LTRIM(RTRIM(ISNULL(PP.C_ESTADIO, ''))) <> '9'
           WHERE DP.ID_EMPRESA = A.ID_EMPRESA
             AND DP.ID_ALTA = A.ID_ALTA
             AND NULLIF(LTRIM(RTRIM(DP.DETALLE_PROVEEDOR)), '') IS NOT NULL
@@ -54,7 +54,7 @@ async function obtenerAltasDisponibles(idEmpresa) {
           INNER JOIN dbo.PRODUCTOS P2
             ON P2.ID_EMPRESA = D2.ID_EMPRESA
            AND P2.CODIGO_ALFA = D2.CODIGO_ALFA
-           AND P2.ACTIVO = 1
+           AND LTRIM(RTRIM(ISNULL(P2.C_ESTADIO, ''))) <> '9'
           WHERE D2.ID_EMPRESA = A.ID_EMPRESA
             AND D2.ID_ALTA = A.ID_ALTA
             AND (
@@ -117,7 +117,7 @@ async function obtenerAltaDisponiblePorId(idAlta, idEmpresa) {
    - El usuario selecciona la razón social / detalle.
    - Internamente se conserva CODIGO_PROVEEDOR.
    - Solo se muestran proveedores que tengan al menos un producto
-     confirmado y activo en PRODUCTOS.
+     confirmado y no inhabilitado explícitamente en Presea.
    ============================================================ */
 async function obtenerProveedoresPorAlta(idAlta, idEmpresa) {
   const pool = await getConnection();
@@ -138,7 +138,7 @@ async function obtenerProveedoresPorAlta(idAlta, idEmpresa) {
       WHERE D.ID_EMPRESA = @ID_EMPRESA
         AND D.ID_ALTA = @ID_ALTA
         AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
-        AND P.ACTIVO = 1
+        AND LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) <> '9'
         AND NULLIF(LTRIM(RTRIM(D.CODIGO_PROVEEDOR)), '') IS NOT NULL
         AND NULLIF(LTRIM(RTRIM(D.DETALLE_PROVEEDOR)), '') IS NOT NULL
         AND (
@@ -176,7 +176,6 @@ async function obtenerProveedoresPorAltas(idsAltas, idEmpresa) {
     WHERE D.ID_EMPRESA = @ID_EMPRESA
       AND D.ID_ALTA IN (${parametros.join(', ')})
       AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
-      AND P.ACTIVO = 1
       AND LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) <> '9'
       AND NULLIF(LTRIM(RTRIM(D.CODIGO_PROVEEDOR)), '') IS NOT NULL
       AND ((A.TIPO_PRODUCTO = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
@@ -194,7 +193,7 @@ async function obtenerProveedoresPorAltas(idsAltas, idEmpresa) {
    REGLAS:
    - Alta MODULO      -> solo detalle MODULO.
    - Alta PAR_SUELTO  -> solo PAR_SUELTO clasificación 1 (PRIMERA).
-   - Producto debe existir en PRODUCTOS y estar ACTIVO.
+   - Producto debe existir en PRODUCTOS y no tener una baja explícita en Presea.
    - CODIGO_ALFA es la identidad utilizada para enlazar con ERP.
    ============================================================ */
 async function obtenerProductosDisponibles(idAlta, codigoProveedor, idEmpresa) {
@@ -232,7 +231,6 @@ async function obtenerProductosDisponibles(idAlta, codigoProveedor, idEmpresa) {
         AND D.ID_ALTA = @ID_ALTA
         AND D.CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR
         AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
-        AND P.ACTIVO = 1
         AND LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) <> '9'
         AND (
           (A.TIPO_PRODUCTO = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
@@ -282,7 +280,6 @@ async function obtenerProductosDisponiblesPorAltas(idsAltas, codigoProveedor, id
       AND D.ID_ALTA IN (${parametros.join(', ')})
       AND D.CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR
       AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
-      AND P.ACTIVO = 1
       AND LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) <> '9'
       AND ((A.TIPO_PRODUCTO = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
         OR (A.TIPO_PRODUCTO = 'PAR_SUELTO' AND D.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'
@@ -324,7 +321,6 @@ async function obtenerProductosDisponiblesPedido(idPedido, codigoProveedor, idEm
         AND PA.ID_PEDIDO = @ID_PEDIDO
         AND D.CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR
         AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
-        AND P.ACTIVO = 1
         AND LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) <> '9'
         AND ((PA.MODO_SELECCION = 'MODULO' AND D.TIPO_PRODUCTO_DETALLE = 'MODULO')
           OR (PA.MODO_SELECCION = 'PAR_SUELTO'
@@ -363,7 +359,7 @@ async function obtenerResumenProductosAltas(idsAltas, idEmpresa) {
       AND D.ID_ALTA IN (${parametros.join(', ')})
       AND A.ESTADO IN ('GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP')
       AND ISNULL(D.GENERADO_AUTOMATICO, 0)=0
-      AND P.ACTIVO=1
+      AND LTRIM(RTRIM(ISNULL(P.C_ESTADIO, ''))) <> '9'
     ORDER BY A.ID_ALTA, D.DETALLE_MODELO, D.DETALLE_COLOR,
       D.DETALLE_MODULO, D.DETALLE_TALLE, D.ID_DETALLE;`);
   return resultado.recordset;
@@ -778,7 +774,6 @@ async function obtenerAltasPorPedido(idPedido, idEmpresa) {
             ON PR.ID_EMPRESA = DP.ID_EMPRESA AND PR.CODIGO_ALFA = DP.CODIGO_ALFA
           WHERE DP.ID_EMPRESA = PA.ID_EMPRESA AND DP.ID_ALTA = PA.ID_ALTA
             AND DP.CODIGO_PROVEEDOR = P.CODIGO_PROVEEDOR
-            AND PR.ACTIVO = 1
             AND LTRIM(RTRIM(ISNULL(PR.C_ESTADIO, ''))) <> '9'
             AND ((PA.MODO_SELECCION = 'MODULO' AND DP.TIPO_PRODUCTO_DETALLE = 'MODULO')
               OR (PA.MODO_SELECCION = 'PAR_SUELTO'
@@ -870,7 +865,7 @@ async function actualizarModoSeleccionAltaPedido(idPedido, idAlta, idEmpresa, mo
         INNER JOIN dbo.PRODUCTOS PR
           ON PR.ID_EMPRESA=D.ID_EMPRESA AND PR.CODIGO_ALFA=D.CODIGO_ALFA
         WHERE D.ID_EMPRESA=@ID_EMPRESA AND D.ID_ALTA=@ID_ALTA
-          AND PR.ACTIVO=1 AND LTRIM(RTRIM(ISNULL(PR.C_ESTADIO, ''))) <> '9'
+          AND LTRIM(RTRIM(ISNULL(PR.C_ESTADIO, ''))) <> '9'
           AND ((@MODO_SELECCION='MODULO' AND D.TIPO_PRODUCTO_DETALLE='MODULO')
             OR (@MODO_SELECCION='PAR_SUELTO' AND D.TIPO_PRODUCTO_DETALLE='PAR_SUELTO'
               AND D.CODIGO_CLASIFICACION='1'));
@@ -881,7 +876,7 @@ async function actualizarModoSeleccionAltaPedido(idPedido, idAlta, idEmpresa, mo
     if (!asociacion) throw new Error('El Alta no está asociada a este pedido.');
     if (asociacion.ESTADO !== 'BORRADOR') throw new Error(`El pedido está en estado ${asociacion.ESTADO}. Solamente se puede modificar en BORRADOR.`);
     if (cargados > 0) throw new Error(`No se puede cambiar la modalidad porque el Alta tiene ${cargados} producto(s) cargado(s) en el pedido.`);
-    if (!disponibles) throw new Error('El Alta no tiene productos activos disponibles para la modalidad seleccionada.');
+    if (!disponibles) throw new Error('El Alta no tiene productos habilitados en Presea para la modalidad seleccionada.');
 
     await new sql.Request(transaction)
       .input('ID_PEDIDO', sql.BigInt, idPedido)

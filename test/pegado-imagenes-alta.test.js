@@ -20,10 +20,10 @@ test('el pegado no intercepta formularios ni procesa varias imágenes silenciosa
   assert.match(fuente, /event\.preventDefault\(\)/);
 });
 
-test('la grilla valida tamaño y dimensiones antes de subir una imagen', () => {
+test('la grilla valida el tamaño sin limitar las dimensiones antes de subir una imagen', () => {
   const fuente = fs.readFileSync(path.join(__dirname, '../public/js/alta-productos.js'), 'utf8');
   assert.match(fuente, /archivo\.size\s*>\s*350 \* 1024/);
-  assert.match(fuente, /dimensiones\.ancho < 300/);
-  assert.match(fuente, /dimensiones\.alto < 300/);
-  assert.match(fuente, /Mínimo 300 × 300 px · Máximo 350 KB/);
+  assert.doesNotMatch(fuente, /dimensiones\.ancho < 300/);
+  assert.doesNotMatch(fuente, /dimensiones\.alto < 300/);
+  assert.match(fuente, /Máximo 350 KB/);
 });

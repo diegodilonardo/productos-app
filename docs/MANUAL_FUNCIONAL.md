@@ -98,7 +98,7 @@ Una vez creada la cabecera se habilita la carga de productos.
 - Agregar productos principales por modelo, proveedor, color y curva/módulo.
 - Generar automáticamente la familia de primeras y segundas según la regla del tipo seleccionado.
 - Agregar pares sueltos.
-- Cargar o reemplazar imágenes. Las imágenes deben tener como mínimo 300 × 300 píxeles y un tamaño máximo de 350 KB.
+- Cargar o reemplazar imágenes. Las imágenes pueden tener cualquier dimensión y un tamaño máximo de 350 KB.
 - Usar talles mixtos, si el usuario tiene permiso, distribuyendo colores y cantidades por talle. El principal se identifica con el color **MIX**.
 - Editar color, curva/módulo, clasificación e información adicional de una familia mientras la Alta lo permita.
 - Eliminar una familia antes de la exportación.

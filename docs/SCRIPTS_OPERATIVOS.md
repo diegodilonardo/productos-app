@@ -222,7 +222,7 @@ También puede ejecutarse mediante npm:
 
 ```powershell
 npm run regenerar-dbi-alta -- 62
-```
+```I
 
 Uso recomendado: revisar una exportación, recuperar copias locales o comparar archivos. No reemplaza el circuito normal de exportación de la aplicación.
 

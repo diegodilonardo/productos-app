@@ -13,11 +13,13 @@ test('las tarjetas y la tabla de Altas permiten consultar el detalle de producto
   assert.match(cliente, /textoModelo\.includes\(modelo\)/);
   assert.match(cliente, /textoColor\.includes\(color\)/);
   assert.match(vista, />Modelo</);
+  assert.match(vista, />Proveedor</);
   assert.match(vista, />Color</);
   assert.match(vista, />Curva \/ Talle</);
   assert.match(vista, />Pares \/ Unidades</);
   assert.match(cliente, /data-ver-productos-alta/);
   assert.match(cliente, /function mostrarProductosAlta/);
   assert.match(cliente, /GENERADO_AUTOMATICO/);
+  assert.match(cliente, /DETALLE_PROVEEDOR/);
   assert.match(cliente, /combinaci[oó]n/);
 });

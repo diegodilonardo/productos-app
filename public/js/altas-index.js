@@ -960,6 +960,7 @@ async function mostrarProductosAlta(idAlta) {
         return `
           <tr class="${inhabilitado ? 'table-danger' : ''}">
             <td><strong>${escapar(item.DETALLE_MODELO || item.CODIGO_MODELO || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_MODELO || '')}</div></td>
+            <td><strong>${escapar(item.DETALLE_PROVEEDOR || item.CODIGO_PROVEEDOR || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_PROVEEDOR || '')}</div></td>
             <td>${escapar(item.DETALLE_COLOR || item.CODIGO_COLOR || '-')}</td>
             <td>${escapar(curvaTalle)}</td>
             <td>${escapar(tipo.replaceAll('_', ' ') || '-')}</td>
@@ -968,7 +969,7 @@ async function mostrarProductosAlta(idAlta) {
             <td><strong>${escapar(cantidad)}</strong></td>
           </tr>
         `;
-      }).join('') : '<tr><td colspan="7" class="py-4 text-center text-secondary">No hay productos que coincidan con los filtros.</td></tr>';
+      }).join('') : '<tr><td colspan="8" class="py-4 text-center text-secondary">No hay productos que coincidan con los filtros.</td></tr>';
 
       const filtrando = Boolean(modelo || color);
       setTexto(

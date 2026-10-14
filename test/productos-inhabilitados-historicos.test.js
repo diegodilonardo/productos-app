@@ -40,6 +40,12 @@ test('Pedidos no confunde una ausencia transitoria del maestro con una baja de P
   assert.match(repositorio, /P\.C_ESTADIO[\s\S]*<> '9'/);
 });
 
+test('Pedidos permite usar primeras sueltas cuando los módulos fueron dados de baja', () => {
+  const repositorio = fs.readFileSync(path.join(__dirname, '../src/repositories/pedidos.repository.js'), 'utf8');
+  assert.match(repositorio, /D\.TIPO_PRODUCTO_DETALLE = 'PAR_SUELTO'[\s\S]*D\.CODIGO_CLASIFICACION = '1'[\s\S]*NOT EXISTS/);
+  assert.match(repositorio, /CASE WHEN EXISTS[\s\S]*D\.TIPO_PRODUCTO_DETALLE='MODULO'[\s\S]*THEN 'MODULO' ELSE 'PAR_SUELTO' END/);
+});
+
 test('Seguimiento EAN muestra los inhabilitados pero impide gestionarlos', () => {
   const repositorio = fs.readFileSync(path.join(__dirname, '../src/repositories/seguimiento.repository.js'), 'utf8');
   const servicio = fs.readFileSync(path.join(__dirname, '../src/services/seguimiento.service.js'), 'utf8');

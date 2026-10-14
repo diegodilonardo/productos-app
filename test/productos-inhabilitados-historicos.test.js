@@ -44,3 +44,10 @@ test('Seguimiento EAN muestra los inhabilitados pero impide gestionarlos', () =>
   assert.match(cliente, /INACTIVO EN PRESEA/);
   assert.match(cliente, /inhabilitado \? 'disabled'/);
 });
+
+test('Seguimiento EAN sólo bloquea una baja explícita de Presea y no una ausencia transitoria del maestro', () => {
+  const repositorio = fs.readFileSync(path.join(__dirname, '../src/repositories/seguimiento.repository.js'), 'utf8');
+  const bloqueEstado = repositorio.match(/CASE[\s\S]*?END AS INHABILITADO_PRESEA/)?.[0] || '';
+  assert.match(bloqueEstado, /PE\.C_ESTADIO/);
+  assert.doesNotMatch(bloqueEstado, /PE\.ACTIVO/);
+});

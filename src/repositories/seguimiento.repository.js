@@ -342,8 +342,10 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 E.EAN_ERP,
                 PE.C_ESTADIO,
                 CASE
+                    /* ACTIVO=0 también puede significar que el producto todavía
+                     * no llegó en el último maestro sincronizado. Sólo C_ESTADIO=9
+                     * representa una inhabilitación explícita en Presea. */
                     WHEN LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) = '9'
-                      OR ISNULL(PE.ACTIVO, 1) = 0
                     THEN CONVERT(BIT, 1)
                     ELSE CONVERT(BIT, 0)
                 END AS INHABILITADO_PRESEA,

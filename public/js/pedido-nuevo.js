@@ -689,6 +689,15 @@ async function crearPedido(event) {
         .getElementById('moneda')
         .value,
 
+    servicioDescripcion:
+      document.getElementById('servicioDescripcion').value.trim(),
+
+    servicioCantidad:
+      document.getElementById('servicioCantidad').value,
+
+    servicioPrecio:
+      document.getElementById('servicioPrecio').value,
+
     observaciones:
       document
         .getElementById('observaciones')

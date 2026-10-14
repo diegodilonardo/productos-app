@@ -494,6 +494,9 @@ async function crearPedido(datos, generarCodigoPedido) {
       .input('NUMERO_ORDEN', sql.VarChar(50), datos.NUMERO_ORDEN)
       .input('MONEDA', sql.VarChar(10), datos.MONEDA)
       .input('OBSERVACIONES', sql.VarChar(500), datos.OBSERVACIONES)
+      .input('SERVICIO_DESCRIPCION', sql.VarChar(200), datos.SERVICIO_DESCRIPCION)
+      .input('SERVICIO_CANTIDAD', sql.Decimal(18, 4), datos.SERVICIO_CANTIDAD)
+      .input('SERVICIO_PRECIO', sql.Decimal(18, 4), datos.SERVICIO_PRECIO)
       .input('USUARIO_CREACION', sql.VarChar(100), datos.USUARIO_CREACION)
       .query(`
         INSERT INTO dbo.PEDIDOS
@@ -507,6 +510,9 @@ async function crearPedido(datos, generarCodigoPedido) {
           MONEDA,
           ESTADO,
           OBSERVACIONES,
+          SERVICIO_DESCRIPCION,
+          SERVICIO_CANTIDAD,
+          SERVICIO_PRECIO,
           FECHA_CREACION,
           USUARIO_CREACION,
           FECHA_ACTUALIZACION
@@ -523,6 +529,9 @@ async function crearPedido(datos, generarCodigoPedido) {
           @MONEDA,
           'BORRADOR',
           @OBSERVACIONES,
+          @SERVICIO_DESCRIPCION,
+          @SERVICIO_CANTIDAD,
+          @SERVICIO_PRECIO,
           SYSDATETIME(),
           @USUARIO_CREACION,
           SYSDATETIME()
@@ -656,7 +665,9 @@ async function listarPedidos(idEmpresa) {
         COALESCE(SUM(CAST(D.CANTIDAD_PARES AS BIGINT)), 0) AS TOTAL_PARES,
         COALESCE(SUM(D.TOTAL_FOB), 0) AS TOTAL_FOB,
         COALESCE(SUM(CAST(D.CANTIDAD_PARES AS DECIMAL(18,4)) * D.ADICIONAL), 0) AS TOTAL_ADICIONALES,
-        COALESCE(SUM(D.TOTAL_PRODUCTO), 0) AS TOTAL_PEDIDO,
+        COALESCE(SUM(D.TOTAL_PRODUCTO), 0) +
+          COALESCE(P.SERVICIO_CANTIDAD * P.SERVICIO_PRECIO, 0) AS TOTAL_PEDIDO,
+        COALESCE(P.SERVICIO_CANTIDAD * P.SERVICIO_PRECIO, 0) AS TOTAL_SERVICIO,
         COALESCE(EXP.CANTIDAD_EXPORTACIONES, 0) AS CANTIDAD_EXPORTACIONES,
         COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) AS TIENE_PEDIDO_EXCEL,
         COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) AS TIENE_MASTER_DATA_APP,
@@ -719,6 +730,7 @@ async function listarPedidos(idEmpresa) {
         A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA, A.CODIGO_ANO,
         P.CODIGO_PROVEEDOR, P.DETALLE_PROVEEDOR,
         P.NUMERO_ORDEN, P.MONEDA, P.ESTADO, P.OBSERVACIONES,
+        P.SERVICIO_DESCRIPCION, P.SERVICIO_CANTIDAD, P.SERVICIO_PRECIO,
         P.FECHA_CREACION, P.USUARIO_CREACION, P.FECHA_VALIDACION,
         P.USUARIO_VALIDACION, P.FECHA_SINCRONIZACION,
         P.FECHA_ANULACION, P.USUARIO_ANULACION, P.MOTIVO_ANULACION,
@@ -784,6 +796,31 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
         AND P.ID_PEDIDO = @ID_PEDIDO;
     `);
   return resultado.recordset[0] || null;
+}
+
+async function actualizarServicioPedido(idPedido, idEmpresa, descripcion, cantidad, precio) {
+  const pool = await getConnection();
+  const resultado = await pool.request()
+    .input('ID_PEDIDO', sql.BigInt, idPedido)
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('SERVICIO_DESCRIPCION', sql.VarChar(200), descripcion)
+    .input('SERVICIO_CANTIDAD', sql.Decimal(18, 4), cantidad)
+    .input('SERVICIO_PRECIO', sql.Decimal(18, 4), precio)
+    .query(`
+      UPDATE dbo.PEDIDOS
+      SET SERVICIO_DESCRIPCION = @SERVICIO_DESCRIPCION,
+          SERVICIO_CANTIDAD = @SERVICIO_CANTIDAD,
+          SERVICIO_PRECIO = @SERVICIO_PRECIO,
+          FECHA_ACTUALIZACION = SYSDATETIME()
+      OUTPUT INSERTED.*
+      WHERE ID_EMPRESA = @ID_EMPRESA
+        AND ID_PEDIDO = @ID_PEDIDO
+        AND ESTADO = 'BORRADOR';
+    `);
+  if (!resultado.recordset[0]) {
+    throw new Error('El servicio sólo puede modificarse mientras el Pedido está en BORRADOR.');
+  }
+  return resultado.recordset[0];
 }
 
 async function obtenerAltasPorPedido(idPedido, idEmpresa) {
@@ -1973,6 +2010,7 @@ module.exports = {
   obtenerResumenModelosAlta,
   buscarPedidoDuplicadoActivo,
   crearPedido,
+  actualizarServicioPedido,
   obtenerPedidoPorId,
   obtenerAltasPorPedido,
   asociarAltaPedido,

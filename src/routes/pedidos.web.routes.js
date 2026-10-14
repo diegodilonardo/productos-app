@@ -139,7 +139,7 @@ router.get('/pedidos/nuevo', (req, res) => {
     title: 'Nuevo Pedido',
     pagina: 'pedidos',
     style: '/css/pedidos.css?v=8',
-    script: '/js/pedido-nuevo.js?v=5',
+    script: '/js/pedido-nuevo.js?v=6',
     idAltaPreseleccionada: req.query.alta || '',
   });
 });
@@ -158,7 +158,7 @@ router.get('/pedidos/:id', (req, res) => {
     title: 'Detalle Pedido',
     pagina: 'pedidos',
     style: '/css/pedidos.css?v=6',
-    script: '/js/pedido-detalle.js?v=7',
+    script: '/js/pedido-detalle.js?v=8',
     idPedido: req.params.id,
   });
 });

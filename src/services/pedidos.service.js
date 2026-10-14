@@ -532,6 +532,23 @@ async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usua
     throw new Error('Las observaciones superan los 500 caracteres.');
   }
 
+  const servicioDescripcion = texto(datos.servicioDescripcion);
+  const tieneServicio = Boolean(
+    servicioDescripcion ||
+    (datos.servicioCantidad !== undefined && datos.servicioCantidad !== '') ||
+    (datos.servicioPrecio !== undefined && datos.servicioPrecio !== '')
+  );
+  let servicioCantidad = null;
+  let servicioPrecio = null;
+  if (tieneServicio) {
+    if (!servicioDescripcion) throw new Error('La descripción del servicio es obligatoria.');
+    if (servicioDescripcion.length > 200) throw new Error('La descripción del servicio supera los 200 caracteres.');
+    servicioCantidad = Number(datos.servicioCantidad);
+    servicioPrecio = Number(datos.servicioPrecio);
+    if (!Number.isFinite(servicioCantidad) || servicioCantidad <= 0) throw new Error('La cantidad del servicio debe ser mayor a cero.');
+    if (!Number.isFinite(servicioPrecio) || servicioPrecio < 0) throw new Error('El precio del servicio debe ser mayor o igual a cero.');
+  }
+
   const usuarioCreacion = texto(usuarioAutenticado) || 'SISTEMA';
 
   if (usuarioCreacion.length > 100) {
@@ -568,8 +585,27 @@ async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usua
     ESTADO: 'BORRADOR',
 
     OBSERVACIONES: observaciones || null,
+    SERVICIO_DESCRIPCION: servicioDescripcion || null,
+    SERVICIO_CANTIDAD: servicioCantidad,
+    SERVICIO_PRECIO: servicioPrecio,
     USUARIO_CREACION: usuarioCreacion,
   };
+}
+
+async function actualizarServicioPedido(idPedido, datos = {}, idEmpresa) {
+  const id = validarIdPedido(idPedido);
+  const empresa = validarIdEmpresa(idEmpresa);
+  await validarPedidoBorrador(id, empresa);
+  const descripcion = texto(datos.descripcion);
+  const vacio = !descripcion && (datos.cantidad === '' || datos.cantidad == null) && (datos.precio === '' || datos.precio == null);
+  if (vacio) return pedidosRepository.actualizarServicioPedido(id, empresa, null, null, null);
+  if (!descripcion) throw new Error('La descripción del servicio es obligatoria.');
+  if (descripcion.length > 200) throw new Error('La descripción del servicio supera los 200 caracteres.');
+  const cantidad = Number(datos.cantidad);
+  const precio = Number(datos.precio);
+  if (!Number.isFinite(cantidad) || cantidad <= 0) throw new Error('La cantidad del servicio debe ser mayor a cero.');
+  if (!Number.isFinite(precio) || precio < 0) throw new Error('El precio del servicio debe ser mayor o igual a cero.');
+  return pedidosRepository.actualizarServicioPedido(id, empresa, descripcion, redondear4(cantidad), redondear4(precio));
 }
 
 /* ============================================================
@@ -1724,6 +1760,17 @@ async function exportarPedidoExcel(idPedido, idEmpresa, usuarioAutenticado) {
     };
   });
 
+  if (texto(pedido.SERVICIO_DESCRIPCION)) {
+    filas.push({
+      cod_alfa: 'SERVICIOS',
+      descripcion: texto(pedido.SERVICIO_DESCRIPCION),
+      price: redondear4(Number(pedido.SERVICIO_PRECIO || 0)),
+      quantity: redondear4(Number(pedido.SERVICIO_CANTIDAD || 0)),
+      po: texto(pedido.NUMERO_ORDEN),
+      adicionales: 0,
+    });
+  }
+
   const hoja = XLSX.utils.json_to_sheet(filas, {
     header: [
       'cod_alfa',
@@ -2240,6 +2287,7 @@ module.exports = {
   prepararCabeceraPedido,
   generarCodigoPedido,
   crearPedido,
+  actualizarServicioPedido,
   obtenerPedidoPorId,
   validarPedidoBorrador,
   obtenerAltasAgregablesPedido,

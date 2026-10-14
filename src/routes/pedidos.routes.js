@@ -220,6 +220,17 @@ router.get('/:id/productos-disponibles', requerirAccesoPedido, async (req, res) 
   }
 });
 
+router.patch('/:id/servicio', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.actualizarServicioPedido(
+      req.params.id, req.body || {}, req.idEmpresa
+    );
+    return res.json({ ok: true, mensaje: 'Servicio del Pedido actualizado correctamente.', resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.get('/:id/detalle', requerirAccesoPedido, async (req, res) => {
   try {
     const datos = await pedidosService.listarDetallePedido(req.params.id, req.idEmpresa);

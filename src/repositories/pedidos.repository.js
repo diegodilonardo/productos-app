@@ -1511,7 +1511,7 @@ async function marcarPedidoValidado(idPedido, usuarioValidacion) {
           PD.ADICIONAL,
           PD.TOTAL_PRODUCTO,
           PR.ID_PRODUCTO AS ID_PRODUCTO_ERP,
-          PR.ACTIVO AS PRODUCTO_ACTIVO
+          PR.C_ESTADIO
         FROM dbo.PEDIDOS_DETALLE PD WITH (HOLDLOCK)
         LEFT JOIN dbo.PRODUCTOS PR
           ON PR.ID_PRODUCTO = PD.ID_PRODUCTO
@@ -1541,9 +1541,9 @@ async function marcarPedidoValidado(idPedido, usuarioValidacion) {
         );
       }
 
-      if (Number(detalle.PRODUCTO_ACTIVO) !== 1) {
+      if (String(detalle.C_ESTADIO || '').trim() === '9') {
         throw new Error(
-          `El producto ${codigoAlfa || detalle.ID_PRODUCTO} está inactivo y no puede validarse.`
+          `El producto ${codigoAlfa || detalle.ID_PRODUCTO} está inhabilitado en Presea y no puede validarse.`
         );
       }
 

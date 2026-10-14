@@ -38,6 +38,10 @@ test('Pedidos no confunde una ausencia transitoria del maestro con una baja de P
   assert.doesNotMatch(repositorio, /PP\.ACTIVO\s*=\s*1/);
   assert.doesNotMatch(repositorio, /P2\.ACTIVO\s*=\s*1/);
   assert.match(repositorio, /P\.C_ESTADIO[\s\S]*<> '9'/);
+  const validacion = repositorio.match(/async function marcarPedidoValidado[\s\S]*?async function marcarPedidoAnulado/)?.[0] || '';
+  assert.match(validacion, /PR\.C_ESTADIO/);
+  assert.match(validacion, /detalle\.C_ESTADIO/);
+  assert.doesNotMatch(validacion, /PRODUCTO_ACTIVO/);
 });
 
 test('Pedidos permite usar primeras sueltas cuando los módulos fueron dados de baja', () => {

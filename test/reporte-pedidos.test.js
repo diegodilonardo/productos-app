@@ -50,12 +50,14 @@ test('el detalle por temporada informa producto, precio, cantidad, P por Q y fot
   const detalleOriginal = repository.listarDetallePedido;
   repository.listarPedidos = async () => [{ ID_PEDIDO:1, ESTADO:'VALIDADO', TOTAL_PARES:12, TOTAL_PEDIDO:120, MONEDA:'USD', DETALLE_PROVEEDOR:'PROVEEDOR', NUMERO_ORDEN:'OC-1', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' }];
   repository.obtenerAltasPorPedido = async () => [];
-  repository.listarDetallePedido = async () => [{ ID_ALTA:2, TIPO_PRODUCTO:'MODULO', DETALLE_MODELO:'MODELO', DETALLE_COLOR:'ROJO', DETALLE_MODULO:'35 AL 40', PRECIO_FOB_PAR:10, CANTIDAD_PARES:12, TOTAL_FOB:120, CODIGO_ANO:'27', CODIGO_TEMPORADA:'VE', CODIGO_MODELO:'M1', CODIGO_COLOR:'R1' }];
+  repository.listarDetallePedido = async () => [{ ID_ALTA:2, TIPO_PRODUCTO:'MODULO', CODIGO_ALFA:'ALFA-1', DETALLE_MODELO:'MODELO', DETALLE_COLOR:'ROJO', DETALLE_MODULO:'35 AL 40', PRECIO_FOB_PAR:10, CANTIDAD_PARES:12, TOTAL_FOB:120, CODIGO_ANO:'27', CODIGO_TEMPORADA:'VE', CODIGO_MODELO:'M1', CODIGO_COLOR:'R1' }];
   try {
     const filas = await service.generarReporteDetallePedidos(1, { todasMarcas:true, todosRubros:true, todasLicencias:true }, { estado:'VALIDADO' });
     assert.equal(filas[0].PRECIO_UNITARIO, 10);
     assert.equal(filas[0].CANTIDAD, 12);
     assert.equal(filas[0].PRECIO_POR_CANTIDAD, 120);
+    assert.equal(filas[0].CODIGO_ALFA, 'ALFA-1');
+    assert.equal(filas[0].CODIGO_COLOR, 'R1');
     assert.match(filas[0].URL_IMAGEN, /api\/imagenes\/archivo/);
   } finally {
     repository.listarPedidos = listarOriginal;
@@ -77,7 +79,7 @@ test('ambos reportes se exportan a Excel respetando el proveedor seleccionado', 
     { ID_PEDIDO:2, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB002', DETALLE_PROVEEDOR:'DOS', NUMERO_ORDEN:'OC-2', TOTAL_PARES:6, TOTAL_PEDIDO:60, MONEDA:'USD', CODIGO_RUBRO:'CAL', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
   ];
   repository.obtenerAltasPorPedido = async () => [];
-  repository.listarDetallePedido = async id => [{ ID_ALTA:99, TIPO_PRODUCTO:'PAR_SUELTO', DETALLE_MODELO:`MODELO ${id}`, DETALLE_COLOR:'NEGRO', DETALLE_TALLE:'40', PRECIO_FOB_PAR:10, CANTIDAD_PARES:6, TOTAL_FOB:60, CODIGO_MODELO:'M1', CODIGO_COLOR:'N1' }];
+  repository.listarDetallePedido = async id => [{ ID_ALTA:99, TIPO_PRODUCTO:'PAR_SUELTO', CODIGO_ALFA:`ALFA-${id}`, DETALLE_MODELO:`MODELO ${id}`, DETALLE_COLOR:'NEGRO', DETALLE_TALLE:'40', PRECIO_FOB_PAR:10, CANTIDAD_PARES:6, TOTAL_FOB:60, CODIGO_MODELO:'M1', CODIGO_COLOR:'N1' }];
   const acceso = { todasMarcas:true, todosRubros:true, todasLicencias:true };
   try {
     const resumen = await service.exportarReportePedidos(1, acceso, { tipo:'resumen', estado:'AMBOS', proveedor:'PB002' });
@@ -89,8 +91,9 @@ test('ambos reportes se exportan a Excel respetando el proveedor seleccionado', 
     const detalle = await service.exportarReportePedidos(1, acceso, { tipo:'detalle', estado:'AMBOS', proveedor:'PB001' });
     const libroDetalle = new ExcelJS.Workbook();
     await libroDetalle.xlsx.load(detalle.buffer);
-    assert.equal(libroDetalle.worksheets[0].getCell('B2').value, 'UNO');
-    assert.equal(libroDetalle.worksheets[0].getCell('H2').value, 6);
+    assert.equal(libroDetalle.worksheets[0].getCell('B2').value, 'ALFA-1');
+    assert.equal(libroDetalle.worksheets[0].getCell('C2').value, 'UNO');
+    assert.equal(libroDetalle.worksheets[0].getCell('I2').value, 6);
   } finally {
     repository.listarPedidos = listarOriginal;
     repository.obtenerAltasPorPedido = altasOriginal;

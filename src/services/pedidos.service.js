@@ -803,6 +803,9 @@ async function generarReporteDetallePedidos(idEmpresa, accesoEmpresa, filtros = 
         MODELO: detalle.DETALLE_MODELO || detalle.CODIGO_MODELO || '-',
         CODIGO_MODELO: detalle.CODIGO_MODELO,
         COLOR: detalle.DETALLE_COLOR || detalle.CODIGO_COLOR || '-',
+        CODIGO_COLOR: detalle.CODIGO_COLOR,
+        CODIGO_ALFA: detalle.CODIGO_ALFA,
+        LICENCIA: detalle.LICENCIA,
         TALLE: normalizarTipoProducto(detalle.TIPO_PRODUCTO) === 'MODULO'
           ? texto(detalle.DETALLE_MODULO)
           : texto(detalle.DETALLE_TALLE),
@@ -855,9 +858,9 @@ async function exportarReportePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
   } else {
     const filas = await generarReporteDetallePedidos(idEmpresa, accesoEmpresa, filtros);
     const hoja = libro.addWorksheet('Detalle de pedidos');
-    hoja.addRow(['FOTO', 'PROVEEDOR', 'ORDEN', 'MODELO', 'COLOR', 'TALLE / CURVA', 'PRECIO UNITARIO', 'CANTIDAD', 'P × Q', 'MONEDA']);
+    hoja.addRow(['FOTO', 'COD_ALFA', 'PROVEEDOR', 'ORDEN', 'MODELO', 'COLOR', 'TALLE / CURVA', 'PRECIO UNITARIO', 'CANTIDAD', 'P × Q', 'MONEDA']);
     for (const fila of filas) {
-      const numeroFila = hoja.addRow(['', fila.PROVEEDOR, fila.ORDEN, fila.MODELO, fila.COLOR, fila.TALLE, fila.PRECIO_UNITARIO, fila.CANTIDAD, fila.PRECIO_POR_CANTIDAD, fila.MONEDA]).number;
+      const numeroFila = hoja.addRow(['', fila.CODIGO_ALFA, fila.PROVEEDOR, fila.ORDEN, fila.MODELO, fila.COLOR, fila.TALLE, fila.PRECIO_UNITARIO, fila.CANTIDAD, fila.PRECIO_POR_CANTIDAD, fila.MONEDA]).number;
       hoja.getRow(numeroFila).height = 55;
       try {
         const imagen = await imagenesAltaService.buscarImagenProducto(fila.ID_ALTA, fila);
@@ -870,10 +873,10 @@ async function exportarReportePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
         // La falta de una foto no impide descargar el reporte.
       }
     }
-    estilizarHojaReporte(hoja, [12, 30, 18, 32, 20, 28, 18, 14, 18, 12]);
-    hoja.getColumn(7).numFmt = '#,##0.00';
-    hoja.getColumn(8).numFmt = '#,##0';
-    hoja.getColumn(9).numFmt = '#,##0.00';
+    estilizarHojaReporte(hoja, [12, 22, 30, 18, 32, 20, 28, 18, 14, 18, 12]);
+    hoja.getColumn(8).numFmt = '#,##0.00';
+    hoja.getColumn(9).numFmt = '#,##0';
+    hoja.getColumn(10).numFmt = '#,##0.00';
   }
 
   return {

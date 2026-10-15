@@ -78,18 +78,19 @@ async function cambiarTipoReporte(tipo) {
 
 async function cargarReporteDetallePedidos() {
   const tbody = document.getElementById('reporteDetalleTabla');
-  tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-secondary">Cargando detalle...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" class="text-center py-5 text-secondary">Cargando detalle...</td></tr>';
   const data = await apiReporte(`/api/pedidos/reportes/detalle?${parametrosReporte()}`);
   const filas = Array.isArray(data?.datos) ? data.datos : [];
   tbody.innerHTML = filas.map(f => `<tr>
     <td><img class="pedido-img" src="${escReporte(f.URL_IMAGEN)}" alt="${escReporte(`${f.MODELO} ${f.COLOR}`)}" loading="lazy" onerror="this.style.display='none'"></td>
+    <td><strong>${escReporte(f.CODIGO_ALFA || '-')}</strong></td>
     <td><strong>${escReporte(f.PROVEEDOR)}</strong><div class="pedido-muted">${escReporte(f.ORDEN)}</div></td>
     <td><strong>${escReporte(f.MODELO)}</strong><div class="pedido-muted">${escReporte(f.CODIGO_MODELO || '')}</div></td>
     <td>${escReporte(f.COLOR)}</td><td>${escReporte(f.TALLE || '-')}</td>
     <td class="text-end">${escReporte(f.MONEDA)} ${dineroReporte(f.PRECIO_UNITARIO)}</td>
     <td class="text-end fw-semibold">${numeroReporte(f.CANTIDAD)}</td>
     <td class="text-end fw-semibold">${escReporte(f.MONEDA)} ${dineroReporte(f.PRECIO_POR_CANTIDAD)}</td>
-  </tr>`).join('') || '<tr><td colspan="8" class="text-center py-5 text-secondary">No hay productos para los filtros seleccionados.</td></tr>';
+  </tr>`).join('') || '<tr><td colspan="9" class="text-center py-5 text-secondary">No hay productos para los filtros seleccionados.</td></tr>';
   document.getElementById('reporteDetalleCantidad').textContent = `${filas.length} producto${filas.length === 1 ? '' : 's'}`;
 }
 

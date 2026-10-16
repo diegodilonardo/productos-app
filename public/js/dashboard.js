@@ -12,6 +12,8 @@ let vistaAltasDashboard = sessionStorage.getItem('dashboard.altas.vista') === 'l
 let vistaPedidosDashboard = sessionStorage.getItem('dashboard.pedidos.vista') === 'lista' ? 'lista' : 'tarjetas';
 let altasDashboard = [];
 let pedidosDashboard = [];
+let paginaPedidosDashboard = 1;
+const PEDIDOS_POR_PAGINA_DASHBOARD = 20;
 
 
 document.addEventListener(
@@ -45,11 +47,12 @@ document.addEventListener(
             document.getElementById(id)?.addEventListener('change', pintarAltasDashboardFiltradas);
         }
         document.getElementById('limpiarFiltrosAltasDashboard')?.addEventListener('click', limpiarFiltrosAltasDashboard);
-        document.getElementById('mostrarAnuladosPedidosDashboard')?.addEventListener('change', pintarPedidosDashboardFiltrados);
+        document.getElementById('mostrarAnuladosPedidosDashboard')?.addEventListener('change', cambiarFiltrosPedidosDashboard);
         for (const id of ['filtroProveedorPedidoDashboard', 'filtroRubroPedidoDashboard', 'filtroAnoPedidoDashboard', 'filtroTemporadaPedidoDashboard']) {
-            document.getElementById(id)?.addEventListener('change', pintarPedidosDashboardFiltrados);
+            document.getElementById(id)?.addEventListener('change', cambiarFiltrosPedidosDashboard);
         }
         document.getElementById('limpiarFiltrosPedidosDashboard')?.addEventListener('click', limpiarFiltrosPedidosDashboard);
+        document.getElementById('paginacionPedidosDashboard')?.addEventListener('click', cambiarPaginaPedidosDashboard);
 
         try {
             ID_EMPRESA_DASHBOARD =
@@ -76,6 +79,7 @@ function actualizarEmpresaDashboard(event) {
 
     altasDashboard = [];
     pedidosDashboard = [];
+    paginaPedidosDashboard = 1;
     limpiarFiltrosAltasDashboard(false);
     limpiarFiltrosPedidosDashboard(false);
 
@@ -793,7 +797,7 @@ function pintarPedidosRecientes(pedidos) {
         return;
     }
 
-    const lista =
+    const ordenados =
         [...(
             Array.isArray(pedidos)
                 ? pedidos
@@ -803,10 +807,15 @@ function pintarPedidosRecientes(pedidos) {
                 (a, b) =>
                     fechaPedidoDashboard(b) -
                     fechaPedidoDashboard(a)
-            )
-            .slice(0, 6);
+            );
+
+    const totalPaginas = Math.max(1, Math.ceil(ordenados.length / PEDIDOS_POR_PAGINA_DASHBOARD));
+    paginaPedidosDashboard = Math.min(Math.max(1, paginaPedidosDashboard), totalPaginas);
+    const desdeIndice = (paginaPedidosDashboard - 1) * PEDIDOS_POR_PAGINA_DASHBOARD;
+    const lista = ordenados.slice(desdeIndice, desdeIndice + PEDIDOS_POR_PAGINA_DASHBOARD);
 
     pintarListaPedidosDashboard(lista);
+    pintarPaginacionPedidosDashboard(ordenados.length, totalPaginas);
 
     if (!lista.length) {
         contenedor.innerHTML = `
@@ -895,6 +904,30 @@ function pintarPedidosRecientes(pedidos) {
         ).join('');
 }
 
+function cambiarFiltrosPedidosDashboard() {
+    paginaPedidosDashboard = 1;
+    pintarPedidosDashboardFiltrados();
+}
+
+function cambiarPaginaPedidosDashboard(event) {
+    const boton = event.target.closest('[data-dashboard-pedidos-page]');
+    if (!boton || boton.disabled) return;
+    paginaPedidosDashboard = Number(boton.dataset.dashboardPedidosPage) || 1;
+    pintarPedidosDashboardFiltrados();
+    document.querySelector('.dashboard-pedidos-filtros')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pintarPaginacionPedidosDashboard(total, totalPaginas) {
+    const contenedor = document.getElementById('paginacionPedidosDashboard');
+    if (!contenedor) return;
+    contenedor.classList.toggle('d-none', totalPaginas <= 1);
+    if (totalPaginas <= 1) {
+        contenedor.innerHTML = '';
+        return;
+    }
+    contenedor.innerHTML = `<span class="text-secondary">${total} Pedidos</span><div class="btn-group" role="group" aria-label="Cambiar página de Pedidos recientes"><button class="btn btn-outline-secondary" type="button" data-dashboard-pedidos-page="${paginaPedidosDashboard - 1}" ${paginaPedidosDashboard === 1 ? 'disabled' : ''}>Anterior</button><span class="btn btn-light disabled">Página ${paginaPedidosDashboard} de ${totalPaginas}</span><button class="btn btn-outline-secondary" type="button" data-dashboard-pedidos-page="${paginaPedidosDashboard + 1}" ${paginaPedidosDashboard === totalPaginas ? 'disabled' : ''}>Siguiente</button></div>`;
+}
+
 function pintarPedidosDashboardFiltrados() {
     const mostrarAnulados = document.getElementById('mostrarAnuladosPedidosDashboard')?.checked === true;
     const proveedor = document.getElementById('filtroProveedorPedidoDashboard')?.value || '';
@@ -937,6 +970,7 @@ function limpiarFiltrosPedidosDashboard(actualizar = true) {
         const campo = document.getElementById(id);
         if (campo) campo.value = '';
     }
+    paginaPedidosDashboard = 1;
     if (actualizar) pintarPedidosDashboardFiltrados();
 }
 

@@ -175,7 +175,8 @@ test('las URLs temporales pueden asociarse mientras el EAN todavía no fue envia
     'utf8'
   );
   assert.match(servicio, /new Set\(\['PENDIENTE_GS1', 'EAN_ASIGNADO'\]\)/);
-  assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1', 'EAN_ASIGNADO'\)[\s\S]*?URL_IMAGEN_GS1/);
+  assert.match(frontend, /const importablesUrl = productosSeleccionadosEan\('PENDIENTE_GS1', 'EAN_ASIGNADO'\)/);
+  assert.doesNotMatch(frontend, /const importablesUrl = productosSeleccionadosEan[\s\S]*?filter\(producto => !String\(producto\.URL_IMAGEN_GS1/);
 });
 
 test('la migración EAN incorpora el seguimiento del envío a Presea', () => {
@@ -247,7 +248,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1', 'EAN_ASIGNADO'\)/);
   assert.match(frontend, /ignoradosYaActualizados/);
   assert.match(frontend, /mostrarToastSeguimiento\(`GTIN\.DBI enviado correctamente a Presea/);
-  assert.match(frontend, /Importar URLs GS1 \(\$\{pendientesUrl\.length\}\)/);
+  assert.match(frontend, /Importar \/ actualizar URLs GS1 \(\$\{importablesUrl\.length\}\)/);
   assert.match(frontend, /Generar archivo GS1 \(\$\{asociacionesUrlsGs1\.length\}\)/);
   assert.match(frontend, /Descargar pendientes GS1 \(\$\{clavesPendientesGs1\.length\}\)/);
   assert.match(frontend, /EAN procesados para \$\{clavesImportables\.length\} productos/);

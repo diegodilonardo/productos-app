@@ -529,12 +529,11 @@ function actualizarBotonImagenesEan(cargando = false) {
   boton.textContent = cargando ? 'Preparando imágenes...' : `Descargar imágenes (${pendientesGs1.length})`;
   configurarLimiteBotonEan(boton, pendientesGs1.length);
   const importar = document.getElementById('btnImportarUrlsTemporalesEan');
-  const pendientesUrl = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO')
-    .filter(producto => !String(producto.URL_IMAGEN_GS1 || '').trim());
+  const importablesUrl = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO');
   if (importar) {
-    importar.disabled = cargando || pendientesUrl.length === 0 || excedeMaximoOperacionEan(pendientesUrl.length);
-    importar.textContent = `Importar URLs GS1 (${pendientesUrl.length})`;
-    configurarLimiteBotonEan(importar, pendientesUrl.length);
+    importar.disabled = cargando || importablesUrl.length === 0 || excedeMaximoOperacionEan(importablesUrl.length);
+    importar.textContent = `Importar / actualizar URLs GS1 (${importablesUrl.length})`;
+    configurarLimiteBotonEan(importar, importablesUrl.length);
   }
   sincronizarAsociacionesRegistradas();
   const generar = document.getElementById('btnGenerarArchivoGs1');
@@ -611,13 +610,12 @@ function sincronizarAsociacionesRegistradas() {
 async function importarUrlsTemporalesEan(event) {
   const archivo = event.target.files?.[0];
   const clavesPendientes = productosSeleccionadosEan('PENDIENTE_GS1', 'EAN_ASIGNADO')
-    .filter(producto => !String(producto.URL_IMAGEN_GS1 || '').trim())
     .map(claveProductoEan);
   if (!archivo || !idEmpresaSeguimiento || !clavesPendientes.length) return;
   const boton = document.getElementById('btnImportarUrlsTemporalesEan');
   const resultado = document.getElementById('resultadoUrlsTemporalesEan');
   boton.disabled = true;
-  boton.textContent = `Asociando URLs (${clavesPendientes.length})...`;
+  boton.textContent = `Importando / actualizando URLs (${clavesPendientes.length})...`;
   resultado?.classList.add('d-none');
   mostrarToastSeguimiento(
     `Procesando URLs de GS1 para ${clavesPendientes.length} productos seleccionados.`,

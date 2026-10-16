@@ -341,6 +341,12 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 E.CODIGO_ERP,
                 E.EAN_ERP,
                 PE.C_ESTADIO,
+                DUENO_CODIGO.CODIGO_ALFA AS COD_ALFA_DUENO_CODIGO,
+                CASE
+                    WHEN DUENO_CODIGO.CODIGO_ALFA IS NOT NULL
+                    THEN CONVERT(BIT, 1)
+                    ELSE CONVERT(BIT, 0)
+                END AS CODIGO_ERP_REASIGNADO,
                 CASE
                     /* ACTIVO=0 también puede significar que el producto todavía
                      * no llegó en el último maestro sincronizado. Sólo C_ESTADIO=9
@@ -439,6 +445,11 @@ async function listarProductosSeguimientoEan(idEmpresa) {
             INNER JOIN dbo.PRODUCTOS PE
                 ON PE.ID_EMPRESA = E.ID_EMPRESA
                AND PE.CODIGO_ALFA = E.COD_ALFA
+            LEFT JOIN dbo.PRODUCTOS DUENO_CODIGO
+                ON DUENO_CODIGO.ID_EMPRESA = E.ID_EMPRESA
+               AND DUENO_CODIGO.CODIGO = E.CODIGO_ERP
+               AND ISNULL(DUENO_CODIGO.ACTIVO, 0) = 1
+               AND DUENO_CODIGO.CODIGO_ALFA <> E.COD_ALFA
             LEFT JOIN dbo.GS1_PRODUCTOS_URLS G
                 ON G.ID_EMPRESA = E.ID_EMPRESA
                AND G.ID_ALTA = E.ID_ALTA

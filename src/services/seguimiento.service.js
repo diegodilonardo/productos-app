@@ -413,7 +413,8 @@ async function listarSeguimientoEan({ idEmpresa, acceso }) {
                 ...fila,
                 LICENCIA_ALTA: normalizarLicencia(fila.LICENCIA_ALTA),
                 EAN_MOSTRADO: fila.EAN_GS1 || fila.EAN_ERP,
-                ESTADO_EAN: fila.INHABILITADO_PRESEA ? 'INHABILITADO_PRESEA'
+                ESTADO_EAN: fila.CODIGO_ERP_REASIGNADO ? 'INCONSISTENTE_ERP'
+                    : fila.INHABILITADO_PRESEA ? 'INHABILITADO_PRESEA'
                     : (fila.REQUIERE_EAN === false || fila.REQUIERE_EAN === 0) ? 'NO_REQUERIDO' : fila.EAN_GS1
                     ? (String(fila.EAN_ERP || '').trim() === String(fila.EAN_GS1).trim()
                         ? 'CONFIRMADO_ERP'
@@ -462,6 +463,7 @@ async function listarSeguimientoEan({ idEmpresa, acceso }) {
             confirmadosErp: productos.filter(x => x.ESTADO_EAN === 'CONFIRMADO_ERP').length,
             noRequeridos: productos.filter(x => x.ESTADO_EAN === 'NO_REQUERIDO').length,
             inhabilitados: productos.filter(x => x.ESTADO_EAN === 'INHABILITADO_PRESEA').length,
+            inconsistentesErp: productos.filter(x => x.ESTADO_EAN === 'INCONSISTENTE_ERP').length,
         },
         codigoProvisorio: EAN_PROVISORIO_GS1,
         productos,
@@ -1039,10 +1041,13 @@ function filaArchivoGs1(producto, urlImagen, opciones = {}) {
     if (!regla) {
         throw new Error(`No existe configuración GS1 para ${rubro || 'SIN RUBRO'} / ${tipo || 'SIN TIPO'}.`);
     }
-    const pais = String(producto.PAIS_EAN ?? '').trim();
-    if (!pais) {
+    const paisOriginal = String(producto.PAIS_EAN ?? '').trim();
+    if (!paisOriginal) {
         throw new Error(`El producto ${producto.COD_ALFA} no tiene PAIS_EAN configurado.`);
     }
+    const pais = /^\d+$/.test(paisOriginal)
+        ? paisOriginal.padStart(3, '0')
+        : paisOriginal;
     const marca = String(producto.DETALLE_MARCA || producto.CODIGO_MARCA || '').trim();
     const pares = tipo === 'MODULO' ? Number(producto.PARES || 0) : 1;
     if (!Number.isFinite(pares) || pares <= 0) {

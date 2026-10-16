@@ -82,6 +82,7 @@ test('resume productos confirmados según el estado de su EAN', async () => {
       confirmadosErp: 0,
       noRequeridos: 1,
       inhabilitados: 0,
+      inconsistentesErp: 0,
     });
     assert.equal(resultado.productos[0].TALLE_CURVA, '36-40');
     assert.equal(resultado.productos[1].TALLE_CURVA, '38');
@@ -93,6 +94,27 @@ test('resume productos confirmados según el estado de su EAN', async () => {
   } finally {
     seguimientoRepository.listarProductosSeguimientoEan = original;
   }
+});
+
+test('bloquea la gestión EAN cuando el código ERP fue reasignado a otro producto', async () => {
+  const original = seguimientoRepository.listarProductosSeguimientoEan;
+  seguimientoRepository.listarProductosSeguimientoEan = async () => [{
+    ID_ALTA: 72,
+    COD_ALFA: '271113518510539',
+    CODIGO_ERP: '888889000075223',
+    CODIGO_ERP_REASIGNADO: true,
+    COD_ALFA_DUENO_CODIGO: '271M13512721038',
+    EAN_ERP: '7792800015157',
+    TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO',
+    DETALLE_CLASIFICACION: 'PRIMERA',
+    DETALLE_TALLE: '39',
+  }];
+  try {
+    const resultado = await seguimientoService.listarSeguimientoEan({ idEmpresa: 1, acceso: accesoTotal });
+    assert.equal(resultado.productos[0].ESTADO_EAN, 'INCONSISTENTE_ERP');
+    assert.equal(resultado.productos[0].COD_ALFA_DUENO_CODIGO, '271M13512721038');
+    assert.equal(resultado.resumen.inconsistentesErp, 1);
+  } finally { seguimientoRepository.listarProductosSeguimientoEan = original; }
 });
 
 test('la consulta EAN se limita a confirmados ERP, empresa y Altas no anuladas', () => {
@@ -171,6 +193,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(vista, /id="buscarSeguimientoEan"/);
   assert.match(vista, /id="filtroEstadoEan"/);
   assert.match(vista, /value="PENDIENTE_GS1" selected>Gestionar en GS1/);
+  assert.match(vista, /value="INCONSISTENTE_ERP">Código ERP reasignado/);
   assert.match(vista, /id="filtroAltaEan"/);
   assert.match(vista, /id="filtroTemporadaEan"/);
   assert.match(vista, /id="filtroAnoEan"/);
@@ -195,6 +218,8 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   );
   assert.match(frontend, /URL GS1 ASOCIADA/);
   assert.match(frontend, /GESTIONAR EN GS1/);
+  assert.match(frontend, /CÓDIGO ERP REASIGNADO/);
+  assert.match(frontend, /COD_ALFA_DUENO_CODIGO/);
   assert.match(frontend, /PRODUCTOS_POR_PAGINA_EAN = 50/);
   assert.match(frontend, /ALTAS_POR_PAGINA = 20/);
   assert.match(frontend, /function pintarPaginacionSeguimientoAltas/);
@@ -237,6 +262,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
     'utf8'
   );
   assert.match(servicio, /MAX_PRODUCTOS_OPERACION_EAN = 2500/);
+  assert.match(servicio, /CODIGO_ERP_REASIGNADO \? 'INCONSISTENTE_ERP'/);
   assert.doesNotMatch(servicio, /máximo de 1000 productos/);
 });
 
@@ -286,7 +312,7 @@ test('la importación EAN cruza solo la selección pendiente e ignora registros 
 test('la fila GS1 repite la marca como submarca y aplica la matriz comercial', () => {
   const fila = seguimientoService.filaArchivoGs1({
     COD_ALFA: 'ABC', DETALLE_MARCA: 'ATOMIK', DETALLE_RUBRO: 'INDUMENTARIA',
-    TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', PAIS_EAN: '032',
+    TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', PAIS_EAN: '32',
     DETALLE_MODELO: 'CAMPERA', DETALLE_PRODUCTO: 'CAMPERA NEGRA', PARES: 1,
     DETALLE_EDAD: 'ADULTO',
     CODIGO_TEMPORADA: '1', DETALLE_TEMPORADA: 'VE', CODIGO_ANO: '27',
@@ -300,6 +326,16 @@ test('la fila GS1 repite la marca como submarca y aplica la matriz comercial', (
   assert.equal(fila[8], 'EC');
   assert.equal(fila[10], 'UN');
   assert.equal(fila[21], 'https://gs1.example/imagen.jpg');
+});
+
+test('el archivo GS1 conserva códigos de país que ya tienen tres posiciones', () => {
+  const fila = seguimientoService.filaArchivoGs1({
+    COD_ALFA: 'ABC', DETALLE_MARCA: 'ATOMIK', DETALLE_RUBRO: 'CALZADO',
+    TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO', PAIS_EAN: '032',
+    DETALLE_MODELO: 'ZAPATILLA', DETALLE_PRODUCTO: 'ZAPATILLA NEGRA',
+    DETALLE_TALLE: '40', PARES: 1,
+  }, 'https://gs1.example/imagen.jpg');
+  assert.equal(fila[6], '032');
 });
 
 test('el archivo GS1 diferencia variedades duplicadas por sexo', () => {

@@ -93,7 +93,7 @@ async function iniciarSeguimiento() {
   document.getElementById('buscarSeguimientoEan')?.addEventListener('input', reiniciarPaginaSeguimientoEan);
   document.getElementById('filtroAltaEan')?.addEventListener('change', cambiarFiltroAltaEan);
   for (const id of ['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan']) {
-    document.getElementById(id)?.addEventListener('change', reiniciarPaginaSeguimientoEan);
+    document.getElementById(id)?.addEventListener('change', cambiarFiltroAltaEan);
   }
   document.getElementById('paginacionSeguimientoEan')?.addEventListener('click', cambiarPaginaSeguimientoEan);
   document.getElementById('paginacionSeguimientoAltas')?.addEventListener('click', cambiarPaginaSeguimientoAltas);

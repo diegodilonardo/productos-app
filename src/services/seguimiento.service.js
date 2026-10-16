@@ -379,7 +379,9 @@ function estadoSeguimientoEan(valor) {
     const ean = String(valor ?? '').trim();
     if (!ean) return 'SIN_EAN';
     if (ean === EAN_PROVISORIO_GS1) return 'PENDIENTE_GS1';
-    return 'EAN_ASIGNADO';
+    // Si el código definitivo proviene directamente del maestro de Presea,
+    // ya está conciliado y no corresponde volver a generar un GTIN.DBI.
+    return 'CONFIRMADO_ERP';
 }
 
 

@@ -17,7 +17,7 @@ const accesoTotal = {
 
 test('clasifica el EAN provisorio como pendiente de gestión en GS1', () => {
   assert.equal(seguimientoService.estadoSeguimientoEan('7792800015157'), 'PENDIENTE_GS1');
-  assert.equal(seguimientoService.estadoSeguimientoEan('7791234567890'), 'EAN_ASIGNADO');
+  assert.equal(seguimientoService.estadoSeguimientoEan('7791234567890'), 'CONFIRMADO_ERP');
   assert.equal(seguimientoService.estadoSeguimientoEan(''), 'SIN_EAN');
 });
 
@@ -75,11 +75,11 @@ test('resume productos confirmados según el estado de su EAN', async () => {
     assert.deepEqual(resultado.resumen, {
       total: 4,
       pendientesGs1: 1,
-      asignados: 1,
+      asignados: 0,
       sinEan: 1,
       urlsAsociadas: 0,
       pendientesErp: 0,
-      confirmadosErp: 0,
+      confirmadosErp: 1,
       noRequeridos: 1,
       inhabilitados: 0,
       inconsistentesErp: 0,
@@ -233,6 +233,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1'\)/);
   assert.match(frontend, /String\(producto\.ID_ALTA\) !== idAlta/);
   assert.match(frontend, /function cambiarFiltroAltaEan\(\)[\s\S]*?seleccionEan\.clear\(\)/);
+  assert.match(frontend, /\['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan'\][\s\S]*?addEventListener\('change', cambiarFiltroAltaEan\)/);
   assert.match(frontend, /productosSeleccionadosEan\('EAN_ASIGNADO'\)/);
   assert.match(frontend, /productosSeleccionadosEan\('CONFIRMADO_ERP'\)/);
   assert.match(frontend, /seguimiento\.ean\.seleccion\.\$\{idEmpresaSeguimiento\}/);

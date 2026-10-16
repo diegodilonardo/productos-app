@@ -53,6 +53,12 @@ async function iniciarPantallaAltas() {
     .addEventListener('click', () => aplicarVistaAltas('tabla'));
 
   document.addEventListener('click', event => {
+    const botonFotos = event.target.closest('[data-enviar-fotos-alta]');
+    if (botonFotos) {
+      event.preventDefault();
+      enviarFotosAltaDesdeTarjeta(botonFotos);
+      return;
+    }
     const boton = event.target.closest('[data-ver-productos-alta]');
     if (!boton) return;
     event.preventDefault();
@@ -538,6 +544,7 @@ function pintarTarjetasAltas(filas) {
         <div class="alta-summary-footer">
           <span>Creada ${escapar(formatearFecha(alta.FECHA_CREACION))} · ${escapar(alta.USUARIO_CREACION || 'SISTEMA')}</span>
           <div class="d-flex justify-content-end flex-wrap gap-1">
+            ${botonEnviarFotosAlta(id, estado, fotosEnPresea)}
             ${botonVerProductos(id)}
             ${botonAccion(id, estado)}
           </div>
@@ -892,6 +899,55 @@ function botonVerProductos(id) {
       Ver productos
     </button>
   `;
+}
+
+function botonEnviarFotosAlta(id, estado, fotosEnPresea) {
+  if (!id || fotosEnPresea || !['GENERADO_OK_EN_ERP', 'SIN_NOVEDADES_ERP'].includes(estado)) return '';
+  return `
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-success altas-action-btn"
+      data-enviar-fotos-alta="${escapar(id)}"
+      title="Enviar las fotos pendientes a Presea"
+    >
+      Enviar fotos
+    </button>
+  `;
+}
+
+async function enviarFotosAltaDesdeTarjeta(boton) {
+  const idAlta = Number(boton.dataset.enviarFotosAlta);
+  if (!idAlta || !confirm('¿Enviar las fotos de esta Alta a Presea?')) return;
+
+  ocultarAlerta();
+  const textoOriginal = boton.textContent;
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Enviando...';
+    const response = await fetch(`/api/altas/${encodeURIComponent(idAlta)}/fotos-erp`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'x-id-empresa': String(obtenerEmpresaActivaAltas())
+      }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.ok === false) {
+      throw new Error(data?.mensaje || `No se pudieron enviar las fotos (${response.status}).`);
+    }
+    const resultado = data.resultado || {};
+    const copiadas = Number(resultado.copiadas || 0);
+    const existentes = Number(resultado.sinCambios || 0);
+    mostrarAlerta(
+      `Fotos enviadas a Presea: ${copiadas} nueva${copiadas === 1 ? '' : 's'} y ${existentes} ya existente${existentes === 1 ? '' : 's'}.`,
+      'success'
+    );
+    await cargarAltas();
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
 }
 
 async function mostrarProductosAlta(idAlta) {

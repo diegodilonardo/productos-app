@@ -44,3 +44,13 @@ test('las tarjetas de Altas indican cuando las fotos ya fueron enviadas a Presea
   assert.match(repositorio, /ALTAS_PRODUCTOS_FOTOS_ERP_ENVIOS/);
   assert.match(frontend, /FOTOS EN PRESEA/);
 });
+
+test('las tarjetas de Altas permiten enviar fotos pendientes cuando el Alta está confirmada en ERP', () => {
+  const frontend = fs.readFileSync(path.resolve(__dirname, '../public/js/altas-index.js'), 'utf8');
+  assert.match(frontend, /data-enviar-fotos-alta/);
+  assert.match(frontend, /Enviar fotos/);
+  assert.match(frontend, /GENERADO_OK_EN_ERP/);
+  assert.match(frontend, /SIN_NOVEDADES_ERP/);
+  assert.match(frontend, /\/fotos-erp/);
+  assert.match(frontend, /if \(!id \|\| fotosEnPresea/);
+});

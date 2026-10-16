@@ -593,6 +593,7 @@ async function guardarCodigosEanGs1({ idEmpresa, productos, usuario, archivoOrig
     await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
     try {
         let insertados = 0, actualizados = 0;
+        let urlsInsertadas = 0, urlsActualizadas = 0;
         for (const producto of productos) {
             const resultado = await new sql.Request(transaction)
                 .input('ID_EMPRESA', sql.Int, Number(idEmpresa))
@@ -630,14 +631,18 @@ async function guardarCodigosEanGs1({ idEmpresa, productos, usuario, archivoOrig
                         WHEN NOT MATCHED THEN INSERT
                             (ID_EMPRESA,ID_ALTA,COD_ALFA,NOMBRE_IMAGEN,URL_IMAGEN,USUARIO_CREACION)
                             VALUES
-                            (@ID_EMPRESA,@ID_ALTA,@COD_ALFA,@NOMBRE_IMAGEN,@URL,@USUARIO);
+                            (@ID_EMPRESA,@ID_ALTA,@COD_ALFA,@NOMBRE_IMAGEN,@URL,@USUARIO)
+                        OUTPUT $action ACCION_URL;
                     END
                 `);
             const accion = String(resultado.recordsets?.[0]?.[0]?.ACCION || resultado.recordset?.[0]?.ACCION || '').toUpperCase();
             if (accion === 'INSERT') insertados += 1; else actualizados += 1;
+            const accionUrl = String(resultado.recordsets?.[1]?.[0]?.ACCION_URL || '').toUpperCase();
+            if (accionUrl === 'INSERT') urlsInsertadas += 1;
+            if (accionUrl === 'UPDATE') urlsActualizadas += 1;
         }
         await transaction.commit();
-        return { insertados, actualizados };
+        return { insertados, actualizados, urlsInsertadas, urlsActualizadas };
     } catch (error) { try { await transaction.rollback(); } catch (_) {} throw error; }
 }
 

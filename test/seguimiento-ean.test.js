@@ -252,6 +252,8 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /Generar archivo GS1 \(\$\{asociacionesUrlsGs1\.length\}\)/);
   assert.match(frontend, /Descargar pendientes GS1 \(\$\{clavesPendientesGs1\.length\}\)/);
   assert.match(frontend, /EAN procesados para \$\{clavesImportables\.length\} productos/);
+  assert.match(frontend, /URLs nuevas: \$\{numero\(r\.urlsInsertadas\)\}/);
+  assert.match(frontend, /URLs actualizadas: \$\{numero\(r\.urlsActualizadas\)\}/);
   assert.match(frontend, /Etiquetas preparadas correctamente para \$\{clavesConfirmadas\.length\} productos/);
   const estilos = fs.readFileSync(path.join(__dirname, '../public/css/app.css'), 'utf8');
   assert.match(estilos, /seguimiento-toast-info/);

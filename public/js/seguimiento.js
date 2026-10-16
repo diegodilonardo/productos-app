@@ -728,7 +728,7 @@ async function importarCodigosEanGs1(event) {
     });
     const data=await respuesta.json(); if(!respuesta.ok||!data.ok) throw new Error(data.mensaje||`Error HTTP ${respuesta.status}.`);
     const r=data.resultado.resumen;
-    mostrarToastSeguimiento(`EAN procesados para ${clavesImportables.length} productos. Válidos: ${numero(r.validos)}. Nuevos: ${numero(r.insertados)}. Actualizados: ${numero(r.actualizados)}. Ignorados: ${numero(r.ignorados)} (${numero(r.ignoradosYaActualizados)} ya actualizados y ${numero(r.ignoradosFueraSeleccion)} fuera de la selección). Rechazados: ${numero(r.rechazados)}.`, r.rechazados ? 'warning':'success');
+    mostrarToastSeguimiento(`EAN procesados para ${clavesImportables.length} productos. Válidos: ${numero(r.validos)}. Nuevos: ${numero(r.insertados)}. Actualizados: ${numero(r.actualizados)}. URLs nuevas: ${numero(r.urlsInsertadas)}. URLs actualizadas: ${numero(r.urlsActualizadas)}. Ignorados: ${numero(r.ignorados)} (${numero(r.ignoradosYaActualizados)} ya actualizados y ${numero(r.ignoradosFueraSeleccion)} fuera de la selección). Rechazados: ${numero(r.rechazados)}.`, r.rechazados ? 'warning':'success');
     await cargarTodo();
   } catch(error) { mostrarToastSeguimiento(error.message,'danger'); }
   finally { event.target.value=''; actualizarBotonImagenesEan(false); }

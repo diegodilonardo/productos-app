@@ -13,7 +13,7 @@ async function iniciarReportePedidos() {
       await cargarReportePedidos(false);
     }
   });
-  ['reporteEstado', 'reporteProveedor', 'reporteRubro', 'reporteTemporada', 'reporteAno'].forEach(id => {
+  ['reporteEstado', 'reporteProveedor', 'reporteMarca', 'reporteRubro', 'reporteTemporada', 'reporteAno'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => cargarReportePedidos(false));
   });
   document.getElementById('verReporteResumen').addEventListener('click', () => cambiarTipoReporte('resumen'));
@@ -43,7 +43,7 @@ async function apiReporte(url, incluirEmpresa = true) {
 function parametrosReporte() {
   const params = new URLSearchParams();
   params.set('estado', document.getElementById('reporteEstado').value);
-  ['Proveedor', 'Rubro', 'Temporada', 'Ano'].forEach(nombre => {
+  ['Proveedor', 'Marca', 'Rubro', 'Temporada', 'Ano'].forEach(nombre => {
     const valor = document.getElementById(`reporte${nombre}`).value;
     if (valor) params.set(nombre.toLowerCase(), valor);
   });
@@ -101,6 +101,7 @@ async function cargarCatalogosReporte() {
 
 function completarFiltrosReporte(filas) {
   completarSelectReporte('reporteProveedor', filas.map(f => ({ valor: f.CODIGO_PROVEEDOR || f.PROVEEDOR, texto: f.PROVEEDOR })), 'Todos');
+  completarSelectReporte('reporteMarca', filas.map(f => ({ valor: f.CODIGO_MARCA || f.MARCA, texto: f.MARCA })), 'Todas');
   completarSelectReporte('reporteRubro', filas.map(f => ({ valor: f.CODIGO_RUBRO || f.RUBRO, texto: f.RUBRO })), 'Todos');
   completarSelectReporte('reporteTemporada', filas.map(f => ({ valor: f.CODIGO_TEMPORADA || f.TEMPORADA, texto: f.TEMPORADA })), 'Todas');
   completarSelectReporte('reporteAno', filas.map(f => ({ valor: f.ANO, texto: f.ANO })), 'Todos');

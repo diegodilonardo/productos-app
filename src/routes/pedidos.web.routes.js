@@ -149,7 +149,7 @@ router.get('/pedidos/reportes', requerirReportesWeb, (req, res) => {
     title: 'Reportes de Pedidos',
     pagina: 'reportes',
     style: '/css/pedidos.css?v=9',
-    script: '/js/pedidos-reportes.js?v=1',
+    script: '/js/pedidos-reportes.js?v=2',
   });
 });
 

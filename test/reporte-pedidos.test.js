@@ -11,8 +11,8 @@ test('el reporte filtra borradores, validados o ambos y conserva las monedas sep
   const original = repository.listarPedidos;
   const altasOriginal = repository.obtenerAltasPorPedido;
   repository.listarPedidos = async () => [
-    { ID_PEDIDO:1, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB001', CODIGO_RUBRO:'1', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27', TOTAL_PARES:12, TOTAL_PEDIDO:100, MONEDA:'USD' },
-    { ID_PEDIDO:2, ESTADO:'BORRADOR', CODIGO_PROVEEDOR:'PB002', CODIGO_RUBRO:'1', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27', TOTAL_PARES:6, TOTAL_PEDIDO:5000, MONEDA:'ARS' },
+    { ID_PEDIDO:1, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB001', CODIGO_MARCA:'MAR', DETALLE_MARCA:'MARCEL', CODIGO_RUBRO:'1', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27', TOTAL_PARES:12, TOTAL_PEDIDO:100, MONEDA:'USD' },
+    { ID_PEDIDO:2, ESTADO:'BORRADOR', CODIGO_PROVEEDOR:'PB002', CODIGO_MARCA:'MAS', DETALLE_MARCA:'MASSIMO', CODIGO_RUBRO:'1', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27', TOTAL_PARES:6, TOTAL_PEDIDO:5000, MONEDA:'ARS' },
     { ID_PEDIDO:3, ESTADO:'ANULADO', CODIGO_RUBRO:'1', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27', TOTAL_PARES:9, TOTAL_PEDIDO:50, MONEDA:'USD' },
   ];
   repository.obtenerAltasPorPedido = async () => [];
@@ -22,6 +22,7 @@ test('el reporte filtra borradores, validados o ambos y conserva las monedas sep
     assert.deepEqual((await service.generarReportePedidos(1, accesoTotal, { estado:'BORRADOR' })).map(x => x.ID_PEDIDO), [2]);
     assert.deepEqual((await service.generarReportePedidos(1, accesoTotal, { estado:'AMBOS' })).map(x => x.ID_PEDIDO), [1,2]);
     assert.deepEqual((await service.generarReportePedidos(1, accesoTotal, { estado:'AMBOS', proveedor:'PB002' })).map(x => x.ID_PEDIDO), [2]);
+    assert.deepEqual((await service.generarReportePedidos(1, accesoTotal, { estado:'AMBOS', marca:'MAR' })).map(x => x.ID_PEDIDO), [1]);
   } finally {
     repository.listarPedidos = original;
     repository.obtenerAltasPorPedido = altasOriginal;
@@ -37,6 +38,7 @@ test('Pedidos incorpora la sección de reportes con filtros y totales de pares y
   assert.match(vista, /reporteTemporada/);
   assert.match(vista, /reporteAno/);
   assert.match(vista, /reporteProveedor/);
+  assert.match(vista, /reporteMarca/);
   assert.match(vista, /exportarReporteExcel/);
   assert.match(vista, /Cantidad de pares/);
   assert.match(vista, /Cantidad de dinero/);
@@ -70,25 +72,25 @@ test('el detalle por temporada informa producto, precio, cantidad, P por Q y fot
   assert.match(vista, /reporteDetalleTabla/);
 });
 
-test('ambos reportes se exportan a Excel respetando el proveedor seleccionado', async () => {
+test('ambos reportes se exportan a Excel respetando la marca seleccionada', async () => {
   const listarOriginal = repository.listarPedidos;
   const altasOriginal = repository.obtenerAltasPorPedido;
   const detalleOriginal = repository.listarDetallePedido;
   repository.listarPedidos = async () => [
-    { ID_PEDIDO:1, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB001', DETALLE_PROVEEDOR:'UNO', NUMERO_ORDEN:'OC-1', TOTAL_PARES:12, TOTAL_PEDIDO:120, MONEDA:'USD', CODIGO_RUBRO:'CAL', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
-    { ID_PEDIDO:2, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB002', DETALLE_PROVEEDOR:'DOS', NUMERO_ORDEN:'OC-2', TOTAL_PARES:6, TOTAL_PEDIDO:60, MONEDA:'USD', CODIGO_RUBRO:'CAL', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
+    { ID_PEDIDO:1, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB001', DETALLE_PROVEEDOR:'UNO', CODIGO_MARCA:'MAR', DETALLE_MARCA:'MARCEL', NUMERO_ORDEN:'OC-1', TOTAL_PARES:12, TOTAL_PEDIDO:120, MONEDA:'USD', CODIGO_RUBRO:'CAL', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
+    { ID_PEDIDO:2, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB002', DETALLE_PROVEEDOR:'DOS', CODIGO_MARCA:'MAS', DETALLE_MARCA:'MASSIMO', NUMERO_ORDEN:'OC-2', TOTAL_PARES:6, TOTAL_PEDIDO:60, MONEDA:'USD', CODIGO_RUBRO:'CAL', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
   ];
   repository.obtenerAltasPorPedido = async () => [];
   repository.listarDetallePedido = async id => [{ ID_ALTA:99, TIPO_PRODUCTO:'PAR_SUELTO', CODIGO_ALFA:`ALFA-${id}`, DETALLE_MODELO:`MODELO ${id}`, DETALLE_COLOR:'NEGRO', DETALLE_TALLE:'40', PRECIO_FOB_PAR:10, CANTIDAD_PARES:6, TOTAL_FOB:60, CODIGO_MODELO:'M1', CODIGO_COLOR:'N1' }];
   const acceso = { todasMarcas:true, todosRubros:true, todasLicencias:true };
   try {
-    const resumen = await service.exportarReportePedidos(1, acceso, { tipo:'resumen', estado:'AMBOS', proveedor:'PB002' });
+    const resumen = await service.exportarReportePedidos(1, acceso, { tipo:'resumen', estado:'AMBOS', marca:'MAS' });
     const libroResumen = new ExcelJS.Workbook();
     await libroResumen.xlsx.load(resumen.buffer);
     assert.equal(libroResumen.worksheets[0].rowCount, 2);
     assert.equal(libroResumen.worksheets[0].getCell('A2').value, 'DOS');
 
-    const detalle = await service.exportarReportePedidos(1, acceso, { tipo:'detalle', estado:'AMBOS', proveedor:'PB001' });
+    const detalle = await service.exportarReportePedidos(1, acceso, { tipo:'detalle', estado:'AMBOS', marca:'MAR' });
     const libroDetalle = new ExcelJS.Workbook();
     await libroDetalle.xlsx.load(detalle.buffer);
     assert.equal(libroDetalle.worksheets[0].getCell('B2').value, 'ALFA-1');

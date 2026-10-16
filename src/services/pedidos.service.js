@@ -749,6 +749,7 @@ async function generarReportePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
   const temporada = texto(filtros.temporada).toUpperCase();
   const ano = texto(filtros.ano).toUpperCase();
   const proveedor = texto(filtros.proveedor).toUpperCase();
+  const marca = texto(filtros.marca).toUpperCase();
   const pedidos = await listarPedidos(idEmpresa, accesoEmpresa);
 
   return pedidos.filter(pedido => {
@@ -759,12 +760,15 @@ async function generarReportePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
     if (temporada && texto(pedido.CODIGO_TEMPORADA || pedido.DETALLE_TEMPORADA).toUpperCase() !== temporada) return false;
     if (ano && texto(pedido.CODIGO_ANO).toUpperCase() !== ano) return false;
     if (proveedor && texto(pedido.CODIGO_PROVEEDOR || pedido.DETALLE_PROVEEDOR).toUpperCase() !== proveedor) return false;
+    if (marca && texto(pedido.CODIGO_MARCA || pedido.DETALLE_MARCA).toUpperCase() !== marca) return false;
     return true;
   }).map(pedido => ({
     ID_PEDIDO: pedido.ID_PEDIDO,
     CODIGO_PEDIDO: pedido.CODIGO_PEDIDO,
     PROVEEDOR: pedido.DETALLE_PROVEEDOR || pedido.CODIGO_PROVEEDOR || '-',
     CODIGO_PROVEEDOR: pedido.CODIGO_PROVEEDOR,
+    MARCA: pedido.DETALLE_MARCA || pedido.CODIGO_MARCA || '-',
+    CODIGO_MARCA: pedido.CODIGO_MARCA,
     ORDEN: pedido.NUMERO_ORDEN || '-',
     CANTIDAD_PARES: Number(pedido.TOTAL_PARES || 0),
     CANTIDAD_DINERO: Number(pedido.TOTAL_PEDIDO || 0),

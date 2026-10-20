@@ -2067,6 +2067,34 @@ const CAMPOS_PREC_FOB = [
   { nombre: 'FOB', tipo: 'N', largo: 20, decimales: 5 },
 ];
 
+function crearRegistroPrecFob(detalle) {
+  const tipo = normalizarTipoProducto(detalle.TIPO_PRODUCTO);
+  const registro = {
+    MODC: texto(detalle.CODIGO_MODELO),
+    COD_CURVA: tipo === 'MODULO'
+      ? texto(detalle.CODIGO_MODULO_PEDIDO)
+      : texto(detalle.CODIGO_TALLE),
+    COD_ANO: texto(detalle.CODIGO_ANO),
+    DCOD_TEM: texto(detalle.DETALLE_TEMPORADA),
+    COLOR: texto(detalle.DETALLE_COLOR),
+    PAIS: texto(detalle.DETALLE_PAIS),
+    FOB: redondear4(detalle.PRECIO_FOB_PAR),
+  };
+  if (!registro.MODC || !registro.COD_CURVA || !registro.COD_ANO) {
+    throw new Error(
+      `No se puede exportar PREC_FOB para ${texto(detalle.CODIGO_ALFA)}: faltan MODC, COD_CURVA o COD_ANO.`
+    );
+  }
+  return registro;
+}
+
+function claveRegistroPrecFob(registro) {
+  return [
+    registro.MODC, registro.COD_CURVA, registro.COD_ANO, registro.DCOD_TEM,
+    registro.COLOR, registro.PAIS, Number(registro.FOB).toFixed(5),
+  ].join('|').toUpperCase();
+}
+
 function cortarBufferWin1252(valor, largo) {
   const origen = iconv.encode(texto(valor), 'win1252');
   if (origen.length <= largo) return origen;
@@ -2160,32 +2188,8 @@ async function exportarPrecFobDBI(idPedido, idEmpresa, usuarioAutenticado) {
   const unicos = new Map();
 
   for (const detalle of detalles) {
-    const tipo = normalizarTipoProducto(detalle.TIPO_PRODUCTO);
-    const codigoCurva = tipo === 'MODULO'
-      ? texto(detalle.CODIGO_MODULO_PEDIDO)
-      : texto(detalle.CODIGO_TALLE);
-
-    const registro = {
-      MODC: texto(detalle.CODIGO_MODELO),
-      COD_CURVA: codigoCurva,
-      COD_ANO: texto(detalle.CODIGO_ANO),
-      DCOD_TEM: texto(detalle.DETALLE_TEMPORADA),
-      COLOR: texto(detalle.DETALLE_COLOR),
-      PAIS: texto(detalle.DETALLE_PAIS),
-      FOB: redondear4(detalle.PRECIO_FOB_PAR),
-    };
-
-    if (!registro.MODC || !registro.COD_CURVA || !registro.COD_ANO) {
-      throw new Error(
-        `No se puede exportar PREC_FOB para ${texto(detalle.CODIGO_ALFA)}: faltan MODC, COD_CURVA o COD_ANO.`
-      );
-    }
-
-    const clave = [
-      registro.MODC, registro.COD_CURVA, registro.COD_ANO, registro.DCOD_TEM,
-      registro.COLOR, registro.PAIS, Number(registro.FOB).toFixed(5),
-    ].join('|').toUpperCase();
-
+    const registro = crearRegistroPrecFob(detalle);
+    const clave = claveRegistroPrecFob(registro);
     if (!unicos.has(clave)) unicos.set(clave, registro);
   }
 
@@ -2216,6 +2220,47 @@ async function exportarPrecFobDBI(idPedido, idEmpresa, usuarioAutenticado) {
     nombreArchivo,
     cantidadRegistros: registros.length,
     envioFTP,
+  };
+}
+
+async function exportarPrecFobConsolidado(idEmpresa, accesoEmpresa, filtros = {}) {
+  const empresa = validarIdEmpresa(idEmpresa);
+  const pedidos = await generarReportePedidos(empresa, accesoEmpresa, {
+    ...filtros,
+    estado: 'VALIDADO',
+  });
+  const importados = pedidos.filter(pedido => !esProveedorNacional(
+    pedido.CODIGO_PROVEEDOR,
+    pedido.PROVEEDOR
+  ));
+  if (!importados.length) {
+    throw new Error('No hay pedidos importados validados para los filtros seleccionados.');
+  }
+
+  const unicos = new Map();
+  for (const pedido of importados) {
+    const detalles = await pedidosRepository.obtenerDatosMasterPedido(pedido.ID_PEDIDO, empresa);
+    for (const detalle of detalles || []) {
+      const registro = crearRegistroPrecFob(detalle);
+      const clave = claveRegistroPrecFob(registro);
+      if (!unicos.has(clave)) unicos.set(clave, registro);
+    }
+  }
+  const registros = [...unicos.values()];
+  if (!registros.length) {
+    throw new Error('Los pedidos seleccionados no contienen productos para exportar a PREC_FOB.DBI.');
+  }
+
+  const partes = [
+    texto(filtros.marca) || 'TODAS_MARCAS',
+    texto(filtros.temporada) || 'TODAS_TEMPORADAS',
+    texto(filtros.ano) || 'TODOS_ANOS',
+  ].map(limpiarNombreArchivoPedido);
+  return {
+    buffer: crearDBFBuffer(registros, CAMPOS_PREC_FOB),
+    nombreArchivo: `PREC_FOB_CONSOLIDADO_${partes.join('_')}.DBI`,
+    cantidadRegistros: registros.length,
+    cantidadPedidos: importados.length,
   };
 }
 
@@ -2315,6 +2360,7 @@ module.exports = {
   exportarPurchaseOrder,
   exportarMasterDataAppExcel,
   exportarPrecFobDBI,
+  exportarPrecFobConsolidado,
   exportarPedidoNacionalDBI,
   listarExportacionesPedido,
   obtenerDestinosExportacionPedido,

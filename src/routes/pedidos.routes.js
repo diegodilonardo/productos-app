@@ -72,6 +72,23 @@ router.get('/reportes/exportar', requerirEmpresa, requerirReportesEmpresa, async
   }
 });
 
+router.get('/reportes/prec-fob', requerirEmpresa, requerirReportesEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.exportarPrecFobConsolidado(
+      req.idEmpresa,
+      req.accesoEmpresa,
+      req.query
+    );
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${resultado.nombreArchivo}"`);
+    res.setHeader('X-Cantidad-Registros', String(resultado.cantidadRegistros));
+    res.setHeader('X-Cantidad-Pedidos', String(resultado.cantidadPedidos));
+    return res.send(resultado.buffer);
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.get('/altas-disponibles', requerirEmpresa, async (req, res) => {
   try {
     const datos = await pedidosService.obtenerAltasDisponibles(req.idEmpresa, req.accesoEmpresa);

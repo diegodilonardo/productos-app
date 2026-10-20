@@ -19,6 +19,7 @@ async function iniciarReportePedidos() {
   document.getElementById('verReporteResumen').addEventListener('click', () => cambiarTipoReporte('resumen'));
   document.getElementById('verReporteDetalle').addEventListener('click', () => cambiarTipoReporte('detalle'));
   document.getElementById('exportarReporteExcel').addEventListener('click', exportarReporteExcel);
+  document.getElementById('exportarPrecFobConsolidado').addEventListener('click', exportarPrecFobConsolidado);
   const contexto = await apiReporte('/api/auth/me', false);
   const empresas = Array.isArray(contexto?.usuario?.empresas) ? contexto.usuario.empresas : [];
   const guardada = Number(sessionStorage.getItem('pedidos.idEmpresa'));
@@ -124,6 +125,41 @@ async function exportarReporteExcel() {
     const blob = await response.blob();
     const disposition = response.headers.get('content-disposition') || '';
     const nombre = disposition.match(/filename="?([^";]+)"?/i)?.[1] || 'REPORTE_PEDIDOS.xlsx';
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    mostrarAlertaReporte(error.message);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+}
+
+async function exportarPrecFobConsolidado() {
+  const boton = document.getElementById('exportarPrecFobConsolidado');
+  const textoOriginal = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = 'Generando DBI...';
+  ocultarAlertaReporte();
+  try {
+    const params = parametrosReporte();
+    params.set('estado', 'VALIDADO');
+    const response = await fetch(`/api/pedidos/reportes/prec-fob?${params}`, {
+      headers: { 'x-id-empresa': String(idEmpresaReporte) }
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new Error(error?.mensaje || `Error HTTP ${response.status}`);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('content-disposition') || '';
+    const nombre = disposition.match(/filename="?([^";]+)"?/i)?.[1] || 'PREC_FOB_CONSOLIDADO.DBI';
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement('a');
     enlace.href = url;

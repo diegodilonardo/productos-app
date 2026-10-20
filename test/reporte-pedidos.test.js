@@ -103,6 +103,47 @@ test('ambos reportes se exportan a Excel respetando la marca seleccionada', asyn
   }
 });
 
+test('PREC_FOB consolidado reúne pedidos validados por marca, temporada y año', async () => {
+  const listarOriginal = repository.listarPedidos;
+  const altasOriginal = repository.obtenerAltasPorPedido;
+  const masterOriginal = repository.obtenerDatosMasterPedido;
+  repository.listarPedidos = async () => [
+    { ID_PEDIDO:1, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB001', CODIGO_MARCA:'MAR', DETALLE_MARCA:'MARCEL', CODIGO_TEMPORADA:'VE', DETALLE_TEMPORADA:'VERANO', CODIGO_ANO:'27' },
+    { ID_PEDIDO:2, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB002', CODIGO_MARCA:'MAR', DETALLE_MARCA:'MARCEL', CODIGO_TEMPORADA:'VE', DETALLE_TEMPORADA:'VERANO', CODIGO_ANO:'27' },
+    { ID_PEDIDO:3, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB9999', DETALLE_PROVEEDOR:'NACIONAL', CODIGO_MARCA:'MAR', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
+    { ID_PEDIDO:4, ESTADO:'BORRADOR', CODIGO_PROVEEDOR:'PB004', CODIGO_MARCA:'MAR', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
+    { ID_PEDIDO:5, ESTADO:'VALIDADO', CODIGO_PROVEEDOR:'PB005', CODIGO_MARCA:'MAS', CODIGO_TEMPORADA:'VE', CODIGO_ANO:'27' },
+  ];
+  repository.obtenerAltasPorPedido = async () => [];
+  repository.obtenerDatosMasterPedido = async id => [{
+    CODIGO_ALFA:`ALFA-${id}`, TIPO_PRODUCTO:'PAR_SUELTO', CODIGO_MODELO:'M1',
+    CODIGO_TALLE:'40', CODIGO_ANO:'27', DETALLE_TEMPORADA:'VERANO',
+    DETALLE_COLOR:'NEGRO', DETALLE_PAIS:'CHINA', PRECIO_FOB_PAR:id === 2 ? 12.5 : 10,
+  }];
+  try {
+    const resultado = await service.exportarPrecFobConsolidado(
+      1,
+      { todasMarcas:true, todosRubros:true, todasLicencias:true },
+      { marca:'MAR', temporada:'VE', ano:'27' }
+    );
+    assert.equal(resultado.cantidadPedidos, 2);
+    assert.equal(resultado.cantidadRegistros, 2);
+    assert.equal(resultado.buffer.readUInt32LE(4), 2);
+    assert.equal(resultado.nombreArchivo, 'PREC_FOB_CONSOLIDADO_MAR_VE_27.DBI');
+  } finally {
+    repository.listarPedidos = listarOriginal;
+    repository.obtenerAltasPorPedido = altasOriginal;
+    repository.obtenerDatosMasterPedido = masterOriginal;
+  }
+
+  const vista = fs.readFileSync(path.join(__dirname, '../views/pedidos/reportes.hbs'), 'utf8');
+  const cliente = fs.readFileSync(path.join(__dirname, '../public/js/pedidos-reportes.js'), 'utf8');
+  const rutas = fs.readFileSync(path.join(__dirname, '../src/routes/pedidos.routes.js'), 'utf8');
+  assert.match(vista, /Descargar PREC_FOB consolidado/);
+  assert.match(cliente, /reportes\/prec-fob/);
+  assert.match(rutas, /reportes\/prec-fob/);
+});
+
 test('los reportes se gestionan mediante un permiso explícito por empresa', () => {
   let continuo = false;
   authMiddleware.requerirReportesEmpresa(

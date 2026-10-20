@@ -191,6 +191,9 @@ test('concilia modelos existentes en Presea y muestra quién realizó el alta', 
   assert.match(vista, /<th\s*>Usuario<\/th>/);
   assert.match(frontend, /USUARIO_CREACION/);
   assert.match(frontend, /REGISTRADO EN PRESEA/);
+  assert.match(frontend, /FALTANTE EN PRESEA/);
+  assert.match(repositorySource, /'CONFIRMADO_ERP','FALTANTE_PRESEA'/);
+  assert.match(repositorySource, /A\.ESTADO IN \('ENVIADO_PRESEA','FALTANTE_PRESEA'\)/);
 });
 
 test('solo permite eliminar solicitudes de maestros pendientes y conserva la trazabilidad', async () => {

@@ -123,7 +123,7 @@ async function obtenerSeleccion(pool, empresa, opciones) {
     SELECT A.*
     FROM dbo.ALTAS_MAESTROS A
     WHERE A.ID_EMPRESA=@ID_EMPRESA
-      AND A.ESTADO IN ('ENVIADO_PRESEA','CONFIRMADO_ERP')
+      AND A.ESTADO IN ('ENVIADO_PRESEA','CONFIRMADO_ERP','FALTANTE_PRESEA')
       AND (@TIPO='TODOS' OR A.TIPO=@TIPO)
       AND (
         (@IDS<>'' AND A.ID_ALTA_MAESTRO IN (
@@ -142,7 +142,7 @@ async function obtenerSeleccion(pool, empresa, opciones) {
     const faltantes = opciones.ids.filter(id => !encontrados.has(id));
     if (faltantes.length) {
       throw new Error(
-        `Los IDs ${faltantes.join(', ')} no pertenecen a la empresa, no coinciden con el tipo o no están enviados/confirmados.`
+        `Los IDs ${faltantes.join(', ')} no pertenecen a la empresa, no coinciden con el tipo o no están enviados, confirmados o marcados como faltantes.`
       );
     }
   }

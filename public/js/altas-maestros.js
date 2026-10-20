@@ -246,6 +246,7 @@ function presentacionEstadoMaestro(valor) {
     PENDIENTE_ENVIO: { etiqueta: 'PENDIENTE DE ENVÍO', clase: 'text-bg-warning' },
     ENVIADO_PRESEA: { etiqueta: 'ENVIADO A PRESEA', clase: 'text-bg-primary' },
     CONFIRMADO_ERP: { etiqueta: 'REGISTRADO EN PRESEA', clase: 'text-bg-success' },
+    FALTANTE_PRESEA: { etiqueta: 'FALTANTE EN PRESEA', clase: 'text-bg-danger' },
     ERROR_ENVIO: { etiqueta: 'ERROR DE ENVÍO', clase: 'text-bg-danger' }
   };
   return estados[estado] || {

@@ -162,13 +162,20 @@ async function obtenerRutaConfigurada(pool, idEmpresa) {
   return resolverRutaDestinoMaestros(resultado.recordset[0]?.RUTA_DESTINO || '');
 }
 
+async function obtenerDestinosConfigurados(pool, idEmpresa) {
+  const resultado = await pool.request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .query(`SELECT MARCA,LICENCIA,RUBRO,RUTA_DESTINO FROM dbo.ALTAS_MAESTROS_DESTINOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1;`);
+  return resultado.recordset;
+}
+
 function marcaTiempo() {
   const fecha = new Date();
   const parte = valor => String(valor).padStart(2, '0');
   return `${fecha.getFullYear()}${parte(fecha.getMonth() + 1)}${parte(fecha.getDate())}_${parte(fecha.getHours())}${parte(fecha.getMinutes())}${parte(fecha.getSeconds())}`;
 }
 
-function prepararArchivos(registros, rutaDestino, empresa) {
+function prepararArchivos(registros, rutaDestino, empresa, destinos) {
   const carpetaBase = path.join(
     process.env.EXPORT_PATH || path.join(process.cwd(), 'salidas'),
     'recuperacion-altas-maestros',
@@ -176,7 +183,7 @@ function prepararArchivos(registros, rutaDestino, empresa) {
     marcaTiempo()
   );
 
-  const grupos = agruparArchivosMaestros(registros, rutaDestino);
+  const grupos = agruparArchivosMaestros(registros, rutaDestino, destinos);
   const archivos = grupos.map(grupo => {
     const definicion = definicionesDbi[grupo.tipo];
     const carpeta = path.join(carpetaBase, ...grupo.ruta.split('/').filter(Boolean));
@@ -250,8 +257,9 @@ async function ejecutar() {
 
   const rutaDestino = await obtenerRutaConfigurada(pool, empresa.ID_EMPRESA);
   if (!rutaDestino) throw new Error('La empresa no tiene una ruta activa para Altas de Maestros.');
+  const destinos = await obtenerDestinosConfigurados(pool, empresa.ID_EMPRESA);
 
-  const preparacion = prepararArchivos(registros, rutaDestino, empresa);
+  const preparacion = prepararArchivos(registros, rutaDestino, empresa, destinos);
   imprimirVistaPrevia(empresa, registros, preparacion, opciones);
 
   if (!opciones.enviar) {

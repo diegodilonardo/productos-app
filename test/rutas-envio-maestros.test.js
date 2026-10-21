@@ -31,3 +31,21 @@ test('licencias se normalizan y los modelos del mismo destino comparten archivo'
   assert.ok(grupos.some(g => g.ruta.includes('/LICENCIAS/TALLERES/')));
   assert.throws(() => agruparArchivosMaestros([{TIPO:'MODELO',MARCA:'../WAKE',RUBRO:'CALZADO'}], '/ALTAS_MAESTROS/GYD'), /segura/);
 });
+
+test('la matriz configurada bloquea combinaciones sin ruta activa', () => {
+  const destinos = [
+    { MARCA:'ATOMIK', LICENCIA:'SIN_LICENCIA', RUBRO:'CALZADO', RUTA_DESTINO:'/ALTAS_MAESTROS/VICBOR/ATOMIK/CALZADO' },
+    { MARCA:'ATOMIK', LICENCIA:'SAN_LORENZO', RUBRO:'CALZADO', RUTA_DESTINO:'/ALTAS_MAESTROS/VICBOR/ATOMIK/LICENCIAS/SAN_LORENZO/CALZADO' },
+  ];
+  const grupos = agruparArchivosMaestros([
+    { TIPO:'MODELO', MARCA:'ATOMIK', RUBRO:'CALZADO', LICENCIA:'SL' },
+    { TIPO:'MODULO', MARCA:'ATOMIK', RUBRO:'CALZADO' },
+  ], '/ALTAS_MAESTROS/VICBOR', destinos);
+  assert.deepEqual(grupos.map(g => g.ruta), [
+    '/ALTAS_MAESTROS/VICBOR/ATOMIK/CALZADO',
+    '/ALTAS_MAESTROS/VICBOR/ATOMIK/LICENCIAS/SAN_LORENZO/CALZADO',
+  ]);
+  assert.throws(() => agruparArchivosMaestros([
+    { TIPO:'MODELO', MARCA:'ATOMIK', RUBRO:'POP', LICENCIA:'SIN LICENCIA' }
+  ], '/ALTAS_MAESTROS/VICBOR', destinos), /Exportación bloqueada/);
+});

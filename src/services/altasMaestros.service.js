@@ -481,8 +481,18 @@ function segmentoRutaMaestro(valor, campo) {
   return segmento;
 }
 
-function agruparArchivosMaestros(registros, rutaEmpresa) {
+function claveDestinoMaestro(marca, licencia, rubro) {
+  const licenciaNormalizada = normalizarLicencia(licencia);
+  const aliases = { SL: 'SAN_LORENZO', 'SAN LORENZO': 'SAN_LORENZO', VS: 'VELEZ_SARSFIELD', VELEZ: 'VELEZ_SARSFIELD', 'VELEZ SARSFIELD': 'VELEZ_SARSFIELD', 'VÉLEZ': 'VELEZ_SARSFIELD', 'VÉLEZ SARSFIELD': 'VELEZ_SARSFIELD', TA: 'TALLERES' };
+  const claveLicencia = licenciaNormalizada === 'SIN LICENCIA' ? 'SIN_LICENCIA' : (aliases[licenciaNormalizada] || segmentoRutaMaestro(licenciaNormalizada, 'licencia'));
+  return `${normalizar(marca)}|${claveLicencia}|${normalizar(rubro)}`;
+}
+
+function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = null) {
   const grupos = new Map();
+  const destinos = destinosConfigurados === null ? null : new Map(destinosConfigurados.map(destino => [
+    claveDestinoMaestro(destino.MARCA, destino.LICENCIA, destino.RUBRO), resolverRutaDestinoMaestros(destino.RUTA_DESTINO)
+  ]));
   for (const registro of registros) {
     const tipo = normalizar(registro.TIPO);
     if (!definicionesDbi[tipo]) throw new Error(`Tipo de maestro no admitido: ${tipo}.`);
@@ -491,10 +501,16 @@ function agruparArchivosMaestros(registros, rutaEmpresa) {
       const marca = segmentoRutaMaestro(registro.MARCA, 'marca');
       const rubro = segmentoRutaMaestro(registro.RUBRO, 'rubro');
       const licencia = normalizarLicencia(registro.LICENCIA);
-      const aliases = { SL: 'SAN_LORENZO', VS: 'VELEZ_SARSFIELD', TA: 'TALLERES', VELEZ: 'VELEZ_SARSFIELD' };
-      ruta += `/${marca}`;
-      if (tipo === 'MODELO' && licencia && licencia !== 'SIN LICENCIA') ruta += `/LICENCIAS/${aliases[licencia] || segmentoRutaMaestro(licencia, 'licencia')}`;
-      ruta += `/${rubro}`;
+      if (destinos) {
+        const clave = claveDestinoMaestro(marca, tipo === 'MODELO' ? licencia : 'SIN LICENCIA', rubro);
+        ruta = destinos.get(clave);
+        if (!ruta) throw Object.assign(new Error(`Exportación bloqueada: no existe una ruta FTP activa para marca ${normalizar(registro.MARCA)}, rubro ${normalizar(registro.RUBRO)} y licencia ${tipo === 'MODELO' ? licencia : 'SIN LICENCIA'}.`), { status: 409 });
+      } else {
+        const aliases = { SL: 'SAN_LORENZO', VS: 'VELEZ_SARSFIELD', TA: 'TALLERES', VELEZ: 'VELEZ_SARSFIELD' };
+        ruta += `/${marca}`;
+        if (tipo === 'MODELO' && licencia && licencia !== 'SIN LICENCIA') ruta += `/LICENCIAS/${aliases[licencia] || segmentoRutaMaestro(licencia, 'licencia')}`;
+        ruta += `/${rubro}`;
+      }
     }
     const clave = `${tipo}|${ruta}`;
     if (!grupos.has(clave)) grupos.set(clave, { tipo, ruta, filas: [] });
@@ -521,7 +537,7 @@ async function enviarPresea({ idEmpresa, usuario }) {
   const carpetaLocal = path.join(process.env.EXPORT_PATH || path.join(process.cwd(), 'salidas'), 'altas-maestros', String(idEmpresa));
   fs.mkdirSync(carpetaLocal, { recursive: true });
   const archivos = [];
-  const grupos = agruparArchivosMaestros(datos.registros, rutaDestino);
+  const grupos = agruparArchivosMaestros(datos.registros, rutaDestino, datos.destinos);
   for (const { tipo, ruta, filas } of grupos) {
     const def = definicionesDbi[tipo];
     const carpetaGrupo = path.join(carpetaLocal, ...ruta.split('/').filter(Boolean));
@@ -567,4 +583,4 @@ async function eliminarReglaEan({ idEmpresa, idRegla, usuario }) {
 
 function etiquetasTallesModuloExport(campo) { return etiquetasTallesModulo[campo] || campo; }
 
-module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, agruparArchivosMaestros };
+module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, agruparArchivosMaestros, claveDestinoMaestro };

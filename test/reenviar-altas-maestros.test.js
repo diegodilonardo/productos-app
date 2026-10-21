@@ -11,6 +11,8 @@ test('el script de recuperación de maestros exige selección explícita y vista
   assert.match(script, /opciones\.sobrescribir/);
   assert.match(script, /ftpService\.existeArchivo/);
   assert.match(script, /ALTAS_MAESTROS_HISTORIAL/);
+  assert.match(script, /ALTAS_MAESTROS_DESTINOS/);
+  assert.match(script, /agruparArchivosMaestros\(registros, rutaDestino, destinos\)/);
   assert.match(script, /ESTADO IN \('ENVIADO_PRESEA','CONFIRMADO_ERP','FALTANTE_PRESEA'\)/);
   assert.match(script, /RAZON_SOCIAL/);
   assert.doesNotMatch(script, /NOMBRE_EMPRESA/);

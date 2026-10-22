@@ -188,7 +188,6 @@ router.post(
             return res.render('seguimiento/etiquetas', {
                 layout: false,
                 title: 'Impresión de etiquetas',
-                impresionAutomatica: String(req.query?.auto || '') === '1',
                 ...resultado,
             });
         } catch (error) {
@@ -196,6 +195,24 @@ router.post(
                 ok: false,
                 mensaje: error.message,
             });
+        }
+    }
+);
+
+router.post(
+    '/ean/etiquetas.pdf',
+    requerirEmpresa,
+    async (req, res) => {
+        try {
+            const pdf = await seguimientoService.generarPdfEtiquetasEan(
+                req.body?.clavesProducto,
+                { idEmpresa: req.idEmpresa, acceso: req.accesoEmpresa }
+            );
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="ETIQUETAS_MODULOS_Y_SUELTOS.pdf"');
+            return res.send(pdf);
+        } catch (error) {
+            return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
         }
     }
 );

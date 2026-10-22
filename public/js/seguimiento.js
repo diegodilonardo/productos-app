@@ -111,7 +111,7 @@ async function iniciarSeguimiento() {
   document.getElementById('btnExportarGtinDbi')?.addEventListener('click', exportarGtinDbi);
   document.getElementById('btnEnviarGtinPresea')?.addEventListener('click', enviarGtinPresea);
   document.getElementById('btnImprimirEtiquetasEan')?.addEventListener('click', imprimirEtiquetasEan);
-  document.getElementById('btnImprimirTodoEan')?.addEventListener('click', () => imprimirEtiquetasEan(true));
+  document.getElementById('btnDescargarEtiquetasEan')?.addEventListener('click', descargarEtiquetasEan);
 
   await cargarTodo();
 }
@@ -582,11 +582,11 @@ function actualizarBotonImagenesEan(cargando = false) {
     imprimirEtiquetas.textContent = `Imprimir etiquetas (${imprimibles})`;
     configurarLimiteBotonEan(imprimirEtiquetas, imprimibles);
   }
-  const imprimirTodo = document.getElementById('btnImprimirTodoEan');
-  if (imprimirTodo) {
-    imprimirTodo.disabled = cargando || imprimibles === 0 || excedeMaximoOperacionEan(imprimibles);
-    imprimirTodo.textContent = `Imprimir módulos y sueltos (${imprimibles})`;
-    configurarLimiteBotonEan(imprimirTodo, imprimibles);
+  const descargarEtiquetas = document.getElementById('btnDescargarEtiquetasEan');
+  if (descargarEtiquetas) {
+    descargarEtiquetas.disabled = cargando || imprimibles === 0 || excedeMaximoOperacionEan(imprimibles);
+    descargarEtiquetas.textContent = `Descargar módulos y sueltos (${imprimibles})`;
+    configurarLimiteBotonEan(descargarEtiquetas, imprimibles);
   }
   const descargarPendientes = document.getElementById('btnExportarPendientesEan');
   if (descargarPendientes) {
@@ -786,7 +786,7 @@ async function enviarGtinPresea() {
   } finally {actualizarBotonImagenesEan(false)}
 }
 
-async function imprimirEtiquetasEan(impresionAutomatica = false) {
+async function imprimirEtiquetasEan() {
   const clavesImprimibles = productosSeleccionadosEan('CONFIRMADO_ERP', 'NO_REQUERIDO').map(claveProductoEan);
   if (!clavesImprimibles.length || !idEmpresaSeguimiento) return;
   ocultarAlerta();
@@ -798,7 +798,7 @@ async function imprimirEtiquetasEan(impresionAutomatica = false) {
   ventana.document.write(`<p style="font-family:Arial;padding:24px">Preparando etiquetas para ${clavesImprimibles.length} productos...</p>`);
   mostrarToastSeguimiento(`Preparando etiquetas para ${clavesImprimibles.length} productos.`, 'info');
   try {
-    const respuesta = await fetch(`/api/seguimiento/ean/etiquetas?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}&auto=${impresionAutomatica ? '1' : '0'}`, {
+    const respuesta = await fetch(`/api/seguimiento/ean/etiquetas?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/html' },
       body: JSON.stringify({ clavesProducto: clavesImprimibles }),
@@ -816,6 +816,42 @@ async function imprimirEtiquetasEan(impresionAutomatica = false) {
   } catch (error) {
     ventana.close();
     mostrarToastSeguimiento(error.message, 'danger');
+  }
+}
+
+async function descargarEtiquetasEan() {
+  const clavesImprimibles = productosSeleccionadosEan('CONFIRMADO_ERP', 'NO_REQUERIDO').map(claveProductoEan);
+  if (!clavesImprimibles.length || !idEmpresaSeguimiento) return;
+  const boton = document.getElementById('btnDescargarEtiquetasEan');
+  boton.disabled = true;
+  boton.textContent = `Generando PDF (${clavesImprimibles.length})...`;
+  mostrarToastSeguimiento(`Generando el PDF de módulos y sueltos para ${clavesImprimibles.length} productos.`, 'info');
+  try {
+    const respuesta = await fetch(`/api/seguimiento/ean/etiquetas.pdf?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/pdf' },
+      body: JSON.stringify({ clavesProducto: clavesImprimibles }),
+    });
+    if (!respuesta.ok) {
+      let mensaje = `Error HTTP ${respuesta.status}.`;
+      try { mensaje = (await respuesta.json()).mensaje || mensaje; } catch {}
+      throw new Error(mensaje);
+    }
+    const blob = await respuesta.blob();
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = 'ETIQUETAS_MODULOS_Y_SUELTOS.pdf';
+    enlace.className = 'd-none';
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    mostrarToastSeguimiento('PDF de módulos y sueltos descargado correctamente.', 'success');
+  } catch (error) {
+    mostrarToastSeguimiento(error.message, 'danger');
+  } finally {
+    actualizarBotonImagenesEan(false);
   }
 }
 

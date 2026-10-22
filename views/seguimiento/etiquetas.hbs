@@ -117,18 +117,6 @@
         document.title = tituloAnterior;
       }, 500);
     }
-    {{#if impresionAutomatica}}
-    window.addEventListener('load', function () {
-      const imagenes = Array.from(document.images);
-      Promise.all(imagenes.map(function (imagen) {
-        if (imagen.complete) return Promise.resolve();
-        return new Promise(function (resolver) {
-          imagen.addEventListener('load', resolver, { once: true });
-          imagen.addEventListener('error', resolver, { once: true });
-        });
-      })).then(function () { window.setTimeout(function () { imprimir('todo'); }, 150); });
-    });
-    {{/if}}
   </script>
 </body>
 </html>

@@ -33,7 +33,6 @@ test('la impresión compacta módulos y pares individuales en hojas A4', () => {
   assert.match(vista, /Imprimir módulos/);
   assert.match(vista, /Imprimir pares individuales/);
   assert.match(vista, /Imprimir módulos y sueltos/);
-  assert.match(vista, /impresionAutomatica/);
   assert.match(vista, /barcode-value/);
 });
 
@@ -95,6 +94,11 @@ test('la impresión expande los sueltos del módulo y respeta un par seleccionad
     const soloSuelto = await servicio.prepararEtiquetasEan(['10|SUELTO1'], contexto);
     assert.equal(soloSuelto.cantidadModulos, 0);
     assert.equal(soloSuelto.cantidadPares, 1);
+
+    const pdf = await servicio.generarPdfEtiquetasEan(['10|MODULO1'], contexto);
+    assert.ok(Buffer.isBuffer(pdf));
+    assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+    assert.ok(pdf.length > 1000);
   } finally {
     repository.listarProductosSeguimientoEan = original;
   }
@@ -140,6 +144,9 @@ test('Seguimiento permite imprimir EAN confirmados y no requeridos', () => {
     'utf8'
   );
   assert.match(js, /btnImprimirEtiquetasEan/);
+  assert.match(js, /btnDescargarEtiquetasEan/);
+  assert.match(js, /\/api\/seguimiento\/ean\/etiquetas\.pdf/);
+  assert.match(js, /ETIQUETAS_MODULOS_Y_SUELTOS\.pdf/);
   assert.match(js, /productosSeleccionadosEan\('CONFIRMADO_ERP', 'NO_REQUERIDO'\)/);
   assert.match(servicio, /no tienen un EAN válido habilitado para imprimir/);
   assert.match(servicio, /bwipjs\.toSVG/);

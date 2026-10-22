@@ -1,6 +1,7 @@
 const seguimientoRepository =
     require('../repositories/seguimiento.repository');
 const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
 const XLSX = require('xlsx');
 const sharp = require('sharp');
 const bwipjs = require('bwip-js');
@@ -860,6 +861,130 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
     };
 }
 
+function bufferImagenEtiqueta(dataUrl) {
+    const coincidencia = String(dataUrl || '').match(/^data:image\/(?:jpeg|jpg|png);base64,(.+)$/i);
+    return coincidencia ? Buffer.from(coincidencia[1], 'base64') : null;
+}
+
+async function bufferCodigoBarras(tipo, valor, altura = 8) {
+    const texto = String(valor || '').trim();
+    if (!texto) return null;
+    try {
+        return await bwipjs.toBuffer({
+            bcid: tipo,
+            text: texto,
+            scale: 2,
+            height: altura,
+            includetext: false,
+            paddingwidth: 0,
+            paddingheight: 0,
+            backgroundcolor: 'FFFFFF',
+        });
+    } catch (_) {
+        return null;
+    }
+}
+
+function textoPdf(valor, fallback = '-') {
+    const texto = String(valor ?? '').trim();
+    return texto || fallback;
+}
+
+function dibujarImagenPdf(doc, dataUrl, x, y, ancho, alto) {
+    const imagen = bufferImagenEtiqueta(dataUrl);
+    if (!imagen) return;
+    try { doc.image(imagen, x, y, { fit: [ancho, alto], align: 'center', valign: 'center' }); } catch (_) {}
+}
+
+async function dibujarModuloPdf(doc, modulo, x, y) {
+    const ancho = 567;
+    const alto = 283;
+    doc.lineWidth(1.2).strokeColor('#000000').rect(x, y, ancho, alto).stroke();
+    doc.lineWidth(.7).rect(x + 8, y + 8, 136, 185).stroke();
+    dibujarImagenPdf(doc, modulo.imagen, x + 12, y + 12, 128, 177);
+
+    const alfa = await bufferCodigoBarras('code128', modulo.codigoAlfa, 7);
+    const ean = await bufferCodigoBarras('ean13', modulo.ean, 7);
+    if (alfa) doc.image(alfa, x + 154, y + 10, { fit: [190, 48] });
+    if (ean) doc.image(ean, x + 360, y + 10, { fit: [190, 48] });
+    doc.font('Helvetica').fontSize(8).fillColor('#000000');
+    doc.text(textoPdf(modulo.codigoAlfa), x + 154, y + 59, { width: 190, align: 'center' });
+    doc.text(textoPdf(modulo.ean), x + 360, y + 59, { width: 190, align: 'center' });
+
+    doc.font('Helvetica').fontSize(30).text(textoPdf(modulo.marca), x + 154, y + 78, { width: 396, align: 'center' });
+    const campos = [
+        ['ARTÍCULO:', modulo.articulo],
+        ['TALLE:', modulo.talleCurva],
+        ['COLOR:', modulo.color],
+    ];
+    campos.forEach(([etiqueta, valor], indice) => {
+        const cy = y + 119 + indice * 23;
+        doc.font('Helvetica-Bold').fontSize(11).text(etiqueta, x + 154, cy, { width: 88 });
+        doc.font('Helvetica-Bold').text(textoPdf(valor), x + 244, cy, { width: 306 });
+    });
+
+    const composicion = Array.isArray(modulo.composicion) ? modulo.composicion : [];
+    const compX = x + 8;
+    const compY = y + 207;
+    const totalAncho = 88;
+    const tallesAncho = ancho - 16 - totalAncho;
+    const celda = composicion.length ? tallesAncho / composicion.length : tallesAncho;
+    composicion.forEach((item, indice) => {
+        const cx = compX + indice * celda;
+        doc.lineWidth(.7).rect(cx, compY, celda, 62).stroke();
+        doc.moveTo(cx, compY + 30).lineTo(cx + celda, compY + 30).stroke();
+        doc.font('Helvetica-Bold').fontSize(11).text(textoPdf(item.talle), cx, compY + 9, { width: celda, align: 'center' });
+        doc.text(textoPdf(item.pares), cx, compY + 40, { width: celda, align: 'center' });
+    });
+    const tx = compX + tallesAncho;
+    doc.rect(tx, compY, totalAncho, 62).stroke();
+    doc.moveTo(tx, compY + 26).lineTo(tx + totalAncho, compY + 26).stroke();
+    doc.font('Helvetica-Bold').fontSize(10).text('PARES', tx, compY + 8, { width: totalAncho, align: 'center' });
+    doc.fontSize(20).text(textoPdf(modulo.totalPares), tx, compY + 34, { width: totalAncho, align: 'center' });
+}
+
+async function dibujarParPdf(doc, par, x, y) {
+    const ancho = 170;
+    const alto = 85;
+    doc.lineWidth(.5).strokeColor('#777777').rect(x, y, ancho, alto).stroke();
+    doc.fillColor('#000000').font('Helvetica-Bold').fontSize(7)
+        .text(`${textoPdf(par.articulo)} - ${textoPdf(par.color)}`, x + 4, y + 4, { width: 130, height: 16, align: 'center', ellipsis: true });
+    doc.fontSize(13).text(`T:${textoPdf(par.talle)}`, x + 136, y + 3, { width: 30, align: 'center' });
+    dibujarImagenPdf(doc, par.imagen, x + 4, y + 22, 38, 58);
+    const ean = await bufferCodigoBarras('ean13', par.ean, 6);
+    const alfa = await bufferCodigoBarras('code128', par.codigoAlfa, 6);
+    if (ean) doc.image(ean, x + 47, y + 22, { fit: [117, 22] });
+    if (alfa) doc.image(alfa, x + 47, y + 52, { fit: [117, 22] });
+    doc.font('Helvetica').fontSize(5.5).fillColor('#000000');
+    doc.text(textoPdf(par.ean), x + 47, y + 45, { width: 117, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(6).text(textoPdf(par.codigoAlfa), x + 47, y + 75, { width: 117, align: 'center' });
+}
+
+async function generarPdfEtiquetasEan(clavesEntrada, contexto) {
+    const etiquetas = await prepararEtiquetasEan(clavesEntrada, contexto);
+    const doc = new PDFDocument({ autoFirstPage: false, compress: true, info: { Title: 'Etiquetas módulos y sueltos' } });
+    const fragmentos = [];
+    doc.on('data', fragmento => fragmentos.push(fragmento));
+    const terminado = new Promise((resolve, reject) => {
+        doc.on('end', () => resolve(Buffer.concat(fragmentos)));
+        doc.on('error', reject);
+    });
+
+    for (let indice = 0; indice < etiquetas.modulos.length; indice += 1) {
+        if (indice % 2 === 0) doc.addPage({ size: 'A4', margin: 0 });
+        await dibujarModuloPdf(doc, etiquetas.modulos[indice], 14, 14 + (indice % 2) * 297);
+    }
+    for (let indice = 0; indice < etiquetas.pares.length; indice += 1) {
+        if (indice % 27 === 0) doc.addPage({ size: 'A4', margin: 0 });
+        const posicion = indice % 27;
+        const columna = posicion % 3;
+        const fila = Math.floor(posicion / 3);
+        await dibujarParPdf(doc, etiquetas.pares[indice], 35 + columna * 175, 27 + fila * 89);
+    }
+    doc.end();
+    return terminado;
+}
+
 
 function valorCeldaExcel(celda) {
     const valor = celda?.value;
@@ -1379,6 +1504,7 @@ module.exports = {
     exportarPendientesEan,
     prepararImagenesEan,
     prepararEtiquetasEan,
+    generarPdfEtiquetasEan,
     asociarUrlsTemporalesEan,
     generarArchivoGs1,
     filaArchivoGs1,

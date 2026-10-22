@@ -235,7 +235,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /function cambiarFiltroAltaEan\(\)[\s\S]*?seleccionEan\.clear\(\)/);
   assert.match(frontend, /\['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan'\][\s\S]*?addEventListener\('change', cambiarFiltroAltaEan\)/);
   assert.match(frontend, /productosSeleccionadosEan\('EAN_ASIGNADO'\)/);
-  assert.match(frontend, /productosSeleccionadosEan\('CONFIRMADO_ERP'\)/);
+  assert.match(frontend, /productosSeleccionadosEan\('CONFIRMADO_ERP', 'NO_REQUERIDO'\)/);
   assert.match(frontend, /seguimiento\.ean\.seleccion\.\$\{idEmpresaSeguimiento\}/);
   assert.match(frontend, /guardarSeleccionEan\(\)/);
   assert.match(frontend, /checkbox\.indeterminate = seleccionadas > 0/);
@@ -244,7 +244,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.doesNotMatch(frontend, /clavesEanVisibles = \[\.\.\.new Set\(gruposPagina\.flatMap/);
   assert.match(frontend, /gruposSeguimientoEan\.flatMap\(grupo => \[grupo\.principal, \.\.\.\(grupo\.primeras \|\| \[\]\)\]\)/);
   assert.match(frontend, /producto\.URL_IMAGEN_GS1 = asociacion\.urlImagen;[\s\S]*?pintarSeguimientoEan\(\);/);
-  assert.match(frontend, /clavesProducto: clavesConfirmadas/);
+  assert.match(frontend, /clavesProducto: clavesImprimibles/);
   assert.match(frontend, /clavesProducto:clavesImportables/);
   assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1', 'EAN_ASIGNADO'\)/);
   assert.match(frontend, /ignoradosYaActualizados/);
@@ -255,7 +255,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /EAN procesados para \$\{clavesImportables\.length\} productos/);
   assert.match(frontend, /URLs nuevas: \$\{numero\(r\.urlsInsertadas\)\}/);
   assert.match(frontend, /URLs actualizadas: \$\{numero\(r\.urlsActualizadas\)\}/);
-  assert.match(frontend, /Etiquetas preparadas correctamente para \$\{clavesConfirmadas\.length\} productos/);
+  assert.match(frontend, /Etiquetas preparadas correctamente para \$\{clavesImprimibles\.length\} productos/);
   const estilos = fs.readFileSync(path.join(__dirname, '../public/css/app.css'), 'utf8');
   assert.match(estilos, /seguimiento-toast-info/);
   assert.match(estilos, /seguimiento-toast-warning/);

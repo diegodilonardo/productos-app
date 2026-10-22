@@ -564,11 +564,11 @@ function actualizarBotonImagenesEan(cargando = false) {
     configurarLimiteBotonEan(enviarPresea, asignados.length);
   }
   const imprimirEtiquetas = document.getElementById('btnImprimirEtiquetasEan');
-  const confirmados = productosSeleccionadosEan('CONFIRMADO_ERP').length;
+  const imprimibles = productosSeleccionadosEan('CONFIRMADO_ERP', 'NO_REQUERIDO').length;
   if (imprimirEtiquetas) {
-    imprimirEtiquetas.disabled = cargando || confirmados === 0 || excedeMaximoOperacionEan(confirmados);
-    imprimirEtiquetas.textContent = `Imprimir etiquetas (${confirmados})`;
-    configurarLimiteBotonEan(imprimirEtiquetas, confirmados);
+    imprimirEtiquetas.disabled = cargando || imprimibles === 0 || excedeMaximoOperacionEan(imprimibles);
+    imprimirEtiquetas.textContent = `Imprimir etiquetas (${imprimibles})`;
+    configurarLimiteBotonEan(imprimirEtiquetas, imprimibles);
   }
   const descargarPendientes = document.getElementById('btnExportarPendientesEan');
   if (descargarPendientes) {
@@ -769,21 +769,21 @@ async function enviarGtinPresea() {
 }
 
 async function imprimirEtiquetasEan() {
-  const clavesConfirmadas = productosSeleccionadosEan('CONFIRMADO_ERP').map(claveProductoEan);
-  if (!clavesConfirmadas.length || !idEmpresaSeguimiento) return;
+  const clavesImprimibles = productosSeleccionadosEan('CONFIRMADO_ERP', 'NO_REQUERIDO').map(claveProductoEan);
+  if (!clavesImprimibles.length || !idEmpresaSeguimiento) return;
   ocultarAlerta();
   const ventana = window.open('', '_blank');
   if (!ventana) {
     mostrarToastSeguimiento('El navegador bloqueó la ventana de impresión. Habilite las ventanas emergentes para esta aplicación.', 'warning');
     return;
   }
-  ventana.document.write(`<p style="font-family:Arial;padding:24px">Preparando etiquetas para ${clavesConfirmadas.length} productos...</p>`);
-  mostrarToastSeguimiento(`Preparando etiquetas para ${clavesConfirmadas.length} productos.`, 'info');
+  ventana.document.write(`<p style="font-family:Arial;padding:24px">Preparando etiquetas para ${clavesImprimibles.length} productos...</p>`);
+  mostrarToastSeguimiento(`Preparando etiquetas para ${clavesImprimibles.length} productos.`, 'info');
   try {
     const respuesta = await fetch(`/api/seguimiento/ean/etiquetas?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/html' },
-      body: JSON.stringify({ clavesProducto: clavesConfirmadas }),
+      body: JSON.stringify({ clavesProducto: clavesImprimibles }),
     });
     if (!respuesta.ok) {
       let mensaje = `Error HTTP ${respuesta.status}.`;
@@ -794,7 +794,7 @@ async function imprimirEtiquetasEan() {
     ventana.document.open();
     ventana.document.write(html);
     ventana.document.close();
-    mostrarToastSeguimiento(`Etiquetas preparadas correctamente para ${clavesConfirmadas.length} productos.`, 'success');
+    mostrarToastSeguimiento(`Etiquetas preparadas correctamente para ${clavesImprimibles.length} productos.`, 'success');
   } catch (error) {
     ventana.close();
     mostrarToastSeguimiento(error.message, 'danger');

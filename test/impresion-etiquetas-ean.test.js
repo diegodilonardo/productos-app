@@ -64,7 +64,7 @@ test('VICBOR omite imágenes de indumentaria y accesorios en las etiquetas', () 
   assert.equal(servicio.debeMostrarImagenEtiqueta({ DETALLE_RUBRO: 'INDUMENTARIA' }, otraEmpresa), true);
 });
 
-test('Seguimiento ofrece imprimir solamente EAN confirmados en ERP', () => {
+test('Seguimiento permite imprimir EAN confirmados y no requeridos', () => {
   const js = fs.readFileSync(
     path.join(__dirname, '..', 'public', 'js', 'seguimiento.js'),
     'utf8'
@@ -74,11 +74,27 @@ test('Seguimiento ofrece imprimir solamente EAN confirmados en ERP', () => {
     'utf8'
   );
   assert.match(js, /btnImprimirEtiquetasEan/);
-  assert.match(js, /productosSeleccionadosEan\('CONFIRMADO_ERP'\)/);
-  assert.match(servicio, /todavía no tienen el EAN confirmado en Presea/);
+  assert.match(js, /productosSeleccionadosEan\('CONFIRMADO_ERP', 'NO_REQUERIDO'\)/);
+  assert.match(servicio, /no tienen un EAN válido habilitado para imprimir/);
   assert.match(servicio, /bwipjs\.toSVG/);
   assert.match(servicio, /includetext: false/);
   assert.match(servicio, /preserveAspectRatio="none"/);
   assert.match(servicio, /debeMostrarImagenEtiqueta\(producto, contexto\)/);
   assert.match(servicio, /imagenesAltaService\.buscarImagenProducto/);
+});
+
+test('un producto EAN no requerido es imprimible si conserva un EAN válido', () => {
+  const servicio = require('../src/services/seguimiento.service');
+  assert.equal(servicio.productoImprimibleEtiquetaEan({
+    ESTADO_EAN: 'NO_REQUERIDO',
+    EAN_ERP: '7792800015157',
+  }), true);
+  assert.equal(servicio.productoImprimibleEtiquetaEan({
+    ESTADO_EAN: 'NO_REQUERIDO',
+    EAN_ERP: '',
+  }), false);
+  assert.equal(servicio.productoImprimibleEtiquetaEan({
+    ESTADO_EAN: 'PENDIENTE_GS1',
+    EAN_ERP: '7792800015157',
+  }), false);
 });

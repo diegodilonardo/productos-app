@@ -774,11 +774,11 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
         ...modulosSeleccionados.map(grupo => grupo.principal),
         ...paresSeleccionados,
     ];
-    const sinEanConfirmado = productosAImprimir.filter(
-        producto => producto.ESTADO_EAN !== 'CONFIRMADO_ERP' || !ean13Valido(producto.EAN_ERP)
+    const sinEanImprimible = productosAImprimir.filter(
+        producto => !productoImprimibleEtiquetaEan(producto)
     );
-    if (sinEanConfirmado.length) {
-        throw new Error(`${sinEanConfirmado.length} producto(s) de las familias seleccionadas todavía no tienen el EAN confirmado en Presea.`);
+    if (sinEanImprimible.length) {
+        throw new Error(`${sinEanImprimible.length} producto(s) de las familias seleccionadas no tienen un EAN válido habilitado para imprimir.`);
     }
 
     const cacheImagenes = new Map();
@@ -1187,6 +1187,11 @@ function ean13Valido(valor) {
     return (10 - (suma % 10)) % 10 === Number(ean[12]);
 }
 
+function productoImprimibleEtiquetaEan(producto) {
+    return ['CONFIRMADO_ERP', 'NO_REQUERIDO'].includes(producto?.ESTADO_EAN) &&
+        ean13Valido(producto?.EAN_ERP);
+}
+
 async function importarCodigosEanGs1(buffer, nombreArchivo, clavesEntrada, contexto) {
     const clavesSeleccionadas = new Set(
         (Array.isArray(clavesEntrada) ? clavesEntrada : [])
@@ -1375,4 +1380,5 @@ module.exports = {
     extraerCantidadesCurva,
     cantidadesCurvaDesdeMaestro,
     debeMostrarImagenEtiqueta,
+    productoImprimibleEtiquetaEan,
 };

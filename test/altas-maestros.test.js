@@ -347,6 +347,28 @@ test('otras marcas continúan el máximo de la serie correspondiente a marca y r
   } finally { repository.listarModelosParaSugerencia = original; }
 });
 
+test('VANTEK inicia y continúa la numeración de modelos con el prefijo VK', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  try {
+    repository.listarModelosParaSugerencia = async () => [];
+    assert.equal(
+      await service.sugerirCodigoModelo(2, { marca: 'VANTEK', rubro: 'CALZADO', licencia: 'SIN LICENCIA' }),
+      'VK0001'
+    );
+
+    repository.listarModelosParaSugerencia = async () => [
+      { CODIGO: 'VK0001', MARCA: 'VANTEK', RUBRO: 'CALZADO', LICENCIA: null },
+      { CODIGO: 'VK0003', MARCA: 'VANTEK', RUBRO: 'CALZADO', LICENCIA: null }
+    ];
+    assert.equal(
+      await service.sugerirCodigoModelo(2, { marca: 'VANTEK', rubro: 'CALZADO', licencia: 'SIN LICENCIA' }),
+      'VK0004'
+    );
+  } finally {
+    repository.listarModelosParaSugerencia = original;
+  }
+});
+
 test('un rubro nuevo continúa la numeración general comprobable de la marca', async () => {
   const original = repository.listarModelosParaSugerencia;
   repository.listarModelosParaSugerencia = async () => [

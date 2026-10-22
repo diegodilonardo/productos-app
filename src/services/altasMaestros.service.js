@@ -39,6 +39,9 @@ const seriesModeloLicencia = [
   { aliases: ['TA', 'TALLERES'], prefijo: 'CAT', largoCorrelativo: 3, ultimoConfirmado: 76 },
   { aliases: ['VS', 'VELEZ', 'VELEZ SARSFIELD', 'VÉLEZ', 'VÉLEZ SARSFIELD'], prefijo: 'VS', largoCorrelativo: 4, ultimoConfirmado: 93 }
 ];
+const seriesModeloPorMarca = {
+  VANTEK: { prefijo: 'VK', largoCorrelativo: 4, ultimoConfirmado: 0 }
+};
 function normalizar(v) { return String(v ?? '').trim().toUpperCase(); }
 function normalizarNombre(v) { return normalizar(v).replace(/\s+/g, ' '); }
 function mensajeNombreDuplicado(tipo, nombre, duplicado, marca = '', rubro = '') {
@@ -89,6 +92,19 @@ function sugerirPorMarcaYRubro(modelos, ocupados, marca, rubro) {
     if (codigo.length <= largos.MODELO && !ocupados.has(codigo)) return codigo;
   }
   throw Object.assign(new Error('No quedan códigos disponibles para esa marca y rubro.'), { status: 409 });
+}
+
+function sugerirPorSerieConfigurada(ocupados, serie) {
+  const patron = new RegExp(`^${serie.prefijo}(\\d{${serie.largoCorrelativo}})$`);
+  const mayor = [...ocupados]
+    .map(codigo => normalizar(codigo).match(patron)?.[1])
+    .filter(Boolean)
+    .reduce((maximo, sufijo) => Math.max(maximo, Number(sufijo)), serie.ultimoConfirmado);
+  for (let numero = mayor + 1; numero < 10 ** serie.largoCorrelativo; numero += 1) {
+    const codigo = serie.prefijo + String(numero).padStart(serie.largoCorrelativo, '0');
+    if (!ocupados.has(codigo)) return codigo;
+  }
+  throw Object.assign(new Error('No quedan códigos disponibles para esa marca.'), { status: 409 });
 }
 
 async function sugerirCodigo(idEmpresa, tipoEntrada) {
@@ -143,7 +159,11 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
     }
   });
   if (codigoAnulado) return normalizar(codigoAnulado.CODIGO);
-  if (marca !== 'ATOMIK') return sugerirPorMarcaYRubro(modelosVigentes, ocupados, marca, rubro);
+  if (marca !== 'ATOMIK') {
+    const serieConfigurada = seriesModeloPorMarca[marca];
+    if (serieConfigurada) return sugerirPorSerieConfigurada(ocupados, serieConfigurada);
+    return sugerirPorMarcaYRubro(modelosVigentes, ocupados, marca, rubro);
+  }
   let prefijo;
   let largoCorrelativo = 4;
   let ultimoConfirmado = -1;

@@ -749,19 +749,32 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
         clavesSeleccionadas.has(`${grupo.principal.ID_ALTA}|${grupo.principal.COD_ALFA}`)
     ).sort(compararCurvas);
 
+    const ordenCurvaPorPrimera = new Map();
+    for (const grupo of seguimiento.grupos.filter(grupo => grupo.tipo === 'MODULO')) {
+        for (const primera of grupo.primeras || []) {
+            ordenCurvaPorPrimera.set(
+                `${primera.ID_ALTA}|${primera.COD_ALFA}`,
+                String(grupo.principal.DETALLE_MODULO || grupo.principal.CODIGO_MODULO || '')
+            );
+        }
+    }
     const paresPorClave = new Map();
     for (const grupo of modulosSeleccionados) {
-        for (const primera of [...(grupo.primeras || [])].sort(compararTalles)) {
-            paresPorClave.set(`${primera.ID_ALTA}|${primera.COD_ALFA}`, {
+        for (const primera of grupo.primeras || []) {
+            const clave = `${primera.ID_ALTA}|${primera.COD_ALFA}`;
+            paresPorClave.set(clave, {
                 producto: primera,
-                ordenCurva: String(grupo.principal.DETALLE_MODULO || grupo.principal.CODIGO_MODULO || ''),
+                ordenCurva: ordenCurvaPorPrimera.get(clave) || 'ZZZ',
             });
         }
     }
     for (const producto of seleccionados) {
         if (normalizarTexto(producto.DETALLE_CLASIFICACION) !== 'PRIMERA') continue;
         const clave = `${producto.ID_ALTA}|${producto.COD_ALFA}`;
-        if (!paresPorClave.has(clave)) paresPorClave.set(clave, { producto, ordenCurva: 'ZZZ' });
+        paresPorClave.set(clave, {
+            producto,
+            ordenCurva: ordenCurvaPorPrimera.get(clave) || 'ZZZ',
+        });
     }
     const paresSeleccionados = [...paresPorClave.values()].sort((a, b) =>
         a.ordenCurva.localeCompare(b.ordenCurva, 'es', { numeric: true, sensitivity: 'base' }) ||

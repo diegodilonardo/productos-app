@@ -140,7 +140,10 @@
       </div>
       <div class="seguimiento-ean-action-group">
         <button id="btnImprimirEtiquetasEan" class="btn btn-outline-dark" type="button" disabled>Imprimir etiquetas (0)</button>
-      <a id="btnExportarPendientesEan" class="btn btn-outline-primary disabled" aria-disabled="true" tabindex="-1" href="/api/seguimiento/ean/pendientes.xlsx">Descargar pendientes GS1</a>
+        <button id="btnImprimirTodoEan" class="btn btn-dark" type="button" disabled>Imprimir módulos y sueltos (0)</button>
+      </div>
+      <div class="seguimiento-ean-action-group">
+        <a id="btnExportarPendientesEan" class="btn btn-outline-primary disabled" aria-disabled="true" tabindex="-1" href="/api/seguimiento/ean/pendientes.xlsx">Descargar pendientes GS1</a>
       </div>
     </div>
   </div>
@@ -179,6 +182,7 @@
         <select id="filtroTemporadaEan" class="form-select" aria-label="Filtrar por temporada"><option value="">Todas las temporadas</option></select>
         <select id="filtroAnoEan" class="form-select" aria-label="Filtrar por año"><option value="">Todos los años</option></select>
         <select id="filtroRubroEan" class="form-select" aria-label="Filtrar por rubro"><option value="">Todos los rubros</option></select>
+        <select id="filtroProveedorEan" class="form-select" aria-label="Filtrar por proveedor"><option value="">Todos los proveedores</option></select>
       </div>
     </div>
     <div class="table-responsive">
@@ -193,4 +197,4 @@
 
 </div>
 
-<script src="/js/seguimiento.js?v=24"></script>
+<script src="/js/seguimiento.js?v=26"></script>

@@ -66,6 +66,7 @@
     <span>
       {{#if hayModulos}}<button type="button" onclick="imprimir('modulos')">Imprimir módulos</button>{{/if}}
       {{#if hayPares}}<button type="button" onclick="imprimir('pares')">Imprimir pares individuales</button>{{/if}}
+      <button type="button" onclick="imprimir('todo')">Imprimir módulos y sueltos</button>
     </span>
   </div>
 
@@ -109,13 +110,25 @@
     function imprimir(tipo) {
       const tituloAnterior = document.title;
       document.body.dataset.print = tipo;
-      document.title = tipo === 'modulos' ? 'ETIQUETAS_MODULOS' : 'ETIQUETAS_PARES_INDIVIDUALES';
+      document.title = tipo === 'modulos' ? 'ETIQUETAS_MODULOS' : tipo === 'pares' ? 'ETIQUETAS_PARES_INDIVIDUALES' : 'ETIQUETAS_MODULOS_Y_PARES';
       window.print();
       window.setTimeout(function () {
         delete document.body.dataset.print;
         document.title = tituloAnterior;
       }, 500);
     }
+    {{#if impresionAutomatica}}
+    window.addEventListener('load', function () {
+      const imagenes = Array.from(document.images);
+      Promise.all(imagenes.map(function (imagen) {
+        if (imagen.complete) return Promise.resolve();
+        return new Promise(function (resolver) {
+          imagen.addEventListener('load', resolver, { once: true });
+          imagen.addEventListener('error', resolver, { once: true });
+        });
+      })).then(function () { window.setTimeout(function () { imprimir('todo'); }, 150); });
+    });
+    {{/if}}
   </script>
 </body>
 </html>

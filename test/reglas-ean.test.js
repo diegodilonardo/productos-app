@@ -33,12 +33,13 @@ test('GTIN se envía por las carpetas FTP de las empresas que gestionan EAN',()=
   assert.doesNotMatch(servicio,/3: '\/EAN\/GYD'/);
 });
 
-test('Seguimiento identifica y excluye visualmente los EAN no requeridos',()=>{
+test('Seguimiento identifica los EAN no requeridos y permite seleccionarlos para etiquetas',()=>{
   const servicio=fs.readFileSync(path.join(__dirname,'../src/services/seguimiento.service.js'),'utf8');
   const cliente=fs.readFileSync(path.join(__dirname,'../public/js/seguimiento.js'),'utf8');
   assert.match(servicio,/fila\.REQUIERE_EAN === false[\s\S]*'NO_REQUERIDO'/);
   assert.match(cliente,/EAN NO REQUERIDO/);
-  assert.match(cliente,/estadoEan === 'NO_REQUERIDO' \|\| inhabilitado \? 'disabled'/);
+  assert.match(cliente,/productosSeleccionadosEan\('CONFIRMADO_ERP', 'NO_REQUERIDO'\)/);
+  assert.match(cliente,/\$\{inhabilitado \? 'disabled' : ''\}/);
 });
 
 test('Maestros presenta el control EAN como una sección independiente',()=>{

@@ -369,6 +369,8 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 A.DETALLE_TEMPORADA,
                 D.CODIGO_MODELO,
                 D.DETALLE_MODELO,
+                D.CODIGO_PROVEEDOR,
+                D.DETALLE_PROVEEDOR,
                 D.CODIGO_COLOR,
                 D.DETALLE_COLOR,
                 D.CODIGO_MODULO,
@@ -462,6 +464,8 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                 SELECT TOP 1
                     X.CODIGO_MODELO,
                     X.DETALLE_MODELO,
+                    X.CODIGO_PROVEEDOR,
+                    X.DETALLE_PROVEEDOR,
                     X.CODIGO_COLOR,
                     X.DETALLE_COLOR,
                     X.CODIGO_MODULO,

@@ -199,6 +199,7 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(vista, /id="filtroTemporadaEan"/);
   assert.match(vista, /id="filtroAnoEan"/);
   assert.match(vista, /id="filtroRubroEan"/);
+  assert.match(vista, /id="filtroProveedorEan"/);
   assert.match(vista, /id="paginacionSeguimientoEan"/);
   assert.match(vista, /id="paginacionSeguimientoAltas"/);
   assert.match(vista, /id="listadoProductosEan"/);
@@ -233,7 +234,10 @@ test('la pantalla ofrece seguimiento EAN, filtros y descarga GS1', () => {
   assert.match(frontend, /productosSeleccionadosEan\('PENDIENTE_GS1'\)/);
   assert.match(frontend, /String\(producto\.ID_ALTA\) !== idAlta/);
   assert.match(frontend, /function cambiarFiltroAltaEan\(\)[\s\S]*?seleccionEan\.clear\(\)/);
-  assert.match(frontend, /\['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan'\][\s\S]*?addEventListener\('change', cambiarFiltroAltaEan\)/);
+  assert.match(frontend, /\['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan', 'filtroProveedorEan'\][\s\S]*?addEventListener\('change', cambiarFiltroAltaEan\)/);
+  assert.match(frontend, /claveProveedorEan/);
+  assert.match(frontend, /Todos los proveedores/);
+  assert.match(frontend, /CODIGO_PROVEEDOR/);
   assert.match(frontend, /productosSeleccionadosEan\('EAN_ASIGNADO'\)/);
   assert.match(frontend, /productosSeleccionadosEan\('CONFIRMADO_ERP', 'NO_REQUERIDO'\)/);
   assert.match(frontend, /seguimiento\.ean\.seleccion\.\$\{idEmpresaSeguimiento\}/);

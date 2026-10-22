@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const repository = require('../src/repositories/seguimiento.repository');
 
 test('la impresión compacta módulos y pares individuales en hojas A4', () => {
   const vista = fs.readFileSync(
@@ -31,7 +32,72 @@ test('la impresión compacta módulos y pares individuales en hojas A4', () => {
   assert.match(vista, /\.pair-title[^}]*overflow-wrap: anywhere/);
   assert.match(vista, /Imprimir módulos/);
   assert.match(vista, /Imprimir pares individuales/);
+  assert.match(vista, /Imprimir módulos y sueltos/);
+  assert.match(vista, /impresionAutomatica/);
   assert.match(vista, /barcode-value/);
+});
+
+test('la impresión expande los sueltos del módulo y respeta un par seleccionado', async () => {
+  const servicio = require('../src/services/seguimiento.service');
+  const original = repository.listarProductosSeguimientoEan;
+  const base = {
+    ID_ALTA: 10,
+    ID_EMPRESA: 1,
+    CODIGO_ALTA: 'ALT-10',
+    CODIGO_MARCA: '1',
+    DETALLE_MARCA: 'ATOMIK',
+    CODIGO_RUBRO: '2',
+    DETALLE_RUBRO: 'INDUMENTARIA',
+    CODIGO_ANO: '27',
+    CODIGO_TEMPORADA: 'IN',
+    DETALLE_TEMPORADA: 'INVIERNO',
+    CODIGO_MODELO: 'I00001',
+    DETALLE_MODELO: 'MODELO',
+    CODIGO_COLOR: '01',
+    DETALLE_COLOR: 'NEGRO',
+    EAN_ERP: '7792800716269',
+    REQUIERE_EAN: true,
+    C_ESTADIO: '1',
+  };
+  repository.listarProductosSeguimientoEan = async () => [
+    {
+      ...base,
+      COD_ALFA: 'MODULO1',
+      CODIGO_ERP: '100',
+      TIPO_PRODUCTO_DETALLE: 'MODULO',
+      GENERADO_AUTOMATICO: false,
+      CODIGO_MODULO: 'A0',
+      DETALLE_MODULO: 'XS AL S X 2',
+      PARES: 2,
+      PARES_MAESTRO: 2,
+      FAMILIAS_MODULO: '',
+    },
+    {
+      ...base,
+      COD_ALFA: 'SUELTO1',
+      CODIGO_ERP: '101',
+      TIPO_PRODUCTO_DETALLE: 'PAR_SUELTO',
+      DETALLE_CLASIFICACION: 'PRIMERA',
+      GENERADO_AUTOMATICO: true,
+      CODIGO_TALLE: 'XS',
+      DETALLE_TALLE: 'XS',
+      FAMILIAS_MODULO: 'MODULO1',
+    },
+  ];
+  try {
+    const contexto = { idEmpresa: 1, acceso: { empresa: 'VICBOR', todasMarcas: true, todosRubros: true, todasLicencias: true } };
+    const seguimiento = await servicio.listarSeguimientoEan(contexto);
+    assert.deepEqual(seguimiento.productos.map(producto => producto.ESTADO_EAN), ['CONFIRMADO_ERP', 'CONFIRMADO_ERP']);
+    const soloModulo = await servicio.prepararEtiquetasEan(['10|MODULO1'], contexto);
+    assert.equal(soloModulo.cantidadModulos, 1);
+    assert.equal(soloModulo.cantidadPares, 1);
+
+    const soloSuelto = await servicio.prepararEtiquetasEan(['10|SUELTO1'], contexto);
+    assert.equal(soloSuelto.cantidadModulos, 0);
+    assert.equal(soloSuelto.cantidadPares, 1);
+  } finally {
+    repository.listarProductosSeguimientoEan = original;
+  }
 });
 
 test('la composición impresa respeta las cantidades informadas por cada curva', () => {

@@ -188,6 +188,7 @@ router.post(
             return res.render('seguimiento/etiquetas', {
                 layout: false,
                 title: 'Impresión de etiquetas',
+                impresionAutomatica: String(req.query?.auto || '') === '1',
                 ...resultado,
             });
         } catch (error) {

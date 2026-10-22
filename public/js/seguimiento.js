@@ -92,7 +92,7 @@ async function iniciarSeguimiento() {
 
   document.getElementById('buscarSeguimientoEan')?.addEventListener('input', reiniciarPaginaSeguimientoEan);
   document.getElementById('filtroAltaEan')?.addEventListener('change', cambiarFiltroAltaEan);
-  for (const id of ['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan']) {
+  for (const id of ['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan', 'filtroProveedorEan']) {
     document.getElementById(id)?.addEventListener('change', cambiarFiltroAltaEan);
   }
   document.getElementById('paginacionSeguimientoEan')?.addEventListener('click', cambiarPaginaSeguimientoEan);
@@ -112,6 +112,7 @@ async function iniciarSeguimiento() {
   document.getElementById('btnExportarGtinDbi')?.addEventListener('click', exportarGtinDbi);
   document.getElementById('btnEnviarGtinPresea')?.addEventListener('click', enviarGtinPresea);
   document.getElementById('btnImprimirEtiquetasEan')?.addEventListener('click', imprimirEtiquetasEan);
+  document.getElementById('btnImprimirTodoEan')?.addEventListener('click', () => imprimirEtiquetasEan(true));
 
   await cargarTodo();
 }
@@ -274,12 +275,14 @@ function pintarSeguimientoEan() {
   const temporada = document.getElementById('filtroTemporadaEan')?.value || '';
   const ano = document.getElementById('filtroAnoEan')?.value || '';
   const rubro = document.getElementById('filtroRubroEan')?.value || '';
+  const proveedor = document.getElementById('filtroProveedorEan')?.value || '';
   const coincide = producto => {
     if (idAlta && String(producto.ID_ALTA) !== idAlta) return false;
     if (estado && producto.ESTADO_EAN !== estado) return false;
     if (temporada && claveTemporadaEan(producto) !== temporada) return false;
     if (ano && normalizarFiltroEan(producto.CODIGO_ANO) !== ano) return false;
     if (rubro && claveRubroEan(producto) !== rubro) return false;
+    if (proveedor && claveProveedorEan(producto) !== proveedor) return false;
     if (!busqueda) return true;
     return [producto.CODIGO_ALTA, producto.COD_ALFA, producto.CODIGO_ERP,
       producto.CODIGO_MODELO, producto.DETALLE_MODELO, producto.CODIGO_COLOR,
@@ -323,12 +326,7 @@ function pintarSeguimientoEan() {
     const boton = esModulo && primerasVisibles.length
       ? `<button type="button" class="btn btn-sm btn-outline-secondary seguimiento-ean-toggle" data-ean-family="${clave}" aria-expanded="${familiaAbierta}">${familiaAbierta ? 'Ocultar primeras' : `Ver primeras (${primerasVisibles.length})`}</button>`
       : '';
-    const clavesFamilia = (esModulo
-      ? [grupo.principal, ...(grupo.primeras || [])]
-      : [principal])
-      .filter(producto => !['INHABILITADO_PRESEA', 'INCONSISTENTE_ERP'].includes(producto.ESTADO_EAN))
-      .map(claveProductoEan);
-    return pintarFilaEan(principal, { resumenFamilia, boton, clavesSeleccion: clavesFamilia }) +
+    return pintarFilaEan(principal, { resumenFamilia, boton }) +
       primerasVisibles.map(producto => pintarFilaEan(producto, { claseFila: `${clave} ${familiaAbierta ? '' : 'd-none'} seguimiento-ean-child`, prefijo: '↳ Primera' })).join('');
   }).join('');
   actualizarChecksSeleccionEan();
@@ -345,6 +343,10 @@ function claveTemporadaEan(producto) {
 
 function claveRubroEan(producto) {
   return normalizarFiltroEan(producto.DETALLE_RUBRO || producto.CODIGO_RUBRO);
+}
+
+function claveProveedorEan(producto) {
+  return normalizarFiltroEan(producto.CODIGO_PROVEEDOR || producto.DETALLE_PROVEEDOR);
 }
 
 function poblarFiltrosSeguimientoEan() {
@@ -366,6 +368,13 @@ function poblarFiltrosSeguimientoEan() {
   poblarSelectSeguimientoEan('filtroRubroEan', 'Todos los rubros', productosSeguimientoEan.map(producto => ({
     valor: claveRubroEan(producto),
     etiqueta: producto.DETALLE_RUBRO || producto.CODIGO_RUBRO
+  })));
+  poblarSelectSeguimientoEan('filtroProveedorEan', 'Todos los proveedores', productosSeguimientoEan.map(producto => ({
+    valor: claveProveedorEan(producto),
+    etiqueta: [producto.CODIGO_PROVEEDOR, producto.DETALLE_PROVEEDOR]
+      .map(valor => String(valor ?? '').trim())
+      .filter(Boolean)
+      .join(' · ')
   })));
 }
 
@@ -467,7 +476,7 @@ function pintarFilaEan(producto, { resumenFamilia = '', boton = '', claseFila = 
     const claves = clavesSeleccion || [claveProductoEan(producto)];
     const checked = claves.length > 0 && claves.every(clave => seleccionEan.has(clave));
     return `<tr class="${claseFila} ${inhabilitado ? 'seguimiento-ean-inhabilitado' : ''}">
-      <td><div class="seguimiento-ean-image-cell"><input class="form-check-input seguimiento-ean-check" type="checkbox" data-ean-selection="${escapar(claves.join(';;'))}" ${checked ? 'checked' : ''} ${estadoEan === 'NO_REQUERIDO' || inhabilitado ? 'disabled' : ''} aria-label="Seleccionar ${escapar(producto.COD_ALFA)}"><img class="seguimiento-ean-image" src="${escapar(producto.URL_IMAGEN)}" alt="" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')"><span class="seguimiento-ean-no-image d-none">Sin foto</span></div></td>
+      <td><div class="seguimiento-ean-image-cell"><input class="form-check-input seguimiento-ean-check" type="checkbox" data-ean-selection="${escapar(claves.join(';;'))}" ${checked ? 'checked' : ''} ${inhabilitado ? 'disabled' : ''} aria-label="Seleccionar ${escapar(producto.COD_ALFA)}"><img class="seguimiento-ean-image" src="${escapar(producto.URL_IMAGEN)}" alt="" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')"><span class="seguimiento-ean-no-image d-none">Sin foto</span></div></td>
       <td><strong>${prefijo ? `<span class="seguimiento-ean-child-label">${prefijo}</span> ` : ''}${escapar(producto.COD_ALFA || '-')}</strong><div class="small text-secondary">ERP ${escapar(producto.CODIGO_ERP || '-')}</div>${estadoEan === 'INCONSISTENTE_ERP' ? `<div class="small text-danger">Actualmente asignado a ${escapar(producto.COD_ALFA_DUENO_CODIGO || 'otro producto')}</div>` : ''}${resumenFamilia}</td>
       <td><strong>${escapar(producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-')}</strong><div class="small text-secondary">${escapar(producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-')}</div></td>
       <td>${escapar(producto.TALLE_CURVA || '-')}</td>
@@ -569,6 +578,12 @@ function actualizarBotonImagenesEan(cargando = false) {
     imprimirEtiquetas.disabled = cargando || imprimibles === 0 || excedeMaximoOperacionEan(imprimibles);
     imprimirEtiquetas.textContent = `Imprimir etiquetas (${imprimibles})`;
     configurarLimiteBotonEan(imprimirEtiquetas, imprimibles);
+  }
+  const imprimirTodo = document.getElementById('btnImprimirTodoEan');
+  if (imprimirTodo) {
+    imprimirTodo.disabled = cargando || imprimibles === 0 || excedeMaximoOperacionEan(imprimibles);
+    imprimirTodo.textContent = `Imprimir módulos y sueltos (${imprimibles})`;
+    configurarLimiteBotonEan(imprimirTodo, imprimibles);
   }
   const descargarPendientes = document.getElementById('btnExportarPendientesEan');
   if (descargarPendientes) {
@@ -768,7 +783,7 @@ async function enviarGtinPresea() {
   } finally {actualizarBotonImagenesEan(false)}
 }
 
-async function imprimirEtiquetasEan() {
+async function imprimirEtiquetasEan(impresionAutomatica = false) {
   const clavesImprimibles = productosSeleccionadosEan('CONFIRMADO_ERP', 'NO_REQUERIDO').map(claveProductoEan);
   if (!clavesImprimibles.length || !idEmpresaSeguimiento) return;
   ocultarAlerta();
@@ -780,7 +795,7 @@ async function imprimirEtiquetasEan() {
   ventana.document.write(`<p style="font-family:Arial;padding:24px">Preparando etiquetas para ${clavesImprimibles.length} productos...</p>`);
   mostrarToastSeguimiento(`Preparando etiquetas para ${clavesImprimibles.length} productos.`, 'info');
   try {
-    const respuesta = await fetch(`/api/seguimiento/ean/etiquetas?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}`, {
+    const respuesta = await fetch(`/api/seguimiento/ean/etiquetas?idEmpresa=${encodeURIComponent(idEmpresaSeguimiento)}&auto=${impresionAutomatica ? '1' : '0'}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/html' },
       body: JSON.stringify({ clavesProducto: clavesImprimibles }),

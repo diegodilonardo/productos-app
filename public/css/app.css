@@ -1287,8 +1287,8 @@ main .progress {
 
 .seguimiento-ean-actions {
     display: grid;
-    grid-template-columns: repeat(4, minmax(190px, 1fr));
-    gap: .65rem;
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    gap: .5rem;
     flex: 1 1 850px;
 }
 
@@ -1300,6 +1300,8 @@ main .progress {
 .seguimiento-ean-action-group .btn {
     width: 100%;
     white-space: nowrap;
+    padding: .42rem .6rem;
+    font-size: .78rem;
 }
 
 .seguimiento-ean-metrics {
@@ -1320,7 +1322,7 @@ main .progress {
 
 .seguimiento-ean-filters {
     display: grid;
-    grid-template-columns: minmax(260px, 2fr) minmax(230px, 1.35fr) repeat(4, minmax(145px, 1fr));
+    grid-template-columns: minmax(260px, 2fr) minmax(230px, 1.35fr) repeat(5, minmax(145px, 1fr));
     gap: .75rem;
     flex: 1;
     justify-content: end;

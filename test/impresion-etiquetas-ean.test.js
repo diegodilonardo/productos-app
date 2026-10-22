@@ -154,6 +154,9 @@ test('Seguimiento permite imprimir EAN confirmados y no requeridos', () => {
   assert.match(servicio, /preserveAspectRatio="none"/);
   assert.match(servicio, /debeMostrarImagenEtiqueta\(producto, contexto\)/);
   assert.match(servicio, /imagenesAltaService\.buscarImagenProducto/);
+  assert.match(servicio, /font\('Helvetica-Bold'\)\.fontSize\(38\).*modulo\.marca/);
+  assert.match(servicio, /font\('Helvetica-Bold'\)\.fontSize\(16\).*underline: true/);
+  assert.match(servicio, /fontSize\(10\.5\)[\s\S]*?modulo\.codigoAlfa/);
 });
 
 test('un producto EAN no requerido es imprimible si conserva un EAN válido', () => {

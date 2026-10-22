@@ -905,42 +905,44 @@ async function dibujarModuloPdf(doc, modulo, x, y) {
 
     const alfa = await bufferCodigoBarras('code128', modulo.codigoAlfa, 7);
     const ean = await bufferCodigoBarras('ean13', modulo.ean, 7);
-    if (alfa) doc.image(alfa, x + 154, y + 10, { fit: [190, 48] });
-    if (ean) doc.image(ean, x + 360, y + 10, { fit: [190, 48] });
-    doc.font('Helvetica').fontSize(8).fillColor('#000000');
-    doc.text(textoPdf(modulo.codigoAlfa), x + 154, y + 59, { width: 190, align: 'center' });
-    doc.text(textoPdf(modulo.ean), x + 360, y + 59, { width: 190, align: 'center' });
+    if (alfa) doc.image(alfa, x + 158, y + 9, { fit: [188, 48] });
+    if (ean) doc.image(ean, x + 365, y + 9, { fit: [188, 48] });
+    doc.font('Helvetica').fontSize(10.5).fillColor('#000000');
+    doc.text(textoPdf(modulo.codigoAlfa), x + 158, y + 57, { width: 188, align: 'center' });
+    doc.text(textoPdf(modulo.ean), x + 365, y + 57, { width: 188, align: 'center' });
 
-    doc.font('Helvetica').fontSize(30).text(textoPdf(modulo.marca), x + 154, y + 78, { width: 396, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(38).text(textoPdf(modulo.marca), x + 152, y + 75, { width: 405, align: 'center' });
     const campos = [
         ['ARTÍCULO:', modulo.articulo],
         ['TALLE:', modulo.talleCurva],
         ['COLOR:', modulo.color],
     ];
     campos.forEach(([etiqueta, valor], indice) => {
-        const cy = y + 119 + indice * 23;
-        doc.font('Helvetica-Bold').fontSize(11).text(etiqueta, x + 154, cy, { width: 88 });
-        doc.font('Helvetica-Bold').text(textoPdf(valor), x + 244, cy, { width: 306 });
+        const cy = y + 121 + indice * 19;
+        doc.font('Helvetica-Bold').fontSize(16).text(etiqueta, x + 153, cy, { width: 91, underline: true });
+        doc.font('Helvetica-Bold').text(textoPdf(valor), x + 244, cy, { width: 309 });
     });
 
     const composicion = Array.isArray(modulo.composicion) ? modulo.composicion : [];
     const compX = x + 8;
-    const compY = y + 207;
+    const compY = y + 205;
     const totalAncho = 88;
-    const tallesAncho = ancho - 16 - totalAncho;
+    const separacionTotal = 6;
+    const tallesAncho = ancho - 16 - totalAncho - separacionTotal;
     const celda = composicion.length ? tallesAncho / composicion.length : tallesAncho;
+    doc.lineWidth(.7).moveTo(x + 8, y + 199).lineTo(x + ancho - 8, y + 199).stroke();
     composicion.forEach((item, indice) => {
         const cx = compX + indice * celda;
-        doc.lineWidth(.7).rect(cx, compY, celda, 62).stroke();
-        doc.moveTo(cx, compY + 30).lineTo(cx + celda, compY + 30).stroke();
-        doc.font('Helvetica-Bold').fontSize(11).text(textoPdf(item.talle), cx, compY + 9, { width: celda, align: 'center' });
-        doc.text(textoPdf(item.pares), cx, compY + 40, { width: celda, align: 'center' });
+        doc.lineWidth(.7).rect(cx, compY, celda, 70).stroke();
+        doc.moveTo(cx, compY + 35).lineTo(cx + celda, compY + 35).stroke();
+        doc.font('Helvetica-Bold').fontSize(11).text(textoPdf(item.talle), cx, compY + 11, { width: celda, align: 'center' });
+        doc.text(textoPdf(item.pares), cx, compY + 46, { width: celda, align: 'center' });
     });
-    const tx = compX + tallesAncho;
-    doc.rect(tx, compY, totalAncho, 62).stroke();
-    doc.moveTo(tx, compY + 26).lineTo(tx + totalAncho, compY + 26).stroke();
-    doc.font('Helvetica-Bold').fontSize(10).text('PARES', tx, compY + 8, { width: totalAncho, align: 'center' });
-    doc.fontSize(20).text(textoPdf(modulo.totalPares), tx, compY + 34, { width: totalAncho, align: 'center' });
+    const tx = compX + tallesAncho + separacionTotal;
+    doc.rect(tx, compY, totalAncho, 70).stroke();
+    doc.moveTo(tx, compY + 30).lineTo(tx + totalAncho, compY + 30).stroke();
+    doc.font('Helvetica-Bold').fontSize(11).text('PARES', tx, compY + 9, { width: totalAncho, align: 'center' });
+    doc.fontSize(24).text(textoPdf(modulo.totalPares), tx, compY + 39, { width: totalAncho, align: 'center' });
 }
 
 async function dibujarParPdf(doc, par, x, y) {
@@ -972,7 +974,7 @@ async function generarPdfEtiquetasEan(clavesEntrada, contexto) {
 
     for (let indice = 0; indice < etiquetas.modulos.length; indice += 1) {
         if (indice % 2 === 0) doc.addPage({ size: 'A4', margin: 0 });
-        await dibujarModuloPdf(doc, etiquetas.modulos[indice], 14, 14 + (indice % 2) * 297);
+        await dibujarModuloPdf(doc, etiquetas.modulos[indice], 14, 14 + (indice % 2) * 295);
     }
     for (let indice = 0; indice < etiquetas.pares.length; indice += 1) {
         if (indice % 27 === 0) doc.addPage({ size: 'A4', margin: 0 });

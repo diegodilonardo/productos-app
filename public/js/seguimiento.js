@@ -91,8 +91,7 @@ async function iniciarSeguimiento() {
   }
 
   document.getElementById('buscarSeguimientoEan')?.addEventListener('input', reiniciarPaginaSeguimientoEan);
-  document.getElementById('filtroAltaEan')?.addEventListener('change', cambiarFiltroAltaEan);
-  for (const id of ['filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan', 'filtroProveedorEan']) {
+  for (const id of ['filtroMarcaEan', 'filtroEstadoEan', 'filtroTemporadaEan', 'filtroAnoEan', 'filtroRubroEan', 'filtroProveedorEan']) {
     document.getElementById(id)?.addEventListener('change', cambiarFiltroAltaEan);
   }
   document.getElementById('paginacionSeguimientoEan')?.addEventListener('click', cambiarPaginaSeguimientoEan);
@@ -270,14 +269,14 @@ function pintarSeguimientoEan() {
   const tbody = document.getElementById('tablaSeguimientoEan');
   if (!tbody) return;
   const busqueda = String(document.getElementById('buscarSeguimientoEan')?.value || '').trim().toUpperCase();
-  const idAlta = document.getElementById('filtroAltaEan')?.value || '';
+  const marca = document.getElementById('filtroMarcaEan')?.value || '';
   const estado = document.getElementById('filtroEstadoEan')?.value || '';
   const temporada = document.getElementById('filtroTemporadaEan')?.value || '';
   const ano = document.getElementById('filtroAnoEan')?.value || '';
   const rubro = document.getElementById('filtroRubroEan')?.value || '';
   const proveedor = document.getElementById('filtroProveedorEan')?.value || '';
   const coincide = producto => {
-    if (idAlta && String(producto.ID_ALTA) !== idAlta) return false;
+    if (marca && claveMarcaEan(producto) !== marca) return false;
     if (estado && producto.ESTADO_EAN !== estado) return false;
     if (temporada && claveTemporadaEan(producto) !== temporada) return false;
     if (ano && normalizarFiltroEan(producto.CODIGO_ANO) !== ano) return false;
@@ -345,14 +344,18 @@ function claveRubroEan(producto) {
   return normalizarFiltroEan(producto.DETALLE_RUBRO || producto.CODIGO_RUBRO);
 }
 
+function claveMarcaEan(producto) {
+  return normalizarFiltroEan(producto.CODIGO_MARCA || producto.DETALLE_MARCA);
+}
+
 function claveProveedorEan(producto) {
   return normalizarFiltroEan(producto.CODIGO_PROVEEDOR || producto.DETALLE_PROVEEDOR);
 }
 
 function poblarFiltrosSeguimientoEan() {
-  poblarSelectSeguimientoEan('filtroAltaEan', 'Todas las altas', productosSeguimientoEan.map(producto => ({
-    valor: String(producto.ID_ALTA || '').trim(),
-    etiqueta: [producto.CODIGO_ALTA, producto.DETALLE_MARCA, producto.DETALLE_RUBRO]
+  poblarSelectSeguimientoEan('filtroMarcaEan', 'Todas las marcas', productosSeguimientoEan.map(producto => ({
+    valor: claveMarcaEan(producto),
+    etiqueta: [producto.CODIGO_MARCA, producto.DETALLE_MARCA]
       .map(valor => String(valor ?? '').trim())
       .filter(Boolean)
       .join(' · ')

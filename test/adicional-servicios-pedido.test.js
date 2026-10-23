@@ -27,7 +27,18 @@ test('el Pedido permite cargar y editar descripción, cantidad y precio del serv
 test('el Excel agrega SERVICIOS al final con el formato del archivo de Pedido', () => {
   const servicio = leer('src/services/pedidos.service.js');
   const bloque = servicio.match(/if \(texto\(pedido\.SERVICIO_DESCRIPCION\)\) \{[\s\S]*?filas\.push\([\s\S]*?\n  \}/)?.[0] || '';
-  assert.match(bloque, /cod_alfa: 'SERVICIOS'/);
+  const vm = require('node:vm');
+  const pedido = { CODIGO_PROVEEDOR: ' pb0025 ', SERVICIO_DESCRIPCION: 'Flete', SERVICIO_PRECIO: 12.5, SERVICIO_CANTIDAD: 2, NUMERO_ORDEN: 'PO01' };
+  const contexto = { pedido, filas: [], texto: v => String(v ?? '').trim(), redondear4: v => Number(v.toFixed(4)) };
+  vm.runInNewContext(bloque, contexto);
+  assert.equal(contexto.filas[0].cod_alfa, 'SERVICIOSPB0025');
+  assert.equal(contexto.filas[0].price, 12.5);
+  assert.equal(contexto.filas[0].quantity, 2);
+  pedido.CODIGO_PROVEEDOR = '';
+  assert.throws(() => vm.runInNewContext(bloque, contexto), /proveedor/);
+  pedido.SERVICIO_DESCRIPCION = '';
+  vm.runInNewContext(bloque, contexto);
+  assert.equal(contexto.filas.length, 1);
   assert.match(bloque, /descripcion: texto\(pedido\.SERVICIO_DESCRIPCION\)/);
   assert.match(bloque, /price:/);
   assert.match(bloque, /quantity:/);

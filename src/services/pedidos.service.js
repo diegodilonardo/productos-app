@@ -1768,8 +1768,10 @@ async function exportarPedidoExcel(idPedido, idEmpresa, usuarioAutenticado) {
   });
 
   if (texto(pedido.SERVICIO_DESCRIPCION)) {
+    const codigoProveedor = texto(pedido.CODIGO_PROVEEDOR).toUpperCase();
+    if (!codigoProveedor) throw new Error('El pedido debe tener un codigo de proveedor para exportar el servicio.');
     filas.push({
-      cod_alfa: 'SERVICIOS',
+      cod_alfa: `SERVICIOS${codigoProveedor}`,
       descripcion: texto(pedido.SERVICIO_DESCRIPCION),
       price: redondear4(Number(pedido.SERVICIO_PRECIO || 0)),
       quantity: redondear4(Number(pedido.SERVICIO_CANTIDAD || 0)),
@@ -1958,7 +1960,7 @@ async function exportarMasterDataAppExcel(idPedido, idEmpresa, usuarioAutenticad
       cod_alfa: texto(detalle.CODIGO_ALFA),
       descripcion: texto(detalle.DETALLE_PRODUCTO),
       proveedor: texto(detalle.CODIGO_PROVEEDOR),
-      nombre: texto(detalle.DETALLE_MARCA),
+      nombre: texto(detalle.DETALLE_PROVEEDOR),
       imagen: [
         texto(detalle.CODIGO_ANO),
         texto(detalle.CODIGO_TEMPORADA),

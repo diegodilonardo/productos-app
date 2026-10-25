@@ -816,7 +816,7 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
         ) || Number(producto.PARES || 0) || '-';
         modulos.push({
             codigoAlfa: producto.COD_ALFA,
-            ean: producto.EAN_ERP,
+            ean: producto.ESTADO_EAN === 'NO_REQUERIDO' ? '' : producto.EAN_ERP,
             marca: producto.DETALLE_MARCA || producto.CODIGO_MARCA || '-',
             articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
             talleCurva: producto.TALLE_CURVA || producto.DETALLE_MODULO || '-',
@@ -827,7 +827,7 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
             composicion,
             totalPares,
             barcodeAlfa: codigoBarrasSvg('code128', producto.COD_ALFA, { height: 7, textsize: 7 }),
-            barcodeEan: codigoBarrasSvg('ean13', producto.EAN_ERP, { height: 7, textsize: 7 }),
+            barcodeEan: producto.ESTADO_EAN === 'NO_REQUERIDO' ? '' : codigoBarrasSvg('ean13', producto.EAN_ERP, { height: 7, textsize: 7 }),
         });
     }
 
@@ -835,7 +835,7 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
     for (const producto of paresSeleccionados) {
         pares.push({
             codigoAlfa: producto.COD_ALFA,
-            ean: producto.EAN_ERP,
+            ean: producto.ESTADO_EAN === 'NO_REQUERIDO' ? '' : producto.EAN_ERP,
             articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
             color: producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-',
             talle: producto.DETALLE_TALLE || producto.CODIGO_TALLE || '-',
@@ -843,7 +843,7 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
                 ? await imagenEtiquetaProducto(producto, cacheImagenes)
                 : '',
             barcodeAlfa: codigoBarrasSvg('code128', producto.COD_ALFA, { height: 8, textsize: 7 }),
-            barcodeEan: codigoBarrasSvg('ean13', producto.EAN_ERP, { height: 8, textsize: 7 }),
+            barcodeEan: producto.ESTADO_EAN === 'NO_REQUERIDO' ? '' : codigoBarrasSvg('ean13', producto.EAN_ERP, { height: 8, textsize: 7 }),
         });
     }
 
@@ -904,12 +904,13 @@ async function dibujarModuloPdf(doc, modulo, x, y) {
     dibujarImagenPdf(doc, modulo.imagen, x + 12, y + 12, 128, 177);
 
     const alfa = await bufferCodigoBarras('code128', modulo.codigoAlfa, 7);
-    const ean = await bufferCodigoBarras('ean13', modulo.ean, 7);
-    if (alfa) doc.image(alfa, x + 158, y + 9, { fit: [188, 48] });
+    const ean = modulo.ean ? await bufferCodigoBarras('ean13', modulo.ean, 7) : null;
+    const alfaX = modulo.ean ? x + 158 : x + 261;
+    if (alfa) doc.image(alfa, alfaX, y + 9, { fit: [188, 48] });
     if (ean) doc.image(ean, x + 365, y + 9, { fit: [188, 48] });
     doc.font('Helvetica').fontSize(10.5).fillColor('#000000');
-    doc.text(textoPdf(modulo.codigoAlfa), x + 158, y + 57, { width: 188, align: 'center' });
-    doc.text(textoPdf(modulo.ean), x + 365, y + 57, { width: 188, align: 'center' });
+    doc.text(textoPdf(modulo.codigoAlfa), alfaX, y + 57, { width: 188, align: 'center' });
+    if (modulo.ean) doc.text(textoPdf(modulo.ean), x + 365, y + 57, { width: 188, align: 'center' });
 
     doc.font('Helvetica-Bold').fontSize(38).text(textoPdf(modulo.marca), x + 152, y + 75, { width: 405, align: 'center' });
     const campos = [
@@ -953,13 +954,13 @@ async function dibujarParPdf(doc, par, x, y) {
         .text(`${textoPdf(par.articulo)} - ${textoPdf(par.color)}`, x + 4, y + 4, { width: 130, height: 16, align: 'center', ellipsis: true });
     doc.fontSize(13).text(`T:${textoPdf(par.talle)}`, x + 136, y + 3, { width: 30, align: 'center' });
     dibujarImagenPdf(doc, par.imagen, x + 4, y + 22, 38, 58);
-    const ean = await bufferCodigoBarras('ean13', par.ean, 6);
+    const ean = par.ean ? await bufferCodigoBarras('ean13', par.ean, 6) : null;
     const alfa = await bufferCodigoBarras('code128', par.codigoAlfa, 6);
     if (ean) doc.image(ean, x + 47, y + 22, { fit: [117, 22] });
-    if (alfa) doc.image(alfa, x + 47, y + 52, { fit: [117, 22] });
+    if (alfa) doc.image(alfa, x + 47, y + (par.ean ? 52 : 28), { fit: [117, par.ean ? 22 : 38] });
     doc.font('Helvetica').fontSize(5.5).fillColor('#000000');
-    doc.text(textoPdf(par.ean), x + 47, y + 45, { width: 117, align: 'center' });
-    doc.font('Helvetica-Bold').fontSize(6).text(textoPdf(par.codigoAlfa), x + 47, y + 75, { width: 117, align: 'center' });
+    if (par.ean) doc.text(textoPdf(par.ean), x + 47, y + 45, { width: 117, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(6).text(textoPdf(par.codigoAlfa), x + 47, y + (par.ean ? 75 : 70), { width: 117, align: 'center' });
 }
 
 async function generarPdfEtiquetasEan(clavesEntrada, contexto) {
@@ -1328,8 +1329,8 @@ function ean13Valido(valor) {
 }
 
 function productoImprimibleEtiquetaEan(producto) {
-    return ['CONFIRMADO_ERP', 'NO_REQUERIDO'].includes(producto?.ESTADO_EAN) &&
-        ean13Valido(producto?.EAN_ERP);
+    return producto?.ESTADO_EAN === 'NO_REQUERIDO' ||
+        (producto?.ESTADO_EAN === 'CONFIRMADO_ERP' && ean13Valido(producto?.EAN_ERP));
 }
 
 async function importarCodigosEanGs1(buffer, nombreArchivo, clavesEntrada, contexto) {

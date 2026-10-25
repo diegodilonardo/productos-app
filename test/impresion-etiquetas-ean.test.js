@@ -99,6 +99,30 @@ test('la impresión expande los sueltos del módulo y respeta un par seleccionad
     assert.ok(Buffer.isBuffer(pdf));
     assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
     assert.ok(pdf.length > 1000);
+
+    const listarConEan = repository.listarProductosSeguimientoEan;
+    for (const eanAnterior of ['', '7792800716269']) {
+      repository.listarProductosSeguimientoEan = async () => (await listarConEan()).map(
+        producto => ({ ...producto, REQUIERE_EAN: false, EAN_ERP: eanAnterior })
+      );
+      const sinEan = await servicio.prepararEtiquetasEan(['10|MODULO1'], contexto);
+      assert.equal(sinEan.modulos.length, 1);
+      assert.equal(sinEan.pares.length, 1);
+      for (const etiqueta of [...sinEan.modulos, ...sinEan.pares]) {
+        assert.equal(etiqueta.ean, '');
+        assert.equal(etiqueta.barcodeEan, '');
+        assert.ok(etiqueta.barcodeAlfa.includes('<svg'));
+      }
+      const handlebars = require('handlebars');
+      const template = fs.readFileSync(path.join(__dirname, '..', 'views', 'seguimiento', 'etiquetas.hbs'), 'utf8');
+      const html = handlebars.compile(template)(sinEan);
+      assert.ok(!html.includes('class="barcode pair-ean"'));
+      assert.ok(html.includes('module-barcodes without-ean'));
+      assert.ok(html.includes('pair-label without-ean'));
+      const pdfSinEan = await servicio.generarPdfEtiquetasEan(['10|MODULO1'], contexto);
+      assert.equal(pdfSinEan.subarray(0, 4).toString(), '%PDF');
+    }
+
   } finally {
     repository.listarProductosSeguimientoEan = original;
   }
@@ -159,7 +183,7 @@ test('Seguimiento permite imprimir EAN confirmados y no requeridos', () => {
   assert.match(servicio, /fontSize\(10\.5\)[\s\S]*?modulo\.codigoAlfa/);
 });
 
-test('un producto EAN no requerido es imprimible si conserva un EAN válido', () => {
+test('un producto sin requisito EAN es imprimible incluso sin EAN', () => {
   const servicio = require('../src/services/seguimiento.service');
   assert.equal(servicio.productoImprimibleEtiquetaEan({
     ESTADO_EAN: 'NO_REQUERIDO',
@@ -168,7 +192,7 @@ test('un producto EAN no requerido es imprimible si conserva un EAN válido', ()
   assert.equal(servicio.productoImprimibleEtiquetaEan({
     ESTADO_EAN: 'NO_REQUERIDO',
     EAN_ERP: '',
-  }), false);
+  }), true);
   assert.equal(servicio.productoImprimibleEtiquetaEan({
     ESTADO_EAN: 'PENDIENTE_GS1',
     EAN_ERP: '7792800015157',

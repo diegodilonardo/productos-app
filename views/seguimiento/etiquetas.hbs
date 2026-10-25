@@ -48,6 +48,9 @@
     .pair-label .barcode-value { font-size: 6.5pt; }
     .pair-label .pair-alpha .barcode-bars { padding: 0; }
     .pair-label .pair-alpha .barcode-value { font-size: 7pt; font-weight: 700; }
+    .module-barcodes.without-ean { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+    .module-barcodes.without-ean .barcode { width: 50%; }
+    .pair-label.without-ean .pair-alpha { grid-row: 2 / 4; padding: 2mm 0; }
     @page { size: A4 portrait; margin: 8mm; }
     @page moduleLabels { size: A4 portrait; margin: 5mm; }
     @page pairLabels { size: A4 portrait; margin: 8mm; }
@@ -75,9 +78,9 @@
     {{#each modulos}}
     <article class="module-label">
       <div class="module-photo" aria-hidden="true">{{#if imagen}}<img src="{{imagen}}" alt="">{{/if}}</div>
-      <div class="module-barcodes">
+      <div class="module-barcodes {{#unless ean}}without-ean{{/unless}}">
         <div class="barcode"><div class="barcode-bars">{{{barcodeAlfa}}}</div><div class="barcode-value">{{codigoAlfa}}</div></div>
-        <div class="barcode"><div class="barcode-bars">{{{barcodeEan}}}</div><div class="barcode-value">{{ean}}</div></div>
+        {{#if ean}}<div class="barcode"><div class="barcode-bars">{{{barcodeEan}}}</div><div class="barcode-value">{{ean}}</div></div>{{/if}}
       </div>
       <div class="module-data">
         <div class="brand">{{marca}}</div>
@@ -97,10 +100,10 @@
   {{#if hayPares}}
   <section class="sheet pair-grid pair-section {{#unless hayModulos}}only{{/unless}}" aria-label="Etiquetas de pares individuales">
     {{#each pares}}
-    <article class="pair-label">
+    <article class="pair-label {{#unless ean}}without-ean{{/unless}}">
       <div class="pair-heading"><div class="pair-title">{{articulo}} - {{color}}</div><div class="pair-size">T:{{talle}}</div></div>
       <div class="pair-photo">{{#if imagen}}<img src="{{imagen}}" alt="">{{/if}}</div>
-      <div class="barcode pair-ean"><div class="barcode-bars">{{{barcodeEan}}}</div><div class="barcode-value">{{ean}}</div></div>
+      {{#if ean}}<div class="barcode pair-ean"><div class="barcode-bars">{{{barcodeEan}}}</div><div class="barcode-value">{{ean}}</div></div>{{/if}}
       <div class="barcode pair-alpha"><div class="barcode-bars">{{{barcodeAlfa}}}</div><div class="barcode-value">{{codigoAlfa}}</div></div>
     </article>
     {{/each}}

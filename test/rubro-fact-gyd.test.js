@@ -29,6 +29,11 @@ test('WAKE utiliza las reglas confirmadas de calzado, licencias y POP', () => {
   assert.equal(determinar('WAKE', 'POP', null, 'PAR_SUELTO'), 'POP_WK');
 });
 
+test('VANTEK utiliza las reglas confirmadas de calzado de MIDING', () => {
+  assert.equal(determinar('VANTEK', 'CALZADO', null, 'MODULO'), 'MOD_CALZ_VTK');
+  assert.equal(determinar('VANTEK', 'CALZADO', null, 'PAR_SUELTO'), 'CALZ_VTK');
+});
+
 test('MASSIMO_HOMBRE queda fuera del circuito comercial', () => {
   assert.throws(
     () => determinar('MASSIMO_HOMBRE', 'CALZADO', null, 'MODULO'),

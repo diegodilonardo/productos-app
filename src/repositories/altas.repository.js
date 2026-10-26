@@ -864,6 +864,39 @@ async function buscarRubroFacturacion(marcaEmpresa, rubroFacturacion, idEmpresa)
   return resultado.recordset[0] || null;
 }
 
+async function buscarConfiguracionRubroFact({
+  idEmpresa,
+  marcaEmpresa,
+  codigoRubro,
+  tipoProducto
+}) {
+  const pool = await getConnection();
+
+  const resultado = await pool
+    .request()
+    .input('ID_EMPRESA', sql.Int, idEmpresa)
+    .input('MARCA_EMPRESA', sql.VarChar(100), marcaEmpresa)
+    .input('CODIGO_RUBRO', sql.VarChar(50), codigoRubro)
+    .input('TIPO_PRODUCTO', sql.VarChar(20), tipoProducto)
+    .query(`
+      SELECT TOP 1
+        ID_REGLA_RUBRO_FACT,
+        ID_EMPRESA,
+        MARCA_EMPRESA,
+        CODIGO_RUBRO,
+        TIPO_PRODUCTO,
+        RUBRO_FACTURACION
+      FROM dbo.REGLAS_RUBRO_FACT
+      WHERE ID_EMPRESA = @ID_EMPRESA
+        AND UPPER(LTRIM(RTRIM(MARCA_EMPRESA))) = UPPER(LTRIM(RTRIM(@MARCA_EMPRESA)))
+        AND UPPER(LTRIM(RTRIM(CODIGO_RUBRO))) = UPPER(LTRIM(RTRIM(@CODIGO_RUBRO)))
+        AND UPPER(LTRIM(RTRIM(TIPO_PRODUCTO))) = UPPER(LTRIM(RTRIM(@TIPO_PRODUCTO)))
+        AND ACTIVA = 1;
+    `);
+
+  return resultado.recordset[0] || null;
+}
+
 /* ============================================================
    VALIDAR EXISTENCIA ERP
    ============================================================ */
@@ -1993,6 +2026,7 @@ module.exports = {
   buscarModulo,
 
   buscarRubroFacturacion,
+  buscarConfiguracionRubroFact,
 
   buscarProductoERP,
   reconciliarExistenciaERPAlta,

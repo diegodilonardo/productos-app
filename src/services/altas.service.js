@@ -822,6 +822,23 @@ function determinarRubroFact(
 
 
     /* ========================================================
+       MIDING / VANTEK
+
+       Maestro recibido:
+         CALZ_VTK
+         MOD_CALZ_VTK
+       ======================================================== */
+
+    if (marcaNormalizada === 'VANTEK') {
+        if (rubroNormalizado === 'CALZADO') {
+            return esParSuelto
+                ? 'CALZ_VTK'
+                : 'MOD_CALZ_VTK';
+        }
+    }
+
+
+    /* ========================================================
        INDUSTRIAS GYD / MARCEL
        ======================================================== */
 
@@ -909,6 +926,39 @@ function determinarRubroFact(
         `No existe regla de RUBRO_FACT para ` +
         `${marca} / ${rubro} / ` +
         `${esParSuelto ? 'PAR_SUELTO' : 'MODULO'}.`
+    );
+}
+
+async function resolverRubroFact(
+    idEmpresa,
+    marca,
+    rubro,
+    codigoClasificacion,
+    tipoProductoDetalle = null
+) {
+    const tipoNormalizado = tipoProductoDetalle
+        ? normalizarTipoProducto(tipoProductoDetalle)
+        : ['1', '2'].includes(String(codigoClasificacion || '').trim())
+            ? 'PAR_SUELTO'
+            : 'MODULO';
+
+    const configuracion =
+        await altasRepository.buscarConfiguracionRubroFact({
+            idEmpresa,
+            marcaEmpresa: normalizarTexto(marca),
+            codigoRubro: normalizarTexto(rubro),
+            tipoProducto: tipoNormalizado
+        });
+
+    if (configuracion?.RUBRO_FACTURACION) {
+        return normalizarTexto(configuracion.RUBRO_FACTURACION);
+    }
+
+    return determinarRubroFact(
+        marca,
+        rubro,
+        codigoClasificacion,
+        tipoProductoDetalle
     );
 }
 
@@ -1777,7 +1827,8 @@ async function prepararDetalleProducto(
     const clasificacionAplicada = clasificacionPrincipal;
 
     const rubroFactPrincipal =
-        determinarRubroFact(
+        await resolverRubroFact(
+            idEmpresa,
             alta.DETALLE_MARCA,
             alta.DETALLE_RUBRO,
             clasificacionAplicada.CODIGO_CLASIFICACION,
@@ -1785,7 +1836,8 @@ async function prepararDetalleProducto(
         );
 
     const rubroFactSuelto =
-        determinarRubroFact(
+        await resolverRubroFact(
+            idEmpresa,
             alta.DETALLE_MARCA,
             alta.DETALLE_RUBRO,
             '1',
@@ -3417,6 +3469,7 @@ module.exports = {
         normalizarCodigoModeloCodigoAlfa,
         obtenerRubroCodigoAlfaHijoSegunPrincipal,
         determinarRubroFact,
+        resolverRubroFact,
         expandirCombinatoriaCurvas
         ,clasificacionesPorCurva
     }

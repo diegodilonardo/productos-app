@@ -98,6 +98,15 @@ router.get('/altas-disponibles', requerirEmpresa, async (req, res) => {
   }
 });
 
+router.get('/servicios/opciones', requerirEmpresa, async (req, res) => {
+  try {
+    const datos = await pedidosService.obtenerOpcionesPedidoServicios(req.idEmpresa, req.accesoEmpresa);
+    return res.json({ ok: true, datos });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
 router.post('/altas/proveedores', requerirEmpresa, async (req, res) => {
   try {
     const datos = await pedidosService.obtenerProveedoresPorAltas(

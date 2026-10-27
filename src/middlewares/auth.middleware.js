@@ -358,6 +358,16 @@ function accesoPermiteAlta(acceso, alta) {
   return true;
 }
 
+function accesoPermiteMarca(acceso, codigoMarca) {
+  if (!acceso) return false;
+  if (acceso.todasMarcas) return true;
+  const marca = normalizarScope(codigoMarca);
+  const marcas = Array.isArray(acceso.marcas)
+    ? acceso.marcas.map(item => codigoScope(item, ['codigoMarca', 'CODIGO_MARCA']))
+    : [];
+  return marcas.includes(marca);
+}
+
 
 async function requerirAccesoAlta(req, res, next) {
   try {
@@ -427,8 +437,8 @@ async function requerirAccesoPedido(req, res, next) {
       .input('ID_PEDIDO', sql.BigInt, idPedido)
       .query(`
         SELECT
-          P.ID_PEDIDO, P.ID_EMPRESA, P.ID_ALTA, P.CODIGO_PEDIDO, P.ESTADO,
-          A.ID_ALTA AS ID_ALTA_ASOCIADA, A.CODIGO_MARCA, A.CODIGO_RUBRO,
+          P.ID_PEDIDO, P.ID_EMPRESA, P.ID_ALTA, P.CODIGO_PEDIDO, P.ESTADO, P.TIPO_PEDIDO,
+          A.ID_ALTA AS ID_ALTA_ASOCIADA, COALESCE(P.CODIGO_MARCA, A.CODIGO_MARCA) AS CODIGO_MARCA, A.CODIGO_RUBRO,
           (
             SELECT TOP 1
               CASE
@@ -441,7 +451,7 @@ async function requerirAccesoPedido(req, res, next) {
             ORDER BY D.ID_DETALLE
           ) AS LICENCIA_ALTA
         FROM dbo.PEDIDOS P
-        CROSS APPLY
+        OUTER APPLY
         (
           SELECT PA.ID_ALTA
           FROM dbo.PEDIDOS_ALTAS PA
@@ -454,7 +464,7 @@ async function requerirAccesoPedido(req, res, next) {
             WHERE PA0.ID_EMPRESA = P.ID_EMPRESA AND PA0.ID_PEDIDO = P.ID_PEDIDO
           )
         ) REL
-        INNER JOIN dbo.ALTAS_PRODUCTOS A
+        LEFT JOIN dbo.ALTAS_PRODUCTOS A
           ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = REL.ID_ALTA
         WHERE P.ID_PEDIDO = @ID_PEDIDO;
       `);
@@ -466,7 +476,10 @@ async function requerirAccesoPedido(req, res, next) {
     const acceso = obtenerAccesoEmpresa(contexto, pedido.ID_EMPRESA);
     if (!acceso) return res.status(403).json({ ok: false, mensaje: 'No tiene permisos para acceder a este pedido.' });
 
-    if (!pedidosAltas.every(alta => accesoPermiteAlta(acceso, alta))) {
+    const permitido = String(pedido.TIPO_PEDIDO || '').trim().toUpperCase() === 'SERVICIOS'
+      ? accesoPermiteMarca(acceso, pedido.CODIGO_MARCA)
+      : pedidosAltas.every(alta => accesoPermiteAlta(acceso, alta));
+    if (!permitido) {
       return res.status(403).json({ ok: false, mensaje: 'No tiene permisos para acceder a este pedido por marca, rubro o licencia.' });
     }
 

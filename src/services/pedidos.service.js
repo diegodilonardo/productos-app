@@ -511,8 +511,12 @@ async function validarProductoDisponible(
    ============================================================ */
 
 async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usuarioAutenticado) {
-  const idsAltas = validarIdsAltas(datos.idsAltas ?? datos.idAlta);
   const empresa = validarIdEmpresa(idEmpresa);
+  const tipoPedido = texto(datos.tipoPedido || 'PRODUCTOS').toUpperCase();
+  if (!['PRODUCTOS', 'SERVICIOS'].includes(tipoPedido)) throw new Error('Tipo de pedido inválido.');
+  const idsAltas = tipoPedido === 'PRODUCTOS'
+    ? validarIdsAltas(datos.idsAltas ?? datos.idAlta)
+    : [];
 
   const numeroOrden = texto(datos.numeroOrden);
 
@@ -549,10 +553,50 @@ async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usua
     if (!Number.isFinite(servicioPrecio) || servicioPrecio < 0) throw new Error('El precio del servicio debe ser mayor o igual a cero.');
   }
 
+  if (tipoPedido === 'SERVICIOS' && !tieneServicio) {
+    throw new Error('Debe completar la descripción, cantidad y precio del servicio.');
+  }
+
   const usuarioCreacion = texto(usuarioAutenticado) || 'SISTEMA';
 
   if (usuarioCreacion.length > 100) {
     throw new Error('El usuario de creación supera los 100 caracteres.');
+  }
+
+  if (tipoPedido === 'SERVICIOS') {
+    const opciones = await pedidosRepository.obtenerOpcionesPedidoServicios(empresa);
+    const codigoMarca = texto(datos.codigoMarca);
+    const codigoProveedor = texto(datos.codigoProveedor).toUpperCase();
+    const marca = opciones.marcas.find(item => texto(item.CODIGO_MARCA) === codigoMarca);
+    const proveedor = opciones.proveedores.find(item => texto(item.CODIGO_PROVEEDOR).toUpperCase() === codigoProveedor);
+    if (!marca) throw new Error('La marca seleccionada no está habilitada para la empresa.');
+    if (!accesoEmpresa?.todasMarcas) {
+      const permitidas = (Array.isArray(accesoEmpresa?.marcas) ? accesoEmpresa.marcas : [])
+        .map(item => texto(item?.codigoMarca ?? item?.CODIGO_MARCA ?? item));
+      if (!permitidas.includes(codigoMarca)) throw new Error('No tiene permisos para crear pedidos de esa marca.');
+    }
+    if (!proveedor) throw new Error('El proveedor seleccionado no está habilitado.');
+    return {
+      ID_EMPRESA: empresa,
+      ID_ALTA: null,
+      IDS_ALTAS: [],
+      CODIGO_ALTA: `SERVICIOS-${codigoMarca}`,
+      CODIGOS_ALTAS: [],
+      TIPO_PEDIDO: 'SERVICIOS',
+      TIPO_PRODUCTO: 'SERVICIOS',
+      CODIGO_MARCA: marca.CODIGO_MARCA,
+      DETALLE_MARCA: marca.DETALLE_MARCA,
+      CODIGO_PROVEEDOR: proveedor.CODIGO_PROVEEDOR,
+      DETALLE_PROVEEDOR: proveedor.DETALLE_PROVEEDOR,
+      NUMERO_ORDEN: numeroOrden,
+      MONEDA: moneda,
+      ESTADO: 'BORRADOR',
+      OBSERVACIONES: observaciones || null,
+      SERVICIO_DESCRIPCION: servicioDescripcion,
+      SERVICIO_CANTIDAD: servicioCantidad,
+      SERVICIO_PRECIO: servicioPrecio,
+      USUARIO_CREACION: usuarioCreacion,
+    };
   }
 
   const altas = await validarAltasDisponibles(idsAltas, empresa, accesoEmpresa);
@@ -576,6 +620,9 @@ async function prepararCabeceraPedido(datos = {}, idEmpresa, accesoEmpresa, usua
       : alta.CODIGO_ALTA,
     CODIGOS_ALTAS: altas.map(item => item.CODIGO_ALTA),
     TIPO_PRODUCTO: alta.TIPO_PRODUCTO,
+    TIPO_PEDIDO: 'PRODUCTOS',
+    CODIGO_MARCA: alta.CODIGO_MARCA,
+    DETALLE_MARCA: alta.DETALLE_MARCA,
 
     CODIGO_PROVEEDOR: proveedor.CODIGO_PROVEEDOR,
     DETALLE_PROVEEDOR: proveedor.DETALLE_PROVEEDOR,
@@ -598,7 +645,13 @@ async function actualizarServicioPedido(idPedido, datos = {}, idEmpresa) {
   await validarPedidoBorrador(id, empresa);
   const descripcion = texto(datos.descripcion);
   const vacio = !descripcion && (datos.cantidad === '' || datos.cantidad == null) && (datos.precio === '' || datos.precio == null);
-  if (vacio) return pedidosRepository.actualizarServicioPedido(id, empresa, null, null, null);
+  if (vacio) {
+    const pedido = await pedidosRepository.obtenerPedidoPorId(id, empresa);
+    if (texto(pedido?.TIPO_PEDIDO).toUpperCase() === 'SERVICIOS') {
+      throw new Error('Un pedido de servicios no puede quedar sin servicio.');
+    }
+    return pedidosRepository.actualizarServicioPedido(id, empresa, null, null, null);
+  }
   if (!descripcion) throw new Error('La descripción del servicio es obligatoria.');
   if (descripcion.length > 200) throw new Error('La descripción del servicio supera los 200 caracteres.');
   const cantidad = Number(datos.cantidad);
@@ -668,12 +721,12 @@ async function crearPedido(datos = {}, idEmpresa, accesoEmpresa, usuarioAutentic
    * Validación anticipada para devolver un mensaje claro al usuario.
    * El repository vuelve a comprobarlo dentro de la transacción.
    */
-  const duplicado = await pedidosRepository.buscarPedidoDuplicadoActivo(
+  const duplicado = cabecera.TIPO_PEDIDO === 'PRODUCTOS' ? await pedidosRepository.buscarPedidoDuplicadoActivo(
     cabecera.ID_ALTA,
     cabecera.CODIGO_PROVEEDOR,
     cabecera.NUMERO_ORDEN,
     cabecera.ID_EMPRESA
-  );
+  ) : null;
 
   if (duplicado) {
     const referencia = duplicado.CODIGO_PEDIDO || `ID ${duplicado.ID_PEDIDO}`;
@@ -724,6 +777,12 @@ async function listarPedidos(idEmpresa, accesoEmpresa) {
     validarIdEmpresa(idEmpresa)
   );
   const evaluados = await Promise.all(pedidos.map(async pedido => {
+    if (texto(pedido.TIPO_PEDIDO).toUpperCase() === 'SERVICIOS') {
+      if (accesoEmpresa?.todasMarcas) return pedido;
+      const permitidas = (Array.isArray(accesoEmpresa?.marcas) ? accesoEmpresa.marcas : [])
+        .map(item => texto(item?.codigoMarca ?? item?.CODIGO_MARCA ?? item));
+      return permitidas.includes(texto(pedido.CODIGO_MARCA)) ? pedido : null;
+    }
     if (!accesoPermiteAlta(accesoEmpresa, pedido)) return null;
 
     const altasAsociadas = await pedidosRepository.obtenerAltasPorPedido(
@@ -737,6 +796,16 @@ async function listarPedidos(idEmpresa, accesoEmpresa) {
   }));
 
   return evaluados.filter(Boolean);
+}
+
+async function obtenerOpcionesPedidoServicios(idEmpresa, accesoEmpresa) {
+  const opciones = await pedidosRepository.obtenerOpcionesPedidoServicios(validarIdEmpresa(idEmpresa));
+  if (!accesoEmpresa?.todasMarcas) {
+    const permitidas = (Array.isArray(accesoEmpresa?.marcas) ? accesoEmpresa.marcas : [])
+      .map(item => texto(item?.codigoMarca ?? item?.CODIGO_MARCA ?? item));
+    opciones.marcas = opciones.marcas.filter(item => permitidas.includes(texto(item.CODIGO_MARCA)));
+  }
+  return opciones;
 }
 
 async function generarReportePedidos(idEmpresa, accesoEmpresa, filtros = {}) {
@@ -944,6 +1013,7 @@ async function validarPedidoBorrador(idPedido, idEmpresa) {
 
 async function obtenerAltasAgregablesPedido(idPedido, idEmpresa, accesoEmpresa) {
   const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  if (texto(pedido.TIPO_PEDIDO).toUpperCase() === 'SERVICIOS') return [];
   const asociadas = new Set((pedido.IDS_ALTAS || []).map(Number));
   const marcaPedido = texto(pedido.CODIGO_MARCA).toUpperCase();
   const candidatas = (await obtenerAltasDisponibles(idEmpresa, accesoEmpresa))
@@ -960,6 +1030,7 @@ async function obtenerAltasAgregablesPedido(idPedido, idEmpresa, accesoEmpresa) 
 
 async function agregarAltaPedido(idPedido, idAlta, idEmpresa, accesoEmpresa) {
   const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  if (texto(pedido.TIPO_PEDIDO).toUpperCase() === 'SERVICIOS') throw new Error('Un pedido de servicios no admite Altas.');
   if ((pedido.IDS_ALTAS || []).map(Number).includes(Number(idAlta))) {
     throw Object.assign(new Error('El Alta ya está asociada a este pedido.'), { status: 409 });
   }
@@ -1402,7 +1473,7 @@ async function validarPedido(idPedido, datos = {}, idEmpresa, usuarioAutenticado
     pedido.ID_EMPRESA
   );
 
-  if (!detalles || detalles.length === 0) {
+  if ((!detalles || detalles.length === 0) && texto(pedido.TIPO_PEDIDO).toUpperCase() !== 'SERVICIOS') {
     throw new Error('El pedido no contiene productos para validar.');
   }
 
@@ -1717,11 +1788,11 @@ async function exportarPedidoExcel(idPedido, idEmpresa, usuarioAutenticado) {
 
   const detalles = await pedidosRepository.listarDetallePedido(id, empresa);
 
-  if (!detalles || detalles.length === 0) {
+  if ((!detalles || detalles.length === 0) && !texto(pedido.SERVICIO_DESCRIPCION)) {
     throw new Error('El pedido no contiene productos para exportar.');
   }
 
-  const filas = detalles.map(detalle => {
+  const filas = (detalles || []).map(detalle => {
     const tipo = normalizarTipoProducto(detalle.TIPO_PRODUCTO);
     const precioFobPar = Number(detalle.PRECIO_FOB_PAR || 0);
     const adicionalPar = Number(detalle.ADICIONAL || 0);
@@ -2322,6 +2393,7 @@ async function exportarPedidoNacionalDBI(idPedido, idEmpresa, usuarioAutenticado
 }
 
 module.exports = {
+  obtenerOpcionesPedidoServicios,
   listarPedidos,
   generarReportePedidos,
   generarReporteDetallePedidos,

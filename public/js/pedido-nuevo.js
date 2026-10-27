@@ -9,8 +9,12 @@ let modalModelosAlta = null;
 let modalProductosSeleccionados = null;
 let productosResumenAltas = [];
 let revisionResumenProductos = 0;
+let opcionesServicios = { marcas: [], proveedores: [] };
 
 async function iniciarNuevoPedido() {
+  document.getElementById('tipoPedido').addEventListener('change', aplicarTipoPedido);
+  document.getElementById('marcaServicio').addEventListener('change', actualizarResumen);
+  document.getElementById('proveedorServicio').addEventListener('change', () => { actualizarCodigoProductoServicio(); actualizarResumen(); });
   document.getElementById('altasPedidoSelector').addEventListener('change', cambiarAlta);
   document.getElementById('altasPedidoSelector').addEventListener('click', event => {
     const boton = event.target.closest('[data-ver-modelos-alta]');
@@ -34,7 +38,10 @@ async function iniciarNuevoPedido() {
 
   try {
     const listo = await cargarContextoPedido();
-    if (listo) await cargarAltas();
+    if (listo) {
+      await Promise.all([cargarAltas(), cargarOpcionesServicios()]);
+      aplicarTipoPedido();
+    }
   } catch (error) {
     mostrarAlerta(error.message, 'danger');
   }
@@ -169,7 +176,45 @@ async function cambiarEmpresaPedido() {
 
   bloquearFormulario(false);
   ocultarAlerta();
-  await cargarAltas();
+  await Promise.all([cargarAltas(), cargarOpcionesServicios()]);
+  aplicarTipoPedido();
+}
+
+async function cargarOpcionesServicios() {
+  const data = await api('/api/pedidos/servicios/opciones', opcionesEmpresa());
+  opcionesServicios = data?.datos || { marcas: [], proveedores: [] };
+  const marca = document.getElementById('marcaServicio');
+  const proveedor = document.getElementById('proveedorServicio');
+  marca.innerHTML = '<option value="">Seleccionar marca...</option>' +
+    (opcionesServicios.marcas || []).map(item => `<option value="${esc(item.CODIGO_MARCA)}">${esc(item.DETALLE_MARCA)} (${esc(item.CODIGO_MARCA)})</option>`).join('');
+  proveedor.innerHTML = '<option value="">Seleccionar proveedor...</option>' +
+    (opcionesServicios.proveedores || []).map(item => `<option value="${esc(item.CODIGO_PROVEEDOR)}">${esc(item.DETALLE_PROVEEDOR)} (${esc(item.CODIGO_PROVEEDOR)})</option>`).join('');
+}
+
+function esPedidoServicios() {
+  return document.getElementById('tipoPedido')?.value === 'SERVICIOS';
+}
+
+function aplicarTipoPedido() {
+  const servicios = esPedidoServicios();
+  document.getElementById('origenProductosPedido').classList.toggle('d-none', servicios);
+  document.getElementById('origenServiciosPedido').classList.toggle('d-none', !servicios);
+  document.querySelectorAll('#origenProductosPedido input, #origenProductosPedido select, #origenProductosPedido button').forEach(c => c.disabled = servicios);
+  document.getElementById('marcaServicio').disabled = !servicios;
+  document.getElementById('proveedorServicio').disabled = !servicios;
+  document.getElementById('marcaServicio').required = servicios;
+  document.getElementById('proveedorServicio').required = servicios;
+  ['servicioDescripcion', 'servicioCantidad', 'servicioPrecio'].forEach(id => { document.getElementById(id).required = servicios; });
+  document.getElementById('ayudaServicioPedido').textContent = servicios
+    ? 'Obligatorio. Se exportará como el único producto del pedido con el código SERVICIOS seguido del proveedor.'
+    : 'Servicio opcional del Pedido. Si se completa, se exportará como el último producto con código SERVICIOS seguido del código del proveedor.';
+  actualizarCodigoProductoServicio();
+  actualizarResumen();
+}
+
+function actualizarCodigoProductoServicio() {
+  const proveedor = document.getElementById('proveedorServicio')?.value || 'PBXXXXX';
+  setTexto('codigoProductoServicio', `SERVICIOS${proveedor}`);
 }
 
 function puedeEscribirPedido() {
@@ -560,6 +605,21 @@ async function cargarResumenProductosAltas(idsAltas) {
 }
 
 function actualizarResumen() {
+  if (esPedidoServicios()) {
+    const marca = document.getElementById('marcaServicio');
+    const proveedor = document.getElementById('proveedorServicio');
+    document.getElementById('pedidoResumenVacio').classList.add('d-none');
+    document.getElementById('pedidoResumenDatos').classList.remove('d-none');
+    setTexto('resumenAlta', 'Pedido independiente de servicios');
+    setTexto('resumenMarcaRubro', marca.selectedOptions?.[0]?.textContent?.trim() || 'Marca pendiente');
+    setTexto('resumenTipo', 'Servicios');
+    setTexto('resumenProductos', `SERVICIOS${proveedor.value || 'PBXXXXX'}`);
+    setTexto('resumenCampana', 'No aplica');
+    setTexto('resumenProveedor', proveedor.selectedOptions?.[0]?.textContent?.trim() || 'Pendiente');
+    setTexto('resumenOrden', document.getElementById('numeroOrden').value.trim() || 'Pendiente');
+    setTexto('resumenMoneda', document.getElementById('moneda').value || 'USD');
+    return;
+  }
   const altasElegidas = obtenerAltasSeleccionadas();
   const alta = altasElegidas[0];
 
@@ -657,7 +717,7 @@ async function crearPedido(event) {
   const form =
     event.currentTarget;
 
-  if (!idsAltasSeleccionadas.size) {
+  if (!esPedidoServicios() && !idsAltasSeleccionadas.size) {
     mostrarAlerta('Debe seleccionar al menos un Alta.', 'warning');
     return;
   }
@@ -672,12 +732,15 @@ async function crearPedido(event) {
       .getElementById('btnCrearPedido');
 
   const payload = {
+    tipoPedido: esPedidoServicios() ? 'SERVICIOS' : 'PRODUCTOS',
     idsAltas: [...idsAltasSeleccionadas],
 
     codigoProveedor:
       document
-        .getElementById('codigoProveedor')
+        .getElementById(esPedidoServicios() ? 'proveedorServicio' : 'codigoProveedor')
         .value,
+
+    codigoMarca: esPedidoServicios() ? document.getElementById('marcaServicio').value : undefined,
 
     numeroOrden:
       document
@@ -705,6 +768,8 @@ async function crearPedido(event) {
         .value
         .trim()
   };
+
+  if (esPedidoServicios()) payload.idsAltas = [];
 
   try {
     boton.disabled = true;

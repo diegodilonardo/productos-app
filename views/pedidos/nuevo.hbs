@@ -16,7 +16,7 @@
         <div class="nueva-alta-kicker">CREACIÓN DE PEDIDO</div>
         <h1 class="h3 mb-1">Nuevo Pedido</h1>
         <p class="text-secondary mb-0">
-          Definí una o más Altas confirmadas, el proveedor y los datos generales de la orden.
+          Creá un pedido de productos desde Altas confirmadas o un pedido independiente de servicios.
         </p>
       </div>
     </div>
@@ -94,6 +94,15 @@
           <form id="formNuevoPedido" novalidate>
 
             <div class="nueva-alta-block">
+              <div class="nueva-alta-block-title">Tipo de pedido</div>
+              <select id="tipoPedido" class="form-select" required>
+                <option value="PRODUCTOS" selected>Productos</option>
+                <option value="SERVICIOS">Servicios</option>
+              </select>
+              <div class="nueva-alta-field-help">El pedido de servicios no requiere un Alta ni productos físicos.</div>
+            </div>
+
+            <div id="origenProductosPedido" class="nueva-alta-block">
               <div class="nueva-alta-block-title">Origen del pedido</div>
 
               <div class="row g-3">
@@ -152,6 +161,29 @@
               </div>
             </div>
 
+            <div id="origenServiciosPedido" class="nueva-alta-block d-none">
+              <div class="nueva-alta-block-title">Origen del servicio</div>
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="marcaServicio">Marca</label>
+                  <select id="marcaServicio" class="form-select" disabled>
+                    <option value="">Seleccionar marca...</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="proveedorServicio">Proveedor</label>
+                  <select id="proveedorServicio" class="form-select" disabled>
+                    <option value="">Seleccionar proveedor...</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <div class="alert alert-light border mb-0">
+                    Producto a exportar: <strong id="codigoProductoServicio">SERVICIOSPBXXXXX</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="nueva-alta-block">
               <div class="nueva-alta-block-title">Orden</div>
 
@@ -193,7 +225,7 @@
 
               <div class="row g-3">
                 <div class="col-12">
-                  <div class="form-text">Servicio opcional del Pedido. Si se completa, se exportará como el último producto con código SERVICIOS seguido del código del proveedor (ej.: SERVICIOSPB0025).</div>
+                  <div id="ayudaServicioPedido" class="form-text">Servicio opcional del Pedido. Si se completa, se exportará como el último producto con código SERVICIOS seguido del código del proveedor (ej.: SERVICIOSPB0025).</div>
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label" for="servicioDescripcion">Descripción del servicio</label>

@@ -1,5 +1,27 @@
 const { getConnection, sql } = require('../config/database');
 
+async function obtenerOpcionesPedidoServicios(idEmpresa) {
+  const pool = await getConnection();
+  const [marcasResult, proveedoresResult] = await Promise.all([
+    pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+      SELECT DISTINCT M.CODIGO_MARCA, M.DETALLE_MARCA
+      FROM dbo.EMPRESAS_MARCAS EM
+      INNER JOIN dbo.MAESTRO_MARCAS M
+        ON M.ID_EMPRESA = EM.ID_EMPRESA AND M.CODIGO_MARCA = EM.CODIGO_MARCA
+      WHERE EM.ID_EMPRESA = @ID_EMPRESA AND EM.ACTIVA = 1 AND M.ACTIVO = 1
+      ORDER BY M.DETALLE_MARCA, M.CODIGO_MARCA;
+    `),
+    pool.request().query(`
+      SELECT CODIGO AS CODIGO_PROVEEDOR,
+        COALESCE(NULLIF(LTRIM(RTRIM(NVA_RAZON_SOCIAL)), ''), CODIGO) AS DETALLE_PROVEEDOR
+      FROM dbo.MAESTRO_PROVEEDORES
+      WHERE ACTIVO = 1 AND CODIGO LIKE 'PB%'
+      ORDER BY DETALLE_PROVEEDOR, CODIGO;
+    `),
+  ]);
+  return { marcas: marcasResult.recordset || [], proveedores: proveedoresResult.recordset || [] };
+}
+
 /* ============================================================
    ALTAS DISPONIBLES PARA PEDIDOS
    - Solo altas completamente generadas en ERP.
@@ -462,6 +484,8 @@ async function crearPedido(datos, generarCodigoPedido) {
     const duplicadoResult = await new sql.Request(transaction)
       .input('ID_EMPRESA_DUP', sql.Int, datos.ID_EMPRESA)
       .input('ID_ALTA_DUP', sql.Int, datos.ID_ALTA)
+      .input('TIPO_PEDIDO_DUP', sql.VarChar(20), datos.TIPO_PEDIDO)
+      .input('CODIGO_MARCA_DUP', sql.VarChar(5), datos.CODIGO_MARCA)
       .input('CODIGO_PROVEEDOR_DUP', sql.VarChar(30), datos.CODIGO_PROVEEDOR)
       .input('NUMERO_ORDEN_DUP', sql.VarChar(50), datos.NUMERO_ORDEN)
       .query(`
@@ -472,7 +496,9 @@ async function crearPedido(datos, generarCodigoPedido) {
         FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
         WHERE
           ID_EMPRESA = @ID_EMPRESA_DUP
-          AND ID_ALTA = @ID_ALTA_DUP
+          AND TIPO_PEDIDO = @TIPO_PEDIDO_DUP
+          AND ((@TIPO_PEDIDO_DUP = 'PRODUCTOS' AND ID_ALTA = @ID_ALTA_DUP)
+            OR (@TIPO_PEDIDO_DUP = 'SERVICIOS' AND CODIGO_MARCA = @CODIGO_MARCA_DUP))
           AND CODIGO_PROVEEDOR = @CODIGO_PROVEEDOR_DUP
           AND NUMERO_ORDEN = @NUMERO_ORDEN_DUP
           AND ESTADO <> 'ANULADO';
@@ -490,6 +516,9 @@ async function crearPedido(datos, generarCodigoPedido) {
     const insertado = await new sql.Request(transaction)
       .input('ID_EMPRESA', sql.Int, datos.ID_EMPRESA)
       .input('ID_ALTA', sql.Int, datos.ID_ALTA)
+      .input('TIPO_PEDIDO', sql.VarChar(20), datos.TIPO_PEDIDO)
+      .input('CODIGO_MARCA', sql.VarChar(5), datos.CODIGO_MARCA)
+      .input('DETALLE_MARCA', sql.VarChar(100), datos.DETALLE_MARCA)
       .input('CODIGO_PROVEEDOR', sql.VarChar(30), datos.CODIGO_PROVEEDOR)
       .input('DETALLE_PROVEEDOR', sql.VarChar(150), datos.DETALLE_PROVEEDOR)
       .input('NUMERO_ORDEN', sql.VarChar(50), datos.NUMERO_ORDEN)
@@ -505,6 +534,9 @@ async function crearPedido(datos, generarCodigoPedido) {
           CODIGO_PEDIDO,
           ID_EMPRESA,
           ID_ALTA,
+          TIPO_PEDIDO,
+          CODIGO_MARCA,
+          DETALLE_MARCA,
           CODIGO_PROVEEDOR,
           DETALLE_PROVEEDOR,
           NUMERO_ORDEN,
@@ -524,6 +556,9 @@ async function crearPedido(datos, generarCodigoPedido) {
           NULL,
           @ID_EMPRESA,
           @ID_ALTA,
+          @TIPO_PEDIDO,
+          @CODIGO_MARCA,
+          @DETALLE_MARCA,
           @CODIGO_PROVEEDOR,
           @DETALLE_PROVEEDOR,
           @NUMERO_ORDEN,
@@ -545,7 +580,7 @@ async function crearPedido(datos, generarCodigoPedido) {
       throw new Error('SQL Server no devolvió un ID_PEDIDO válido.');
     }
 
-    for (const idAlta of datos.IDS_ALTAS) {
+    for (const idAlta of (datos.IDS_ALTAS || [])) {
       await new sql.Request(transaction)
         .input('ID_EMPRESA_ALTA', sql.Int, datos.ID_EMPRESA)
         .input('ID_PEDIDO_ALTA', sql.BigInt, idPedido)
@@ -632,9 +667,10 @@ async function listarPedidos(idEmpresa) {
     .input('ID_EMPRESA', sql.Int, idEmpresa)
     .query(`
       SELECT
-        P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA,
+        P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA, P.TIPO_PEDIDO,
         A.CODIGO_ALTA,
-        A.CODIGO_MARCA, A.DETALLE_MARCA,
+        COALESCE(P.CODIGO_MARCA, A.CODIGO_MARCA) AS CODIGO_MARCA,
+        COALESCE(P.DETALLE_MARCA, A.DETALLE_MARCA) AS DETALLE_MARCA,
         A.CODIGO_RUBRO, A.DETALLE_RUBRO,
         A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
         A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA, A.CODIGO_ANO,
@@ -686,13 +722,15 @@ async function listarPedidos(idEmpresa) {
           WHEN (P.CODIGO_PROVEEDOR = 'PB9999'
              OR UPPER(LTRIM(RTRIM(ISNULL(P.DETALLE_PROVEEDOR, '')))) LIKE '%NACIONAL%')
            AND COALESCE(EXP.TIENE_PEDIDO_NACIONAL, 0) = 1 THEN 'COMPLETO'
+          WHEN P.TIPO_PEDIDO = 'SERVICIOS'
+           AND COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) = 1 THEN 'COMPLETO'
           WHEN COALESCE(EXP.TIENE_PEDIDO_EXCEL, 0) = 1
            AND COALESCE(EXP.TIENE_MASTER_DATA_APP, 0) = 1
            AND COALESCE(EXP.TIENE_PREC_FOB, 0) = 1 THEN 'COMPLETO'
           ELSE 'PARCIAL'
         END AS ESTADO_EXPORTACION
       FROM dbo.PEDIDOS P
-      INNER JOIN dbo.ALTAS_PRODUCTOS A
+      LEFT JOIN dbo.ALTAS_PRODUCTOS A
         ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = P.ID_ALTA
       LEFT JOIN dbo.PEDIDOS_DETALLE D
         ON D.ID_EMPRESA = P.ID_EMPRESA AND D.ID_PEDIDO = P.ID_PEDIDO
@@ -724,7 +762,8 @@ async function listarPedidos(idEmpresa) {
       ) PRESEA
       WHERE P.ID_EMPRESA = @ID_EMPRESA
       GROUP BY
-        P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA,
+        P.ID_PEDIDO, P.ID_EMPRESA, P.CODIGO_PEDIDO, P.ID_ALTA, P.TIPO_PEDIDO,
+        P.CODIGO_MARCA, P.DETALLE_MARCA,
         A.ID_EMPRESA, A.ID_ALTA,
         A.CODIGO_ALTA, A.CODIGO_MARCA, A.DETALLE_MARCA,
         A.CODIGO_RUBRO, A.DETALLE_RUBRO, A.TIPO_PRODUCTO,
@@ -760,8 +799,8 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
         P.*,
         E.RAZON_SOCIAL,
         A.CODIGO_ALTA,
-        A.CODIGO_MARCA,
-        A.DETALLE_MARCA,
+        COALESCE(P.CODIGO_MARCA, A.CODIGO_MARCA) AS CODIGO_MARCA,
+        COALESCE(P.DETALLE_MARCA, A.DETALLE_MARCA) AS DETALLE_MARCA,
         A.CODIGO_ANO,
         A.CODIGO_TEMPORADA,
         A.TIPO_PRODUCTO AS TIPO_PRODUCTO_ALTA,
@@ -774,7 +813,7 @@ async function obtenerPedidoPorId(idPedido, idEmpresa) {
         PRESEA.FECHA_CONFIRMACION AS FECHA_CONFIRMACION_PRESEA,
         PRESEA.USUARIO_CONFIRMACION AS USUARIO_CONFIRMACION_PRESEA
       FROM dbo.PEDIDOS P
-      INNER JOIN dbo.ALTAS_PRODUCTOS A
+      LEFT JOIN dbo.ALTAS_PRODUCTOS A
         ON A.ID_EMPRESA = P.ID_EMPRESA
        AND A.ID_ALTA = P.ID_ALTA
       INNER JOIN dbo.EMPRESAS E
@@ -1459,10 +1498,15 @@ async function marcarPedidoValidado(idPedido, usuarioValidacion) {
         SELECT TOP 1
           ID_PEDIDO,
           ID_ALTA,
+          TIPO_PEDIDO,
+          CODIGO_MARCA,
           CODIGO_PROVEEDOR,
           NUMERO_ORDEN,
           MONEDA,
-          ESTADO
+          ESTADO,
+          SERVICIO_DESCRIPCION,
+          SERVICIO_CANTIDAD,
+          SERVICIO_PRECIO
         FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
         WHERE ID_PEDIDO = @ID_PEDIDO;
       `);
@@ -1479,8 +1523,17 @@ async function marcarPedidoValidado(idPedido, usuarioValidacion) {
       );
     }
 
-    if (!pedido.ID_ALTA) {
+    const esServicios = String(pedido.TIPO_PEDIDO || '').trim().toUpperCase() === 'SERVICIOS';
+
+    if (!esServicios && !pedido.ID_ALTA) {
       throw new Error('La cabecera del pedido no posee un Alta válida.');
+    }
+
+    if (esServicios) {
+      if (!String(pedido.CODIGO_MARCA || '').trim()) throw new Error('El pedido de servicios no posee marca.');
+      if (!String(pedido.SERVICIO_DESCRIPCION || '').trim()) throw new Error('El pedido de servicios no posee descripción.');
+      if (!(Number(pedido.SERVICIO_CANTIDAD) > 0)) throw new Error('La cantidad del servicio debe ser mayor a cero.');
+      if (!(Number(pedido.SERVICIO_PRECIO) >= 0)) throw new Error('El precio del servicio debe ser mayor o igual a cero.');
     }
 
     if (!String(pedido.CODIGO_PROVEEDOR || '').trim()) {
@@ -1522,7 +1575,7 @@ async function marcarPedidoValidado(idPedido, usuarioValidacion) {
 
     const detalles = detalleResult.recordset || [];
 
-    if (detalles.length === 0) {
+    if (detalles.length === 0 && !esServicios) {
       throw new Error('El pedido no contiene productos para validar.');
     }
 
@@ -1999,6 +2052,7 @@ async function obtenerConfiguracionExportacionPedido(idEmpresa, codigoMarca) {
 }
 
 module.exports = {
+  obtenerOpcionesPedidoServicios,
   listarPedidos,
   obtenerAltasDisponibles,
   obtenerAltaDisponiblePorId,

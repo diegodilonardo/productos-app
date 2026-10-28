@@ -14,6 +14,6 @@ test('el navbar utiliza la imagen de marca VANTEK', () => {
   assert.match(navbar, /identidad\.includes\('VANTEK'\)/);
   assert.match(navbar, /\/img\/marcas\/80\.png/);
   assert.match(navbar, /return 'marca-vantek'/);
-  assert.match(estilos, /\.app-navbar-brand-chip\.marca-vantek\.has-logo[\s\S]*min-width:\s*176px/);
-  assert.match(estilos, /\.app-navbar-brand-chip\.marca-vantek \.app-navbar-brand-logo[\s\S]*width:\s*170px/);
+  assert.match(estilos, /\.app-navbar-brand-chip\.marca-vantek\.has-logo[\s\S]*min-width:\s*136px/);
+  assert.match(estilos, /\.app-navbar-brand-chip\.marca-vantek \.app-navbar-brand-logo[\s\S]*width:\s*130px/);
 });

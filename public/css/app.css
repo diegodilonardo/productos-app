@@ -2585,14 +2585,14 @@ main .progress {
  * Conservamos sus proporciones y ampliamos el área para igualar la altura
  * visual de las letras con la marca MONTAGNE. */
 .app-navbar-brand-chip.marca-vantek.has-logo {
-    min-width: 176px;
-    max-width: 184px;
+    min-width: 136px;
+    max-width: 144px;
     border-color: rgba(255, 255, 255, .72);
     background: #fff;
 }
 
 .app-navbar-brand-chip.marca-vantek .app-navbar-brand-logo {
-    width: 170px;
+    width: 130px;
     height: 34px;
 }
 
@@ -2640,12 +2640,12 @@ main .progress {
     }
 
     .app-navbar-brand-chip.marca-vantek.has-logo {
-        min-width: 166px;
-        max-width: 174px;
+        min-width: 126px;
+        max-width: 134px;
     }
 
     .app-navbar-brand-chip.marca-vantek .app-navbar-brand-logo {
-        width: 160px;
+        width: 120px;
         height: 31px;
     }
 
@@ -2693,12 +2693,12 @@ main .progress {
 
 @media (max-width: 575.98px) {
     .app-navbar-brand-chip.marca-vantek.has-logo {
-        min-width: 122px;
-        max-width: 130px;
+        min-width: 106px;
+        max-width: 114px;
     }
 
     .app-navbar-brand-chip.marca-vantek .app-navbar-brand-logo {
-        width: 116px;
+        width: 100px;
         height: 30px;
     }
     .app-navbar-brand {

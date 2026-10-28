@@ -624,9 +624,10 @@ function obtenerClaseVisualMarca(
   }
 
   if (
-    ['34', '5'].includes(String(codigo).trim()) ||
+    ['34', '5', '80'].includes(String(codigo).trim()) ||
     identidad.includes('WAKE') ||
-    identidad.includes('MARCEL')
+    identidad.includes('MARCEL') ||
+    identidad.includes('VANTEK')
   ) {
     return 'marca-logo-oscuro';
   }
@@ -656,6 +657,13 @@ function obtenerLogoMarcaConocida(
     identidad.includes('47_STREET')
   ) {
     return '/img/marcas/47.png';
+  }
+
+  if (
+    String(codigo).trim() === '80' ||
+    identidad.includes('VANTEK')
+  ) {
+    return '/img/marcas/80.png';
   }
 
   if (

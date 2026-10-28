@@ -2581,6 +2581,21 @@ main .progress {
     height: 34px;
 }
 
+/* VANTEK es un logotipo sensiblemente más horizontal que el resto.
+ * Conservamos sus proporciones y ampliamos el área para igualar la altura
+ * visual de las letras con la marca MONTAGNE. */
+.app-navbar-brand-chip.marca-vantek.has-logo {
+    min-width: 176px;
+    max-width: 184px;
+    border-color: rgba(255, 255, 255, .72);
+    background: #fff;
+}
+
+.app-navbar-brand-chip.marca-vantek .app-navbar-brand-logo {
+    width: 170px;
+    height: 34px;
+}
+
 /*
  * Escritorio compacto: cuando conviven varias marcas, navegación y sesión,
  * reducimos únicamente espacios y logos para evitar superposiciones.
@@ -2621,6 +2636,16 @@ main .progress {
     .app-navbar-brand-chip.marca-logo-oscuro .app-navbar-brand-logo,
     .app-navbar-brand-chip.marca-massimo .app-navbar-brand-logo {
         width: 92px;
+        height: 31px;
+    }
+
+    .app-navbar-brand-chip.marca-vantek.has-logo {
+        min-width: 166px;
+        max-width: 174px;
+    }
+
+    .app-navbar-brand-chip.marca-vantek .app-navbar-brand-logo {
+        width: 160px;
         height: 31px;
     }
 
@@ -2667,6 +2692,15 @@ main .progress {
 }
 
 @media (max-width: 575.98px) {
+    .app-navbar-brand-chip.marca-vantek.has-logo {
+        min-width: 122px;
+        max-width: 130px;
+    }
+
+    .app-navbar-brand-chip.marca-vantek .app-navbar-brand-logo {
+        width: 116px;
+        height: 30px;
+    }
     .app-navbar-brand {
         gap: 8px;
         margin-right: 8px;

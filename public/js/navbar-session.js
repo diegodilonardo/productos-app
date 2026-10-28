@@ -624,10 +624,16 @@ function obtenerClaseVisualMarca(
   }
 
   if (
-    ['34', '5', '80'].includes(String(codigo).trim()) ||
-    identidad.includes('WAKE') ||
-    identidad.includes('MARCEL') ||
+    String(codigo).trim() === '80' ||
     identidad.includes('VANTEK')
+  ) {
+    return 'marca-vantek';
+  }
+
+  if (
+    ['34', '5'].includes(String(codigo).trim()) ||
+    identidad.includes('WAKE') ||
+    identidad.includes('MARCEL')
   ) {
     return 'marca-logo-oscuro';
   }

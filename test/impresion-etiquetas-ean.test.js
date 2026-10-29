@@ -165,6 +165,30 @@ test('la composición del módulo conserva talles cuyos sueltos están inactivos
   ]);
 });
 
+test('la familia recupera etiquetas de sueltos históricos que integran el módulo', () => {
+  const servicio = require('../src/services/seguimiento.service');
+  const modulo = {
+    ID_ALTA: 38, COD_ALFA: 'MODULO', CODIGO_MODELO: 'WKC372', CODIGO_COLOR: 'LILA',
+    CODIGO_PROVEEDOR: 'PB0013', PARES_MAESTRO: 6,
+    TM_T28: 2, TM_T29: 2, TM_T30: 2,
+  };
+  const base = {
+    CODIGO_MODELO: 'WKC372', CODIGO_COLOR: 'LILA', CODIGO_PROVEEDOR: 'PB0013',
+    DETALLE_CLASIFICACION: 'PRIMERA', REQUIERE_EAN: false,
+  };
+  const directas = [{ ...base, ID_ALTA: 38, COD_ALFA: 'SUELTO30', DETALLE_TALLE: '30', ESTADO_EAN: 'NO_REQUERIDO' }];
+  const disponibles = [
+    ...directas,
+    { ...base, ID_ALTA: 14, COD_ALFA: 'SUELTO28', DETALLE_TALLE: '28', ESTADO_EAN: 'INHABILITADO_PRESEA' },
+    { ...base, ID_ALTA: 14, COD_ALFA: 'SUELTO29', DETALLE_TALLE: '29', ESTADO_EAN: 'INHABILITADO_PRESEA' },
+  ];
+  const resultado = servicio.completarPrimerasFamiliaModulo(modulo, directas, disponibles);
+  assert.deepEqual(resultado.map(x => x.DETALLE_TALLE), ['28', '29', '30']);
+  assert.deepEqual(resultado.map(x => x.COD_ALFA), ['SUELTO28', 'SUELTO29', 'SUELTO30']);
+  assert.equal(resultado[0].ESTADO_EAN, 'NO_REQUERIDO');
+  assert.equal(resultado[0].ETIQUETA_HISTORICA_MODULO, true);
+});
+
 test('VICBOR omite imágenes de indumentaria y accesorios en las etiquetas', () => {
   const servicio = require('../src/services/seguimiento.service');
   const vicbor = { acceso: { empresa: 'VICBOR' } };

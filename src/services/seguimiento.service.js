@@ -438,14 +438,17 @@ async function listarSeguimientoEan({ idEmpresa, acceso }) {
     const primeras = productos.filter(
         producto => normalizarTexto(producto.DETALLE_CLASIFICACION) === 'PRIMERA'
     );
-    const familias = modulos.map(modulo => ({
-        tipo: 'MODULO',
-        clave: `${modulo.ID_ALTA}-${modulo.COD_ALFA}`,
-        principal: modulo,
-        primeras: primeras.filter(primera =>
+    const familias = modulos.map(modulo => {
+        const directas = primeras.filter(primera =>
             primera.FAMILIAS_MODULO.includes(String(modulo.COD_ALFA))
-        ),
-    }));
+        );
+        return {
+            tipo: 'MODULO',
+            clave: `${modulo.ID_ALTA}-${modulo.COD_ALFA}`,
+            principal: modulo,
+            primeras: completarPrimerasFamiliaModulo(modulo, directas, primeras),
+        };
+    });
     const primerasSueltas = primeras
         .filter(primera => primera.FAMILIAS_MODULO.length === 0)
         .map(primera => ({
@@ -755,6 +758,50 @@ function composicionCurvaDesdeMaestro(producto) {
     const total = composicion.reduce((suma, item) => suma + item.pares, 0);
     const totalMaestro = Number(producto.PARES_MAESTRO || 0);
     return totalMaestro > 0 && total === totalMaestro ? composicion : [];
+}
+
+function mismaReferenciaFamilia(modulo, primera) {
+    return normalizarTexto(modulo?.CODIGO_MODELO) === normalizarTexto(primera?.CODIGO_MODELO) &&
+        normalizarTexto(modulo?.CODIGO_COLOR) === normalizarTexto(primera?.CODIGO_COLOR) &&
+        (!normalizarTexto(modulo?.CODIGO_PROVEEDOR) ||
+            normalizarTexto(modulo?.CODIGO_PROVEEDOR) === normalizarTexto(primera?.CODIGO_PROVEEDOR));
+}
+
+function prepararPrimeraHistoricaEtiqueta(primera) {
+    const noRequiereEan = primera?.REQUIERE_EAN === false || primera?.REQUIERE_EAN === 0;
+    const tieneEanValido = ean13Valido(primera?.EAN_ERP);
+    return {
+        ...primera,
+        ESTADO_EAN: noRequiereEan ? 'NO_REQUERIDO'
+            : tieneEanValido ? 'CONFIRMADO_ERP' : primera.ESTADO_EAN,
+        ETIQUETA_HISTORICA_MODULO: true,
+    };
+}
+
+function completarPrimerasFamiliaModulo(modulo, directas, primerasDisponibles) {
+    const composicion = composicionCurvaDesdeMaestro(modulo);
+    if (!composicion.length) return directas;
+    const porTalle = new Map(
+        directas.map(primera => [
+            normalizarTexto(primera.DETALLE_TALLE || primera.CODIGO_TALLE),
+            primera,
+        ])
+    );
+    const candidatas = primerasDisponibles
+        .filter(primera => mismaReferenciaFamilia(modulo, primera))
+        .sort((a, b) =>
+            Number(b.ID_ALTA || 0) - Number(a.ID_ALTA || 0) ||
+            String(a.COD_ALFA || '').localeCompare(String(b.COD_ALFA || ''), 'es', { numeric: true })
+        );
+    for (const item of composicion) {
+        const talle = normalizarTexto(item.talle);
+        if (porTalle.has(talle)) continue;
+        const historica = candidatas.find(primera =>
+            normalizarTexto(primera.DETALLE_TALLE || primera.CODIGO_TALLE) === talle
+        );
+        if (historica) porTalle.set(talle, prepararPrimeraHistoricaEtiqueta(historica));
+    }
+    return [...porTalle.values()].sort(compararTalles);
 }
 
 
@@ -1556,6 +1603,7 @@ module.exports = {
     extraerCantidadesCurva,
     cantidadesCurvaDesdeMaestro,
     composicionCurvaDesdeMaestro,
+    completarPrimerasFamiliaModulo,
     debeMostrarImagenEtiqueta,
     productoImprimibleEtiquetaEan,
 };

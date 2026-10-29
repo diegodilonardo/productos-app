@@ -505,7 +505,7 @@ function claveDestinoMaestro(marca, licencia, rubro) {
   const licenciaNormalizada = normalizarLicencia(licencia);
   const aliases = { SL: 'SAN_LORENZO', 'SAN LORENZO': 'SAN_LORENZO', VS: 'VELEZ_SARSFIELD', VELEZ: 'VELEZ_SARSFIELD', 'VELEZ SARSFIELD': 'VELEZ_SARSFIELD', 'VÉLEZ': 'VELEZ_SARSFIELD', 'VÉLEZ SARSFIELD': 'VELEZ_SARSFIELD', TA: 'TALLERES' };
   const claveLicencia = licenciaNormalizada === 'SIN LICENCIA' ? 'SIN_LICENCIA' : (aliases[licenciaNormalizada] || segmentoRutaMaestro(licenciaNormalizada, 'licencia'));
-  return `${normalizar(marca)}|${claveLicencia}|${normalizar(rubro)}`;
+  return `${segmentoRutaMaestro(marca, 'marca')}|${claveLicencia}|${segmentoRutaMaestro(rubro, 'rubro')}`;
 }
 
 function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = null) {

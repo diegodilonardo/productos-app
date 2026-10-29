@@ -49,3 +49,16 @@ test('la matriz configurada bloquea combinaciones sin ruta activa', () => {
     { TIPO:'MODELO', MARCA:'ATOMIK', RUBRO:'POP', LICENCIA:'SIN LICENCIA' }
   ], '/ALTAS_MAESTROS/VICBOR', destinos), /Exportación bloqueada/);
 });
+
+test('una marca con espacios coincide con su segmento configurado para FTP', () => {
+  const destinos = [
+    { MARCA:'47 STREET', LICENCIA:'SIN_LICENCIA', RUBRO:'CALZADO', RUTA_DESTINO:'/ALTAS_MAESTROS/MIDING/47_STREET/CALZADO' },
+  ];
+  const grupos = agruparArchivosMaestros([
+    { TIPO:'MODELO', MARCA:'47 STREET', RUBRO:'CALZADO', LICENCIA:'SIN LICENCIA' },
+    { TIPO:'MODULO', MARCA:'47 STREET', RUBRO:'CALZADO' },
+  ], '/ALTAS_MAESTROS/MIDING', destinos);
+
+  assert.equal(grupos.length, 2);
+  assert.ok(grupos.every(grupo => grupo.ruta === '/ALTAS_MAESTROS/MIDING/47_STREET/CALZADO'));
+});

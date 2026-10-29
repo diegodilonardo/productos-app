@@ -726,6 +726,37 @@ function cantidadesCurvaDesdeMaestro(producto, primeras) {
     return totalMaestro > 0 && total === totalMaestro ? cantidades : [];
 }
 
+function talleDesdeColumnaMaestro(columna) {
+    const sufijo = String(columna || '').replace(/^TM_T/, '');
+    if (sufijo.startsWith('_')) return sufijo.slice(1);
+    if (!/^\d{2,3}$/.test(sufijo)) return '';
+    if (sufijo.length === 3 && sufijo.endsWith('5')) {
+        return `${Number(sufijo.slice(0, -1))},5`;
+    }
+    return String(Number(sufijo));
+}
+
+/* La composición de la etiqueta pertenece al módulo, no al estado actual de
+ * sus pares sueltos. Se reconstruye desde MAESTRO_TALLES_MODULOS para que un
+ * suelto inactivo no recorte la curva impresa. */
+function composicionCurvaDesdeMaestro(producto) {
+    if (!producto) return [];
+    const composicion = Object.entries(producto)
+        .filter(([columna, cantidad]) => /^TM_T(?:\d{2,3}|_[A-Z0-9]+)$/.test(columna) && Number(cantidad) > 0)
+        .map(([columna, cantidad]) => ({
+            talle: talleDesdeColumnaMaestro(columna),
+            pares: Number(cantidad),
+        }))
+        .filter(item => item.talle && Number.isInteger(item.pares))
+        .sort((a, b) => compararTalles(
+            { DETALLE_TALLE: a.talle },
+            { DETALLE_TALLE: b.talle }
+        ));
+    const total = composicion.reduce((suma, item) => suma + item.pares, 0);
+    const totalMaestro = Number(producto.PARES_MAESTRO || 0);
+    return totalMaestro > 0 && total === totalMaestro ? composicion : [];
+}
+
 
 async function prepararEtiquetasEan(clavesEntrada, contexto) {
     const claves = [...new Set(
@@ -800,16 +831,19 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
     for (const grupo of modulosSeleccionados) {
         const producto = grupo.principal;
         const primerasOrdenadas = [...(grupo.primeras || [])].sort(compararTalles);
-        const cantidadesCurva = cantidadesCurvaDesdeMaestro(producto, primerasOrdenadas);
-        if (!cantidadesCurva.length) cantidadesCurva.push(...extraerCantidadesCurva(
-            producto.TALLE_CURVA || producto.DETALLE_MODULO,
-            primerasOrdenadas.length,
-            producto.PARES
-        ));
-        const composicion = primerasOrdenadas.map((primera, indice) => ({
+        let composicion = composicionCurvaDesdeMaestro(producto);
+        if (!composicion.length) {
+            const cantidadesCurva = cantidadesCurvaDesdeMaestro(producto, primerasOrdenadas);
+            if (!cantidadesCurva.length) cantidadesCurva.push(...extraerCantidadesCurva(
+                producto.TALLE_CURVA || producto.DETALLE_MODULO,
+                primerasOrdenadas.length,
+                producto.PARES
+            ));
+            composicion = primerasOrdenadas.map((primera, indice) => ({
                 talle: primera.DETALLE_TALLE || primera.CODIGO_TALLE || '-',
                 pares: cantidadesCurva[indice] || Number(primera.PARES || 0) || '-',
             }));
+        }
         const totalPares = composicion.reduce(
             (total, item) => total + (Number(item.pares) || 0),
             0
@@ -1521,6 +1555,7 @@ module.exports = {
     estadoSeguimientoEan,
     extraerCantidadesCurva,
     cantidadesCurvaDesdeMaestro,
+    composicionCurvaDesdeMaestro,
     debeMostrarImagenEtiqueta,
     productoImprimibleEtiquetaEan,
 };

@@ -147,6 +147,24 @@ test('la etiqueta toma las cantidades estructuradas del maestro de módulos', ()
   assert.deepEqual(servicio.cantidadesCurvaDesdeMaestro({ ...producto, PARES_MAESTRO: 13 }, primeras), []);
 });
 
+test('la composición del módulo conserva talles cuyos sueltos están inactivos', () => {
+  const servicio = require('../src/services/seguimiento.service');
+  const producto = {
+    TM_T28: 2, TM_T29: 2, TM_T30: 2, TM_T31: 3,
+    TM_T32: 2, TM_T33: 2, TM_T34: 2,
+    PARES_MAESTRO: 15,
+  };
+  assert.deepEqual(servicio.composicionCurvaDesdeMaestro(producto), [
+    { talle: '28', pares: 2 },
+    { talle: '29', pares: 2 },
+    { talle: '30', pares: 2 },
+    { talle: '31', pares: 3 },
+    { talle: '32', pares: 2 },
+    { talle: '33', pares: 2 },
+    { talle: '34', pares: 2 },
+  ]);
+});
+
 test('VICBOR omite imágenes de indumentaria y accesorios en las etiquetas', () => {
   const servicio = require('../src/services/seguimiento.service');
   const vicbor = { acceso: { empresa: 'VICBOR' } };

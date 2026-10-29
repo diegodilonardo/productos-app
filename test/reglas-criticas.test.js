@@ -11,6 +11,7 @@ const { validarEdadSexoClasificacion, clasificacionesPorCurva } = altasService._
 const {
   calcularCantidadesPedido,
   evaluarDestinosExportacionPedido,
+  normalizarCodigoMarcaPedido,
   estadoAltaHabilitadoParaPedido,
   ESTADOS_ALTAS_HABILITADOS_PEDIDOS,
 } = pedidosService._internals;
@@ -151,6 +152,18 @@ test('una configuración activa y completa habilita los tres destinos', () => {
   assert.deepEqual(resultado.faltantes, []);
   assert.equal(resultado.idEmpresa, 2);
   assert.equal(resultado.codigoMarca, '10');
+});
+
+test('un Pedido con varias Altas de la misma marca conserva un único destino', () => {
+  assert.equal(normalizarCodigoMarcaPedido('1,1'), '1');
+  assert.equal(normalizarCodigoMarcaPedido(' 1, 1, 1 '), '1');
+});
+
+test('un Pedido con marcas distintas no puede elegir un destino ambiguo', () => {
+  assert.throws(
+    () => normalizarCodigoMarcaPedido('1,10'),
+    /contiene más de una marca/
+  );
 });
 
 test('una configuración inactiva queda bloqueada aunque tenga rutas', () => {

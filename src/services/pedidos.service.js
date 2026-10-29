@@ -1715,6 +1715,20 @@ function evaluarDestinosExportacionPedido(idEmpresa, codigoMarca, configuracion)
   };
 }
 
+function normalizarCodigoMarcaPedido(valor) {
+  const codigos = [...new Set(
+    texto(valor)
+      .split(',')
+      .map(codigo => texto(codigo))
+      .filter(Boolean)
+  )];
+
+  if (codigos.length > 1) {
+    throw new Error(`El Pedido contiene más de una marca (${codigos.join(', ')}). No se puede determinar un único destino de exportación.`);
+  }
+  return codigos[0] || '';
+}
+
 async function obtenerDestinosExportacionPedido(idPedido, idEmpresa) {
   const id = validarIdPedido(idPedido);
   const empresa = validarIdEmpresa(idEmpresa);
@@ -1722,7 +1736,7 @@ async function obtenerDestinosExportacionPedido(idPedido, idEmpresa) {
 
   if (!pedido) throw new Error('Pedido no encontrado.');
 
-  const codigoMarca = texto(pedido.CODIGO_MARCA);
+  const codigoMarca = normalizarCodigoMarcaPedido(pedido.CODIGO_MARCA);
   const configuracion = codigoMarca
     ? await pedidosRepository.obtenerConfiguracionExportacionPedido(empresa, codigoMarca)
     : null;
@@ -2441,6 +2455,7 @@ module.exports = {
   _internals: {
     calcularCantidadesPedido,
     evaluarDestinosExportacionPedido,
+    normalizarCodigoMarcaPedido,
     estadoAltaHabilitadoParaPedido,
     ESTADOS_ALTAS_HABILITADOS_PEDIDOS,
     CODIGO_PROVEEDOR_NACIONAL,

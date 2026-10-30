@@ -430,7 +430,7 @@ async function obtenerProductosDisponiblesPedido(idPedido, idEmpresa, accesoEmpr
 }
 
 const COLUMNAS_TEMPLATE_CARGA_PEDIDO = Object.freeze([
-  'COD_ALFA', 'MODELO', 'TALLE', 'PARES',
+  'COD_ALFA', 'MODELO', 'COLOR', 'TALLE', 'PARES',
   'CANTIDAD PARES', 'FOB', 'ADICIONAL', 'OBSERVACIONES',
 ]);
 
@@ -464,6 +464,7 @@ async function crearPlantillaCargaPedido(productos, codigoPedido = '') {
   hoja.columns = [
     { header: 'COD_ALFA', key: 'codigoAlfa', width: 22 },
     { header: 'MODELO', key: 'modelo', width: 30 },
+    { header: 'COLOR', key: 'color', width: 24 },
     { header: 'TALLE', key: 'talle', width: 28 },
     { header: 'PARES', key: 'pares', width: 12 },
     { header: 'CANTIDAD PARES', key: 'cantidadPares', width: 18 },
@@ -475,6 +476,7 @@ async function crearPlantillaCargaPedido(productos, codigoPedido = '') {
     hoja.addRow({
       codigoAlfa: texto(producto.CODIGO_ALFA),
       modelo: texto(producto.DETALLE_MODELO || producto.CODIGO_MODELO),
+      color: texto(producto.DETALLE_COLOR || producto.CODIGO_COLOR),
       talle: texto(producto.TALLE_CURVA || producto.DETALLE_MODULO || producto.DETALLE_TALLE),
       pares: Number(producto.PARES || 1),
       cantidadPares: '', fob: '', adicional: '', observaciones: '',
@@ -485,20 +487,20 @@ async function crearPlantillaCargaPedido(productos, codigoPedido = '') {
   encabezado.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF176BCA' } };
   encabezado.alignment = { vertical: 'middle', horizontal: 'center' };
   encabezado.height = 24;
-  hoja.autoFilter = { from: 'A1', to: 'H1' };
+  hoja.autoFilter = { from: 'A1', to: 'I1' };
   hoja.eachRow((fila, numeroFila) => {
     if (numeroFila === 1) return;
-    for (let columna = 1; columna <= 4; columna += 1) {
+    for (let columna = 1; columna <= 5; columna += 1) {
       fila.getCell(columna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F3F5' } };
       fila.getCell(columna).font = { color: { argb: 'FF5F6B76' } };
     }
-    fila.getCell(6).numFmt = '0.0000';
     fila.getCell(7).numFmt = '0.0000';
+    fila.getCell(8).numFmt = '0.0000';
   });
-  hoja.getColumn(5).eachCell((celda, fila) => {
+  hoja.getColumn(6).eachCell((celda, fila) => {
     if (fila > 1) celda.dataValidation = { type: 'whole', operator: 'greaterThan', formulae: [0], allowBlank: true, showErrorMessage: true, error: 'Ingrese una cantidad entera mayor que cero.' };
   });
-  for (const columna of [6, 7]) hoja.getColumn(columna).eachCell((celda, fila) => {
+  for (const columna of [7, 8]) hoja.getColumn(columna).eachCell((celda, fila) => {
     if (fila > 1) celda.dataValidation = { type: 'decimal', operator: 'greaterThanOrEqual', formulae: [0], allowBlank: true, showErrorMessage: true, error: 'Ingrese un valor mayor o igual a cero.' };
   });
   hoja.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };

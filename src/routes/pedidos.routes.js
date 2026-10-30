@@ -246,6 +246,39 @@ router.get('/:id/productos-disponibles', requerirAccesoPedido, async (req, res) 
   }
 });
 
+router.get('/:id/carga/template', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const resultado = await pedidosService.generarTemplateCargaPedido(
+      req.params.id, req.idEmpresa, req.accesoEmpresa
+    );
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${resultado.nombreArchivo}"`);
+    res.setHeader('X-Cantidad-Registros', String(resultado.cantidadRegistros));
+    return res.send(resultado.buffer);
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.post('/:id/carga/importar', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const base64 = String(req.body?.archivoBase64 || '').replace(/^data:.*?;base64,/, '');
+    if (!base64) throw new Error('Seleccione un archivo Excel para importar.');
+    const buffer = Buffer.from(base64, 'base64');
+    const filas = await pedidosService.importarTemplateCargaPedido(
+      req.params.id, req.idEmpresa, req.accesoEmpresa, buffer
+    );
+    return res.json({
+      ok: true,
+      mensaje: `${filas.length} producto${filas.length === 1 ? '' : 's'} preparado${filas.length === 1 ? '' : 's'} para cargar.`,
+      cantidad: filas.length,
+      datos: filas,
+    });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message, errores: error.errores });
+  }
+});
+
 router.patch('/:id/servicio', requerirAccesoPedido, requerirEscrituraEmpresa, async (req, res) => {
   try {
     const resultado = await pedidosService.actualizarServicioPedido(

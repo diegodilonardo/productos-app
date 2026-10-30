@@ -429,6 +429,163 @@ async function obtenerProductosDisponiblesPedido(idPedido, idEmpresa, accesoEmpr
   });
 }
 
+const COLUMNAS_TEMPLATE_CARGA_PEDIDO = Object.freeze([
+  'COD_ALFA', 'MODELO', 'TALLE', 'PARES',
+  'CANTIDAD PARES', 'FOB', 'ADICIONAL', 'OBSERVACIONES',
+]);
+
+function normalizarEncabezadoCargaPedido(valor) {
+  return texto(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9]+/gi, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function valorCeldaCargaPedido(celda) {
+  const valor = celda?.value;
+  if (valor && typeof valor === 'object') {
+    if (valor.result !== undefined) return valor.result;
+    if (valor.text !== undefined) return valor.text;
+    if (Array.isArray(valor.richText)) return valor.richText.map(item => item.text || '').join('');
+  }
+  return valor ?? '';
+}
+
+async function crearPlantillaCargaPedido(productos, codigoPedido = '') {
+  const libro = new ExcelJS.Workbook();
+  libro.creator = 'Productos App';
+  libro.created = new Date();
+  const hoja = libro.addWorksheet('Carga Pedido', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+    properties: { defaultRowHeight: 20 },
+  });
+  hoja.columns = [
+    { header: 'COD_ALFA', key: 'codigoAlfa', width: 22 },
+    { header: 'MODELO', key: 'modelo', width: 30 },
+    { header: 'TALLE', key: 'talle', width: 28 },
+    { header: 'PARES', key: 'pares', width: 12 },
+    { header: 'CANTIDAD PARES', key: 'cantidadPares', width: 18 },
+    { header: 'FOB', key: 'fob', width: 14 },
+    { header: 'ADICIONAL', key: 'adicional', width: 14 },
+    { header: 'OBSERVACIONES', key: 'observaciones', width: 42 },
+  ];
+  for (const producto of productos) {
+    hoja.addRow({
+      codigoAlfa: texto(producto.CODIGO_ALFA),
+      modelo: texto(producto.DETALLE_MODELO || producto.CODIGO_MODELO),
+      talle: texto(producto.TALLE_CURVA || producto.DETALLE_MODULO || producto.DETALLE_TALLE),
+      pares: Number(producto.PARES || 1),
+      cantidadPares: '', fob: '', adicional: '', observaciones: '',
+    });
+  }
+  const encabezado = hoja.getRow(1);
+  encabezado.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  encabezado.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF176BCA' } };
+  encabezado.alignment = { vertical: 'middle', horizontal: 'center' };
+  encabezado.height = 24;
+  hoja.autoFilter = { from: 'A1', to: 'H1' };
+  hoja.eachRow((fila, numeroFila) => {
+    if (numeroFila === 1) return;
+    for (let columna = 1; columna <= 4; columna += 1) {
+      fila.getCell(columna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F3F5' } };
+      fila.getCell(columna).font = { color: { argb: 'FF5F6B76' } };
+    }
+    fila.getCell(6).numFmt = '0.0000';
+    fila.getCell(7).numFmt = '0.0000';
+  });
+  hoja.getColumn(5).eachCell((celda, fila) => {
+    if (fila > 1) celda.dataValidation = { type: 'whole', operator: 'greaterThan', formulae: [0], allowBlank: true, showErrorMessage: true, error: 'Ingrese una cantidad entera mayor que cero.' };
+  });
+  for (const columna of [6, 7]) hoja.getColumn(columna).eachCell((celda, fila) => {
+    if (fila > 1) celda.dataValidation = { type: 'decimal', operator: 'greaterThanOrEqual', formulae: [0], allowBlank: true, showErrorMessage: true, error: 'Ingrese un valor mayor o igual a cero.' };
+  });
+  hoja.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+  hoja.headerFooter.oddHeader = `&C&BCarga de Pedido ${texto(codigoPedido)}`;
+  return Buffer.from(await libro.xlsx.writeBuffer());
+}
+
+async function leerPlantillaCargaPedido(buffer, productos) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length) throw new Error('Seleccione un archivo Excel para importar.');
+  if (buffer.length > 5 * 1024 * 1024) throw new Error('El archivo supera el máximo permitido de 5 MB.');
+  const libro = new ExcelJS.Workbook();
+  try { await libro.xlsx.load(buffer); } catch (_) { throw new Error('El archivo no es un Excel válido.'); }
+  const hoja = libro.worksheets[0];
+  if (!hoja) throw new Error('El archivo no contiene una hoja para importar.');
+  const columnas = new Map();
+  hoja.getRow(1).eachCell((celda, columna) => columnas.set(normalizarEncabezadoCargaPedido(valorCeldaCargaPedido(celda)), columna));
+  const faltantes = COLUMNAS_TEMPLATE_CARGA_PEDIDO.filter(nombre => !columnas.has(normalizarEncabezadoCargaPedido(nombre)));
+  if (faltantes.length) throw new Error(`Faltan columnas obligatorias: ${faltantes.join(', ')}.`);
+  const porCodigo = new Map(productos.map(producto => [texto(producto.CODIGO_ALFA).toUpperCase(), producto]));
+  const vistos = new Set();
+  const filas = [];
+  const errores = [];
+  for (let numeroFila = 2; numeroFila <= hoja.actualRowCount; numeroFila += 1) {
+    const fila = hoja.getRow(numeroFila);
+    const obtener = nombre => valorCeldaCargaPedido(fila.getCell(columnas.get(normalizarEncabezadoCargaPedido(nombre))));
+    const codigoAlfa = texto(obtener('COD_ALFA'));
+    const cantidadValor = obtener('CANTIDAD PARES');
+    const fobValor = obtener('FOB');
+    const adicionalValor = obtener('ADICIONAL');
+    const observaciones = texto(obtener('OBSERVACIONES'));
+    const tieneCarga = texto(cantidadValor) || texto(fobValor) || texto(adicionalValor) || observaciones;
+    if (!codigoAlfa && !tieneCarga) continue;
+    if (!tieneCarga) continue;
+    const clave = codigoAlfa.toUpperCase();
+    const producto = porCodigo.get(clave);
+    if (!producto) { errores.push(`Fila ${numeroFila}: COD_ALFA ${codigoAlfa || '(vacío)'} no está disponible en este Pedido.`); continue; }
+    if (vistos.has(clave)) { errores.push(`Fila ${numeroFila}: COD_ALFA ${codigoAlfa} está repetido.`); continue; }
+    vistos.add(clave);
+    const cantidadPares = Number(cantidadValor);
+    const fob = Number(fobValor);
+    const adicional = texto(adicionalValor) === '' ? 0 : Number(adicionalValor);
+    const pares = Number(producto.PARES || 0);
+    const esModulo = normalizarTipoProducto(producto.TIPO_PRODUCTO_DETALLE || producto.TIPO_PRODUCTO) === 'MODULO';
+    if (!texto(cantidadValor) || !Number.isInteger(cantidadPares) || cantidadPares <= 0) errores.push(`Fila ${numeroFila}: CANTIDAD PARES debe ser un entero mayor que cero.`);
+    else if (esModulo && pares > 0 && cantidadPares % pares !== 0) errores.push(`Fila ${numeroFila}: CANTIDAD PARES debe ser múltiplo de ${pares}.`);
+    if (!texto(fobValor) || !Number.isFinite(fob) || fob < 0) errores.push(`Fila ${numeroFila}: FOB debe ser un número mayor o igual a cero.`);
+    if (!Number.isFinite(adicional) || adicional < 0) errores.push(`Fila ${numeroFila}: ADICIONAL debe ser un número mayor o igual a cero.`);
+    if (observaciones.length > 500) errores.push(`Fila ${numeroFila}: OBSERVACIONES supera los 500 caracteres.`);
+    filas.push({
+      idProducto: Number(producto.ID_PRODUCTO), codigoAlfa: texto(producto.CODIGO_ALFA),
+      cantidadPares, precioFobPar: fob, adicional, observaciones,
+    });
+  }
+  if (errores.length) throw Object.assign(new Error(`No se importó el archivo. ${errores.slice(0, 8).join(' ')}`), { status: 400, errores });
+  if (!filas.length) throw new Error('El archivo no contiene productos con datos de carga.');
+  return filas;
+}
+
+async function generarTemplateCargaPedido(idPedido, idEmpresa, accesoEmpresa) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  if (texto(pedido.TIPO_PEDIDO).toUpperCase() === 'SERVICIOS') throw new Error('Los pedidos de servicios no utilizan este template.');
+  const [productosDisponibles, detalleActual] = await Promise.all([
+    obtenerProductosDisponiblesPedido(pedido.ID_PEDIDO, pedido.ID_EMPRESA, accesoEmpresa),
+    pedidosRepository.listarDetallePedido(pedido.ID_PEDIDO, pedido.ID_EMPRESA),
+  ]);
+  const cargados = new Set(detalleActual.map(item => Number(item.ID_PRODUCTO)));
+  const productos = productosDisponibles.filter(item => !cargados.has(Number(item.ID_PRODUCTO)));
+  if (!productos.length) throw new Error('El Pedido no tiene productos disponibles para cargar.');
+  return {
+    buffer: await crearPlantillaCargaPedido(productos, pedido.CODIGO_PEDIDO),
+    nombreArchivo: `CARGA_${texto(pedido.CODIGO_PEDIDO) || `PEDIDO_${pedido.ID_PEDIDO}`}.xlsx`,
+    cantidadRegistros: productos.length,
+  };
+}
+
+async function importarTemplateCargaPedido(idPedido, idEmpresa, accesoEmpresa, buffer) {
+  const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
+  if (texto(pedido.TIPO_PEDIDO).toUpperCase() === 'SERVICIOS') throw new Error('Los pedidos de servicios no utilizan este template.');
+  const [productosDisponibles, detalleActual] = await Promise.all([
+    obtenerProductosDisponiblesPedido(pedido.ID_PEDIDO, pedido.ID_EMPRESA, accesoEmpresa),
+    pedidosRepository.listarDetallePedido(pedido.ID_PEDIDO, pedido.ID_EMPRESA),
+  ]);
+  const cargados = new Set(detalleActual.map(item => Number(item.ID_PRODUCTO)));
+  const productos = productosDisponibles.filter(item => !cargados.has(Number(item.ID_PRODUCTO)));
+  return leerPlantillaCargaPedido(buffer, productos);
+}
+
 async function obtenerResumenProductosAltas(idsAltas, idEmpresa, accesoEmpresa) {
   const altas = await validarAltasDisponibles(idsAltas, idEmpresa, accesoEmpresa);
   const productos = await pedidosRepository.obtenerResumenProductosAltas(
@@ -2421,6 +2578,8 @@ module.exports = {
   obtenerProductosDisponibles,
   obtenerProductosDisponiblesPorAltas,
   obtenerProductosDisponiblesPedido,
+  generarTemplateCargaPedido,
+  importarTemplateCargaPedido,
   obtenerResumenProductosAltas,
   obtenerResumenModelosAlta,
   validarProductoDisponible,
@@ -2462,5 +2621,8 @@ module.exports = {
     esProveedorNacional,
     CAMPOS_PEDIDO_NACIONAL,
     crearDBFBuffer,
+    crearPlantillaCargaPedido,
+    leerPlantillaCargaPedido,
+    COLUMNAS_TEMPLATE_CARGA_PEDIDO,
   },
 };

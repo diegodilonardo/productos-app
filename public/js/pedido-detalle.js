@@ -35,6 +35,9 @@ async function iniciarDetallePedido(){
   document.getElementById('btnDisponiblesTarjetas')?.addEventListener('click',()=>aplicarVistaProductos('disponibles','tarjetas'));
   document.getElementById('btnDisponiblesLista')?.addEventListener('click',()=>aplicarVistaProductos('disponibles','lista'));
   document.getElementById('btnCargarModoLista')?.addEventListener('click',cargarProductosModoLista);
+  document.getElementById('btnDescargarTemplatePedido')?.addEventListener('click',descargarTemplateCargaPedido);
+  document.getElementById('btnImportarTemplatePedido')?.addEventListener('click',()=>document.getElementById('archivoTemplatePedido')?.click());
+  document.getElementById('archivoTemplatePedido')?.addEventListener('change',importarTemplateCargaPedido);
   document.getElementById('btnDetalleTarjetas')?.addEventListener('click',()=>aplicarVistaProductos('detalle','tarjetas'));
   document.getElementById('btnDetalleLista')?.addEventListener('click',()=>aplicarVistaProductos('detalle','lista'));
   document.getElementById('formProductoPedido').addEventListener('submit', guardarProducto);
@@ -174,6 +177,39 @@ async function cargarProductosModoLista(){
   try{btn.disabled=true;for(const {p,d} of seleccionados){btn.textContent=`Cargando ${cargados+1} de ${seleccionados.length}...`;await api(`/api/pedidos/${ID_PEDIDO}/detalle`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idProducto:Number(p.ID_PRODUCTO),cantidadPares:Number(d.cantidadPares),precioFobPar:Number(d.precioFobPar),adicional:Number(d.adicional||0),observaciones:String(d.observaciones||'').trim()})});cargaListaPedido.delete(String(p.ID_PRODUCTO));cargados++;}mostrarAlerta(`${cargados} producto${cargados===1?'':'s'} agregado${cargados===1?'':'s'} al pedido.`, 'success');await cargarTodo();}
   catch(e){mostrarAlerta(`${e.message}${cargados?` Se agregaron ${cargados} de ${seleccionados.length} productos.`:''}`,'danger');await cargarTodo();}
   finally{btn.textContent=textoOriginal;actualizarBotonCargaLista();}
+}
+
+async function descargarTemplateCargaPedido(ev){
+  ev.preventDefault();
+  if(!puedeEscribir||estado()!=='BORRADOR')return;
+  const boton=ev.currentTarget,textoOriginal=boton.textContent;
+  try{
+    boton.classList.add('disabled');boton.textContent='Generando...';
+    const respuesta=await fetch(`/api/pedidos/${ID_PEDIDO}/carga/template`);
+    if(!respuesta.ok){let error={};try{error=await respuesta.json();}catch{}throw new Error(error.mensaje||`Error HTTP ${respuesta.status}`);}
+    const blob=await respuesta.blob();
+    const disposicion=respuesta.headers.get('Content-Disposition')||'';
+    const coincidencia=disposicion.match(/filename="?([^";]+)"?/i);
+    const enlace=document.createElement('a');enlace.href=URL.createObjectURL(blob);enlace.download=coincidencia?.[1]||`CARGA_PEDIDO_${ID_PEDIDO}.xlsx`;document.body.appendChild(enlace);enlace.click();enlace.remove();setTimeout(()=>URL.revokeObjectURL(enlace.href),1000);
+  }catch(e){mostrarAlerta(e.message,'danger');}
+  finally{boton.classList.remove('disabled');boton.textContent=textoOriginal;}
+}
+
+function leerArchivoBase64(archivo){return new Promise((resolve,reject)=>{const lector=new FileReader();lector.onload=()=>resolve(String(lector.result||''));lector.onerror=()=>reject(new Error('No se pudo leer el archivo seleccionado.'));lector.readAsDataURL(archivo);});}
+
+async function importarTemplateCargaPedido(ev){
+  const input=ev.currentTarget,archivo=input.files?.[0];if(!archivo)return;
+  const boton=document.getElementById('btnImportarTemplatePedido'),textoOriginal=boton.textContent;
+  try{
+    boton.disabled=true;boton.textContent='Importando...';
+    const archivoBase64=await leerArchivoBase64(archivo);
+    const respuesta=await api(`/api/pedidos/${ID_PEDIDO}/carga/importar`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombreArchivo:archivo.name,archivoBase64})});
+    cargaListaPedido.clear();
+    for(const fila of respuesta.datos||[])cargaListaPedido.set(String(fila.idProducto),{seleccionado:true,cantidadPares:String(fila.cantidadPares),precioFobPar:String(fila.precioFobPar),adicional:String(fila.adicional??0),observaciones:String(fila.observaciones||'')});
+    aplicarVistaProductos('disponibles','lista');pintarDisponibles();
+    mostrarAlerta(`${respuesta.mensaje} Revisá la lista y presioná “Cargar en modo lista” para confirmar.`,'success');
+  }catch(e){mostrarAlerta(e.message,'danger');}
+  finally{input.value='';boton.disabled=false;boton.textContent=textoOriginal;}
 }
 function pintarDetalle(){const tbody=document.getElementById('tablaDetallePedido'),cards=document.getElementById('tarjetasDetallePedido');tbody.innerHTML='';cards.innerHTML='';if(!detalle.length){tbody.innerHTML='<tr><td colspan="10" class="text-center py-5 text-secondary">El pedido todavía no tiene productos.</td></tr>';cards.innerHTML='<div class="pedido-product-card-empty">El pedido todavía no tiene productos.</div>';}else for(const d of detalle){const acciones=estado()==='BORRADOR'&&puedeEscribir?`<div class="pedido-product-card-actions"><button class="btn btn-sm btn-outline-primary" data-editar="${esc(d.ID_PEDIDO_DETALLE)}">Editar</button><button class="btn btn-sm btn-outline-danger" data-eliminar="${esc(d.ID_PEDIDO_DETALLE)}">Quitar</button></div>`:'';const tr=document.createElement('tr');tr.innerHTML=`<td><img class="pedido-img" src="${esc(d.URL_IMAGEN)}" alt="${esc(d.DETALLE_PRODUCTO||'Producto')}" onerror="this.style.display='none'"></td><td><div class="fw-semibold">${esc(d.DETALLE_PRODUCTO)}</div><div class="pedido-muted">${esc(d.CODIGO_ALFA)}</div></td><td>${esc(d.DETALLE_MODULO||d.DETALLE_TALLE||'-')}</td><td>${num(d.CANTIDAD_PARES)}</td><td>${d.CANTIDAD_MODULOS==null?'-':num(d.CANTIDAD_MODULOS)}</td><td>${dinero(d.PRECIO_FOB_PAR)}</td><td>${dinero(d.TOTAL_FOB)}</td><td>${dinero(d.ADICIONAL)}</td><td class="fw-semibold">${dinero(d.TOTAL_PRODUCTO)}</td><td>${acciones}</td>`;tbody.appendChild(tr);const card=document.createElement('article');card.className='pedido-product-card is-loaded';card.innerHTML=`<div class="pedido-product-card-main">${imagenProductoCard(d)}<div class="pedido-product-card-title"><strong>${esc(d.DETALLE_PRODUCTO)}</strong><span class="pedido-code">${esc(d.CODIGO_ALFA)}</span><div class="pedido-product-card-model">${esc(d.DETALLE_MODELO||'')} · ${esc(d.DETALLE_COLOR||'')}</div><div class="pedido-product-card-model">${esc(d.DETALLE_MODULO||d.DETALLE_TALLE||'-')}</div></div></div><div class="pedido-product-card-meta"><div class="pedido-product-emphasis"><span>Pares</span><strong>${num(d.CANTIDAD_PARES)}</strong></div><div><span>Módulos</span><strong>${d.CANTIDAD_MODULOS==null?'-':num(d.CANTIDAD_MODULOS)}</strong></div><div><span>FOB por par</span><strong>${pedido?.MONEDA||'USD'} ${dinero(d.PRECIO_FOB_PAR)}</strong></div><div><span>FOB</span><strong>${pedido?.MONEDA||'USD'} ${dinero(d.TOTAL_FOB)}</strong></div><div><span>Adicional por par</span><strong>${pedido?.MONEDA||'USD'} ${dinero(d.ADICIONAL)}</strong></div><div class="pedido-product-emphasis"><span>Total producto</span><strong>${pedido?.MONEDA||'USD'} ${dinero(d.TOTAL_PRODUCTO)}</strong></div></div><div class="pedido-product-card-footer"><span class="pedido-product-total">${pedido?.MONEDA||'USD'} ${dinero(d.TOTAL_PRODUCTO)}</span>${acciones}</div>`;cards.appendChild(card);}document.querySelectorAll('#listaDetallePedido [data-editar], #tarjetasDetallePedido [data-editar]').forEach(b=>b.addEventListener('click',()=>abrirEditarProducto(b.dataset.editar)));document.querySelectorAll('#listaDetallePedido [data-eliminar], #tarjetasDetallePedido [data-eliminar]').forEach(b=>b.addEventListener('click',()=>eliminarProducto(b.dataset.eliminar)));const totalPares=detalle.reduce((a,x)=>a+Number(x.CANTIDAD_PARES||0),0),totalProductos=detalle.reduce((a,x)=>a+Number(x.TOTAL_PRODUCTO||0),0),totalServicio=Number(pedido?.SERVICIO_CANTIDAD||0)*Number(pedido?.SERVICIO_PRECIO||0),total=totalProductos+totalServicio;document.getElementById('resumenPedido').textContent=`${detalle.length} productos · ${num(totalPares)} pares · ${pedido?.MONEDA||'USD'} ${dinero(total)}`;aplicarVistaProductos('detalle',vistaDetalle);}
 function abrirAltaProducto(id){productoModal=disponibles.find(x=>String(x.ID_PRODUCTO)===String(id));if(!productoModal)return;document.getElementById('modalProductoTitulo').textContent='Cargar producto';document.getElementById('modalIdProducto').value=productoModal.ID_PRODUCTO;document.getElementById('modalIdDetalle').value='';document.getElementById('modalProductoInfo').innerHTML=`<strong>${esc(productoModal.DETALLE_PRODUCTO)}</strong><br><span class="text-secondary">${esc(productoModal.TALLE_CURVA||'')} · ${num(productoModal.PARES)} pares por módulo</span>`;document.getElementById('modalCantidadPares').value='';document.getElementById('modalFobPar').value='';document.getElementById('modalAdicional').value='0';document.getElementById('modalObservaciones').value='';pintarCalculoModal();modalProducto.show();}

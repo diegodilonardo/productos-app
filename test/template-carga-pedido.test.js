@@ -44,6 +44,9 @@ test('el template de carga contiene referencias y únicamente cuatro campos edit
   assert.equal(hoja.getCell('E2').value, 12);
   assert.equal(hoja.getCell('F2').value, '');
   assert.equal(hoja.getCell('G2').value, '');
+  assert.equal(hoja.sheetProtection.sheet, true);
+  for (const celda of ['A2', 'B2', 'C2', 'D2', 'E2']) assert.notEqual(hoja.getCell(celda).protection?.locked, false);
+  for (const celda of ['F2', 'G2', 'H2', 'I2']) assert.equal(hoja.getCell(celda).protection.locked, false);
 });
 
 test('la importación prepara cantidades, FOB, adicional y observaciones por COD_ALFA', async () => {

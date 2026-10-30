@@ -493,7 +493,9 @@ async function crearPlantillaCargaPedido(productos, codigoPedido = '') {
     for (let columna = 1; columna <= 5; columna += 1) {
       fila.getCell(columna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F3F5' } };
       fila.getCell(columna).font = { color: { argb: 'FF5F6B76' } };
+      fila.getCell(columna).protection = { locked: true };
     }
+    for (let columna = 6; columna <= 9; columna += 1) fila.getCell(columna).protection = { locked: false };
     fila.getCell(7).numFmt = '0.0000';
     fila.getCell(8).numFmt = '0.0000';
   });
@@ -505,6 +507,12 @@ async function crearPlantillaCargaPedido(productos, codigoPedido = '') {
   });
   hoja.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
   hoja.headerFooter.oddHeader = `&C&BCarga de Pedido ${texto(codigoPedido)}`;
+  await hoja.protect('productos-app-carga-pedido', {
+    selectLockedCells: false,
+    selectUnlockedCells: true,
+    autoFilter: true,
+    sort: true,
+  });
   return Buffer.from(await libro.xlsx.writeBuffer());
 }
 

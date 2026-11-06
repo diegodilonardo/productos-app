@@ -356,6 +356,7 @@ function cuerpoSolicitudMaestro() {
     cuerpo.cProveedor = '';
     cuerpo.disciplina = '';
     cuerpo.prefijoDisciplina = '';
+    if (!cuerpo.marca || !cuerpo.rubro) throw new Error('Para exportar un color debe seleccionar la marca y el rubro de destino.');
   }
   if (tipo === 'MODELO' && (!cuerpo.marca || !cuerpo.rubro || !cuerpo.licencia || !cuerpo.disciplina || !cuerpo.cProveedor)) throw new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.');
   if (tipo === 'MODULO') {

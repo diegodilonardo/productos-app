@@ -36,16 +36,17 @@ test('VICBOR, GYD y BAGUNZA comparten el alcance de maestros y MIDING queda sepa
   assert.match(repositorySource, /E_ALCANCE\.ID_EMPRESA=E_ORIGEN\.ID_EMPRESA/);
 });
 
-test('un color guarda marca y rubro sólo como referencia sin modificar el DBI', async () => {
+test('un color exige y guarda la marca de destino sin modificar el DBI', async () => {
   const original = repository.crear;
   repository.crear = async datos => datos;
   try {
     const registro = await service.crear({ idEmpresa:1, usuario:'DIEGO', cuerpo:{tipo:'COLOR',codigo:'0F',nombre:'ORQUIDEA',marca:'ATOMIK',rubro:'CALZADO'} });
     assert.equal(registro.marca, 'ATOMIK');
     assert.equal(registro.rubro, 'CALZADO');
-    const sinReferencia = await service.crear({ idEmpresa:1, usuario:'DIEGO', cuerpo:{tipo:'COLOR',codigo:'0G',nombre:'OTRO'} });
-    assert.equal(sinReferencia.marca, '');
-    assert.equal(sinReferencia.rubro, '');
+    await assert.rejects(
+      service.crear({ idEmpresa:1, usuario:'DIEGO', cuerpo:{tipo:'COLOR',codigo:'0G',nombre:'OTRO'} }),
+      /marca y el rubro de destino/
+    );
     assert.deepEqual(service.definicionesDbi.COLOR.map({CODIGO:'0F',NOMBRE:'ORQUIDEA',MARCA:'ATOMIK',RUBRO:'CALZADO'}), {CODIGO:'0F',DET_COLOR:'ORQUIDEA'});
   } finally { repository.crear = original; }
 });
@@ -122,7 +123,7 @@ test('rechaza nombres de colores y modelos que ya existen', async () => {
     : { CODIGO: '150378', NOMBRE: 'WKC550 I27', ORIGEN: 'SOLICITUD' };
   try {
     await assert.rejects(
-      () => service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'COLOR', codigo: '0G', nombre: ' Orquidea ' } }),
+      () => service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'COLOR', codigo: '0G', nombre: ' Orquidea ', marca: 'WAKE', rubro: 'CALZADO' } }),
       error => error.status === 409 && /maestro sincronizado de Presea/.test(error.message) && /código 0F/.test(error.message)
     );
     await assert.rejects(

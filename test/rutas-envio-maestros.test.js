@@ -8,9 +8,9 @@ test('modelos se separan por marca, licencia y rubro en todas las empresas', () 
     const grupos = agruparArchivosMaestros([
       { TIPO:'MODELO', MARCA:marca, RUBRO:'CALZADO', LICENCIA:'SIN LICENCIA' },
       { TIPO:'MODELO', MARCA:marca, RUBRO:'INDUMENTARIA', LICENCIA:'' },
-      { TIPO:'COLOR' }, { TIPO:'MODULO', MARCA:marca, RUBRO:'CALZADO' }
+      { TIPO:'COLOR', MARCA:marca, RUBRO:'CALZADO' }, { TIPO:'MODULO', MARCA:marca, RUBRO:'CALZADO' }
     ], ruta);
-    assert.deepEqual(grupos.map(g => g.ruta), [ruta, `${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/INDUMENTARIA`]);
+    assert.deepEqual(grupos.map(g => g.ruta), [`${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/CALZADO`, `${ruta}/${marca.replaceAll(' ','_')}/INDUMENTARIA`]);
   }
 });
 
@@ -61,4 +61,31 @@ test('una marca con espacios coincide con su segmento configurado para FTP', () 
 
   assert.equal(grupos.length, 2);
   assert.ok(grupos.every(grupo => grupo.ruta === '/ALTAS_MAESTROS/MIDING/47_STREET/CALZADO'));
+});
+
+test('los colores se exportan a la carpeta de su empresa, marca y rubro', () => {
+  const destinos = ['ACCESORIOS', 'CALZADO', 'INDUMENTARIA', 'POP'].map(RUBRO => ({
+    MARCA: 'VANTEK',
+    LICENCIA: 'SIN_LICENCIA',
+    RUBRO,
+    RUTA_DESTINO: `/ALTAS_MAESTROS/MIDING/VANTEK/${RUBRO}`,
+  }));
+  const grupos = agruparArchivosMaestros([
+    { TIPO:'COLOR', MARCA:'VANTEK', RUBRO:'CALZADO' },
+  ], '/ALTAS_MAESTROS/MIDING', destinos);
+
+  assert.equal(grupos.length, 1);
+  assert.equal(grupos[0].ruta, '/ALTAS_MAESTROS/MIDING/VANTEK/CALZADO');
+});
+
+test('un color sin marca o rubro no puede volver a la carpeta general de la empresa', () => {
+  const destinos = [
+    { MARCA:'VANTEK', LICENCIA:'SIN_LICENCIA', RUBRO:'CALZADO', RUTA_DESTINO:'/ALTAS_MAESTROS/MIDING/VANTEK/CALZADO' },
+  ];
+  assert.throws(() => agruparArchivosMaestros([
+    { TIPO:'COLOR', MARCA:'', RUBRO:'CALZADO' },
+  ], '/ALTAS_MAESTROS/MIDING', destinos), /marca/);
+  assert.throws(() => agruparArchivosMaestros([
+    { TIPO:'COLOR', MARCA:'VANTEK', RUBRO:'' },
+  ], '/ALTAS_MAESTROS/MIDING', destinos), /rubro/);
 });

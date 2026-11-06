@@ -73,10 +73,29 @@ function obtenerDetalleTalleERP(tipoProducto, detalle) {
 
   /* Presea limita DTALLC a 40 caracteres. Esta compactación
    * conserva talles, distribución y pares: "X 12" pasa a "X12". */
-  return descripcion
+  const compacta = descripcion
     .replace(/\s+[Xx]\s+(?=\d)/g, " X")
     .replace(/\s{2,}/g, " ")
     .trim();
+
+  if (tipoProducto !== "MODULO" || compacta.length <= 40) return compacta;
+
+  /* Las curvas agrupadas pueden superar el límite aunque la información sea
+   * válida. Se expresan como rango, conservando extremos, pares y distribución:
+   * 36/37 38/39 40/41 42/43 44/45 X12 1,2,3,4,2
+   * pasa a 36/37 AL 44/45 X12 (1,2,3,4,2). */
+  const partes = compacta.match(/^(.+?)\s+X(\d+)\s+\(?([0-9]+(?:\s*,\s*[0-9]+)*)\)?$/i);
+  if (!partes) return compacta;
+
+  const talles = partes[1].trim().split(/\s+/).filter(Boolean);
+  if (talles.length < 2) return compacta;
+
+  const pares = partes[2];
+  const distribucion = partes[3].replace(/\s+/g, "");
+  const rango = `${talles[0]} AL ${talles[talles.length - 1]} X${pares} (${distribucion})`;
+  if (rango.length <= 40) return rango;
+
+  return `${talles[0]}-${talles[talles.length - 1]} X${pares} ${distribucion}`;
 }
 
 /* ============================================================
@@ -1862,6 +1881,8 @@ module.exports = {
   armarRegistrosRELACION,
 
   normalizarLicenciaExportacion,
+
+  obtenerDetalleTalleERP,
 
   agruparDefinicionesPorDependencia,
 };

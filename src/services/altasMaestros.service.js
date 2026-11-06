@@ -244,6 +244,9 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
   if (tipo === 'MODELO' && (!normalizar(cuerpo.marca) || !normalizar(cuerpo.rubro) || !licenciaModelo || !disciplinaModelo || !normalizar(cuerpo.cProveedor))) {
     throw Object.assign(new Error('Para un modelo debe indicar marca, rubro, licencia, disciplina y proveedor.'), { status: 400 });
   }
+  if (tipo === 'COLOR' && (!normalizar(cuerpo.marca) || !normalizar(cuerpo.rubro))) {
+    throw Object.assign(new Error('Para exportar un color debe indicar la marca y el rubro de destino.'), { status: 400 });
+  }
   let datosModulo = null;
   if (tipo === 'MODULO') {
     const rubroModulo = normalizar(cuerpo.rubro);
@@ -517,7 +520,17 @@ function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = 
     const tipo = normalizar(registro.TIPO);
     if (!definicionesDbi[tipo]) throw new Error(`Tipo de maestro no admitido: ${tipo}.`);
     let ruta = rutaEmpresa;
-    if (tipo === 'MODELO' || tipo === 'MODULO') {
+    if (tipo === 'COLOR') {
+      const marca = segmentoRutaMaestro(registro.MARCA, 'marca');
+      const rubro = segmentoRutaMaestro(registro.RUBRO, 'rubro');
+      if (destinos) {
+        const clave = claveDestinoMaestro(marca, 'SIN LICENCIA', rubro);
+        ruta = destinos.get(clave);
+        if (!ruta) throw Object.assign(new Error(`Exportación bloqueada: no existe una ruta FTP activa para marca ${normalizar(registro.MARCA)}, rubro ${normalizar(registro.RUBRO)} y licencia SIN LICENCIA.`), { status: 409 });
+      } else {
+        ruta += `/${marca}/${rubro}`;
+      }
+    } else if (tipo === 'MODELO' || tipo === 'MODULO') {
       const marca = segmentoRutaMaestro(registro.MARCA, 'marca');
       const rubro = segmentoRutaMaestro(registro.RUBRO, 'rubro');
       const licencia = normalizarLicencia(registro.LICENCIA);

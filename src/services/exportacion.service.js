@@ -1051,44 +1051,6 @@ function eliminarSiExiste(ruta) {
   }
 }
 
-function agruparDefinicionesPorDependencia(definiciones) {
-  const porClave = new Map(definiciones.map((definicion) => [definicion.clave, definicion]));
-  const fases = [
-    ['MODELOS'],
-    ['PRODUCTOS'],
-    ['PRIMERAS_SEGUNDAS', 'RELFORMU', 'RELACION'],
-  ].map((claves) => claves.map((clave) => porClave.get(clave)).filter(Boolean));
-  const incluidas = new Set(fases.flat());
-  const restantes = definiciones.filter((definicion) => !incluidas.has(definicion));
-  if (restantes.length) fases.push(restantes);
-  return fases.filter((fase) => fase.length);
-}
-
-async function esperarArchivosConsumidosFTP(rutaFTP, definiciones, idAlta) {
-  const timeout = Math.max(5000, Number(process.env.FTP_PROCESAMIENTO_TIMEOUT_MS || 120000));
-  const intervalo = Math.max(250, Number(process.env.FTP_PROCESAMIENTO_INTERVALO_MS || 1500));
-  const inicio = Date.now();
-
-  while (true) {
-    const faseModelos = definiciones.some((definicion) => definicion.clave === 'MODELOS');
-    if (faseModelos && await exportacionRepository.modelosAltaDisponiblesEnMaestro(idAlta)) return;
-
-    const existentes = (await Promise.all(definiciones.map(async (definicion) => ({
-      archivo: definicion.nombreFTP,
-      existe: await ftpService.existeArchivo(rutaFTP, definicion.nombreFTP),
-    })))).filter((item) => item.existe);
-
-    if (!existentes.length) return;
-    if (Date.now() - inicio >= timeout) {
-      throw new Error(
-        `Presea no tomó a tiempo ${existentes.map((item) => item.archivo).join(', ')}. ` +
-        'No se enviaron los archivos dependientes para evitar productos incompletos.',
-      );
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalo));
-  }
-}
-
 /* ============================================================
    PREPARAR EXPORTACION
    ============================================================ */
@@ -1622,28 +1584,19 @@ async function exportarConControl(idAlta, datosEntrada = {}) {
 
     await ftpService.limpiarCarpeta(rutaFTP);
 
-    const fasesEnvio = agruparDefinicionesPorDependencia(definiciones);
+    for (const definicion of definiciones) {
+      const resultadoFTP = await ftpService.subirArchivo(
+        definicion.rutaDBI,
+        definicion.archivoDBI,
+        definicion.nombreFTP,
+        rutaFTP,
+      );
 
-    for (let indiceFase = 0; indiceFase < fasesEnvio.length; indiceFase += 1) {
-      const fase = fasesEnvio[indiceFase];
-      for (const definicion of fase) {
-        const resultadoFTP = await ftpService.subirArchivo(
-          definicion.rutaDBI,
-          definicion.archivoDBI,
-          definicion.nombreFTP,
-          rutaFTP,
-        );
+      resultadosFTP.push({
+        clave: definicion.clave,
 
-        resultadosFTP.push({
-          clave: definicion.clave,
-
-          ...resultadoFTP,
-        });
-      }
-
-      if (indiceFase < fasesEnvio.length - 1) {
-        await esperarArchivosConsumidosFTP(rutaFTP, fase, id);
-      }
+        ...resultadoFTP,
+      });
     }
 
     /*
@@ -1886,6 +1839,4 @@ module.exports = {
   normalizarLicenciaExportacion,
 
   obtenerDetalleTalleERP,
-
-  agruparDefinicionesPorDependencia,
 };

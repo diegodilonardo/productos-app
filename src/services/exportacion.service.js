@@ -1064,12 +1064,15 @@ function agruparDefinicionesPorDependencia(definiciones) {
   return fases.filter((fase) => fase.length);
 }
 
-async function esperarArchivosConsumidosFTP(rutaFTP, definiciones) {
+async function esperarArchivosConsumidosFTP(rutaFTP, definiciones, idAlta) {
   const timeout = Math.max(5000, Number(process.env.FTP_PROCESAMIENTO_TIMEOUT_MS || 120000));
   const intervalo = Math.max(250, Number(process.env.FTP_PROCESAMIENTO_INTERVALO_MS || 1500));
   const inicio = Date.now();
 
   while (true) {
+    const faseModelos = definiciones.some((definicion) => definicion.clave === 'MODELOS');
+    if (faseModelos && await exportacionRepository.modelosAltaDisponiblesEnMaestro(idAlta)) return;
+
     const existentes = (await Promise.all(definiciones.map(async (definicion) => ({
       archivo: definicion.nombreFTP,
       existe: await ftpService.existeArchivo(rutaFTP, definicion.nombreFTP),
@@ -1639,7 +1642,7 @@ async function exportarConControl(idAlta, datosEntrada = {}) {
       }
 
       if (indiceFase < fasesEnvio.length - 1) {
-        await esperarArchivosConsumidosFTP(rutaFTP, fase);
+        await esperarArchivosConsumidosFTP(rutaFTP, fase, id);
       }
     }
 

@@ -127,6 +127,32 @@ async function obtenerDetallesParaExportacion(
     return resultado.recordset;
 }
 
+async function modelosAltaDisponiblesEnMaestro(idAlta) {
+    const pool = await getConnection();
+    const resultado = await pool.request()
+        .input('ID_ALTA', sql.Int, idAlta)
+        .query(`
+            SELECT CASE WHEN EXISTS (
+                SELECT 1
+                FROM (
+                    SELECT DISTINCT A.ID_EMPRESA,
+                        LTRIM(RTRIM(D.CODIGO_MODELO)) AS CODIGO_MODELO
+                    FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+                    INNER JOIN dbo.ALTAS_PRODUCTOS A ON A.ID_ALTA = D.ID_ALTA
+                    WHERE D.ID_ALTA = @ID_ALTA
+                      AND NULLIF(LTRIM(RTRIM(D.CODIGO_MODELO)), '') IS NOT NULL
+                ) X
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM dbo.MAESTRO_MODELOS M
+                    WHERE M.ID_EMPRESA = X.ID_EMPRESA
+                      AND LTRIM(RTRIM(M.CODIGO_MODELO)) = X.CODIGO_MODELO
+                )
+            ) THEN CAST(0 AS BIT) ELSE CAST(1 AS BIT) END AS DISPONIBLES;
+        `);
+    return Boolean(resultado.recordset[0]?.DISPONIBLES);
+}
+
 
 /* ============================================================
    REGISTRAR EXPORTACION
@@ -1127,6 +1153,8 @@ module.exports = {
     obtenerAltaParaExportacion,
 
     obtenerDetallesParaExportacion,
+
+    modelosAltaDisponiblesEnMaestro,
 
 
     obtenerRelacionesModuloPrimera,

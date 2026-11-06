@@ -27,6 +27,7 @@ test('la exportación espera el consumo de cada fase antes de enviar la siguient
   );
 
   assert.match(fuente, /const fasesEnvio = agruparDefinicionesPorDependencia\(definiciones\)/);
-  assert.match(fuente, /await esperarArchivosConsumidosFTP\(rutaFTP, fase\)/);
+  assert.match(fuente, /await esperarArchivosConsumidosFTP\(rutaFTP, fase, id\)/);
+  assert.match(fuente, /modelosAltaDisponiblesEnMaestro\(idAlta\)/);
   assert.match(fuente, /No se enviaron los archivos dependientes para evitar productos incompletos/);
 });

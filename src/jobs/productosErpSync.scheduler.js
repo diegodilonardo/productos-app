@@ -41,14 +41,18 @@ function limpiarTimeout() {
 }
 
 
-function ejecutar() {
+function ejecutar(codigoEmpresa = null) {
   if (ejecutando) {
     console.log(
       '[PRODUCTOS ERP] Ejecución omitida: ' +
       'la sincronización anterior sigue activa.'
     );
 
-    return Promise.resolve(null);
+    return Promise.resolve({
+      ok: false,
+      omitida: true,
+      motivo: 'EN_CURSO',
+    });
   }
 
   ejecutando = true;
@@ -62,9 +66,15 @@ function ejecutar() {
       'productosErpSync.job.js'
     );
 
+  const codigoEmpresaNormalizado =
+    codigoEmpresa == null
+      ? ''
+      : String(codigoEmpresa).trim();
+
   console.log(
     '[PRODUCTOS ERP] Iniciando proceso aislado...',
     {
+      empresa: codigoEmpresaNormalizado || 'TODAS',
       maxMs: PRODUCTOS_ERP_MAX_MS,
     }
   );
@@ -72,10 +82,15 @@ function ejecutar() {
   return new Promise(
     (resolve) => {
 
+      const argumentos =
+        codigoEmpresaNormalizado
+          ? [archivoJob, `--empresa=${codigoEmpresaNormalizado}`]
+          : [archivoJob];
+
       const proceso =
         spawn(
           process.execPath,
-          [archivoJob],
+          argumentos,
           {
             cwd: process.cwd(),
             stdio: 'inherit',
@@ -130,7 +145,11 @@ function ejecutar() {
             error.message
           );
 
-          resolve(null);
+          resolve({
+            ok: false,
+            motivo: 'NO_INICIADO',
+            error: error.message,
+          });
         }
       );
 
@@ -159,7 +178,11 @@ function ejecutar() {
               }
             );
 
-            return resolve(null);
+            return resolve({
+              ok: false,
+              motivo: 'TIMEOUT',
+              ms,
+            });
           }
 
           if (codigo === 0) {
@@ -181,7 +204,13 @@ function ejecutar() {
           return resolve(
             codigo === 0
               ? { ok: true, ms }
-              : null
+              : {
+                  ok: false,
+                  motivo: 'ERROR_JOB',
+                  codigo,
+                  signal,
+                  ms,
+                }
           );
         }
       );

@@ -53,6 +53,12 @@ async function iniciarPantallaAltas() {
     .addEventListener('click', () => aplicarVistaAltas('tabla'));
 
   document.addEventListener('click', event => {
+    const botonActualizar = event.target.closest('[data-actualizar-erp-alta]');
+    if (botonActualizar) {
+      event.preventDefault();
+      actualizarErpAltaDesdeTarjeta(botonActualizar);
+      return;
+    }
     const botonFotos = event.target.closest('[data-enviar-fotos-alta]');
     if (botonFotos) {
       event.preventDefault();
@@ -544,6 +550,7 @@ function pintarTarjetasAltas(filas) {
         <div class="alta-summary-footer">
           <span>Creada ${escapar(formatearFecha(alta.FECHA_CREACION))} · ${escapar(alta.USUARIO_CREACION || 'SISTEMA')}</span>
           <div class="d-flex justify-content-end flex-wrap gap-1">
+            ${botonActualizarErpAlta(id)}
             ${botonEnviarFotosAlta(id, estado, fotosEnPresea)}
             ${botonVerProductos(id)}
             ${botonAccion(id, estado)}
@@ -727,6 +734,7 @@ function pintarTablaAltas(filas) {
 
       <td class="text-end">
         <div class="d-flex justify-content-end flex-wrap gap-1">
+          ${botonActualizarErpAlta(id)}
           ${botonVerProductos(id)}
           ${botonAccion(id, estado)}
         </div>
@@ -899,6 +907,65 @@ function botonVerProductos(id) {
       Ver productos
     </button>
   `;
+}
+
+function botonActualizarErpAlta(id) {
+  if (!id) return '';
+  return `
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-secondary altas-action-btn"
+      data-actualizar-erp-alta="${escapar(id)}"
+      title="Actualizar esta Alta con el maestro de productos de Presea"
+    >
+      Actualizar
+    </button>
+  `;
+}
+
+async function actualizarErpAltaDesdeTarjeta(boton) {
+  const idAlta = Number(boton.dataset.actualizarErpAlta);
+  if (!idAlta) return;
+
+  ocultarAlerta();
+  const textoOriginal = boton.textContent;
+
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Actualizando...';
+
+    const response = await fetch(
+      `/api/altas/${encodeURIComponent(idAlta)}/actualizar-erp`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'x-id-empresa': String(obtenerEmpresaActivaAltas())
+        }
+      }
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data?.ok === false) {
+      throw new Error(
+        data?.mensaje ||
+        `No se pudo actualizar el Alta (${response.status}).`
+      );
+    }
+
+    await cargarAltas();
+    mostrarAlerta(
+      data?.mensaje || 'Alta actualizada correctamente.',
+      'success'
+    );
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  } finally {
+    if (boton.isConnected) {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
+  }
 }
 
 function botonEnviarFotosAlta(id, estado, fotosEnPresea) {

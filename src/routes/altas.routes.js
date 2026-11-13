@@ -17,6 +17,10 @@ const borradorExcelService =
 const imagenesAltaService =
     require('../services/imagenesAlta.service');
 
+const {
+    ejecutarProductosErpProgramado
+} = require('../jobs/productosErpSync.scheduler');
+
 const archiver = require('archiver');
 
 const {
@@ -78,6 +82,62 @@ router.get('/', requerirEmpresa, async (req, res) => {
         });
     } catch (error) {
         res.status(400).json({
+            ok: false,
+            mensaje: error.message
+        });
+    }
+});
+
+
+/* ============================================================
+   ACTUALIZAR ESTADO ERP DE UN ALTA
+   ============================================================ */
+
+router.post('/:id/actualizar-erp', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const alta = await altasService.obtenerAlta(req.params.id);
+
+        if (!alta) {
+            return res.status(404).json({
+                ok: false,
+                mensaje: 'Alta no encontrada.'
+            });
+        }
+
+        const resultado = await ejecutarProductosErpProgramado(
+            alta.CODIGO_EMPRESA
+        );
+
+        if (resultado?.omitida) {
+            return res.status(409).json({
+                ok: false,
+                mensaje: 'Ya hay una actualización del maestro de productos en curso. Reintentá en unos instantes.'
+            });
+        }
+
+        if (!resultado?.ok) {
+            const mensaje = resultado?.motivo === 'TIMEOUT'
+                ? 'La actualización del maestro superó el tiempo máximo permitido.'
+                : 'No se pudo completar la actualización del maestro de productos de Presea.';
+
+            return res.status(502).json({
+                ok: false,
+                mensaje
+            });
+        }
+
+        const altaActualizada = await altasService.obtenerAlta(req.params.id);
+
+        return res.json({
+            ok: true,
+            mensaje: 'Alta actualizada con el maestro de productos de Presea.',
+            resultado: {
+                alta: altaActualizada,
+                sincronizacion: resultado
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
             ok: false,
             mensaje: error.message
         });

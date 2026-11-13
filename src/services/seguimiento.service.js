@@ -32,6 +32,19 @@ function normalizarTexto(valor) {
 }
 
 
+function marcaEtiquetaModulo(producto = {}) {
+    const codigoMarca = normalizarTexto(producto.CODIGO_MARCA);
+
+    // En MIDING, la descripción del módulo/curva puede conservar el texto
+    // MONTAGNE aunque el producto pertenezca a otra marca. Para estas dos
+    // marcas usamos el código estable del maestro como fuente de verdad.
+    if (codigoMarca === '80') return 'VANTEK';
+    if (codigoMarca === '47') return '47 STREET';
+
+    return producto.DETALLE_MARCA || producto.CODIGO_MARCA || '-';
+}
+
+
 function normalizarEstado(valor) {
     const estado = normalizarTexto(valor);
     return estado || null;
@@ -898,7 +911,7 @@ async function prepararEtiquetasEan(clavesEntrada, contexto) {
         modulos.push({
             codigoAlfa: producto.COD_ALFA,
             ean: producto.ESTADO_EAN === 'NO_REQUERIDO' ? '' : producto.EAN_ERP,
-            marca: producto.DETALLE_MARCA || producto.CODIGO_MARCA || '-',
+            marca: marcaEtiquetaModulo(producto),
             articulo: producto.DETALLE_MODELO || producto.CODIGO_MODELO || '-',
             talleCurva: producto.TALLE_CURVA || producto.DETALLE_MODULO || '-',
             color: producto.DETALLE_COLOR || producto.CODIGO_COLOR || '-',
@@ -1606,4 +1619,5 @@ module.exports = {
     completarPrimerasFamiliaModulo,
     debeMostrarImagenEtiqueta,
     productoImprimibleEtiquetaEan,
+    marcaEtiquetaModulo,
 };

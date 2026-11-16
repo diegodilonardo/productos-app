@@ -13,6 +13,7 @@
     <div class="d-flex flex-wrap gap-2">
       <a class="btn btn-outline-secondary" href="/pedidos">Volver</a>
       <button id="btnAgregarAltaPedido" class="btn btn-outline-primary d-none" type="button">Gestionar Altas</button>
+      <button id="btnReabrirPedido" class="btn btn-outline-warning d-none" type="button">Reabrir Pedido</button>
       <button id="btnAnularPedido" class="btn btn-outline-danger d-none" type="button">Anular</button>
       <button id="btnValidarPedido" class="btn btn-success d-none" type="button">Validar Pedido</button>
       <button id="btnConfirmarComex" class="btn btn-info d-none" type="button">Confirmar impacto</button>
@@ -175,6 +176,21 @@
     <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Anular Pedido</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <form id="formAnularPedido"><div class="modal-body"><label class="form-label" for="motivoAnulacion">Motivo de anulación</label><textarea id="motivoAnulacion" class="form-control" rows="4" maxlength="500" required></textarea><div class="form-text">El motivo es obligatorio.</div></div><div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button><button id="btnConfirmarAnulacion" class="btn btn-danger" type="submit">Anular Pedido</button></div></form>
+    </div></div>
+  </div>
+
+  <div class="modal fade" id="modalReabrirPedido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Reabrir Pedido validado</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form id="formReabrirPedido"><div class="modal-body">
+        <div class="alert alert-warning">El Pedido volverá a <strong>BORRADOR</strong>. Sus exportaciones anteriores se conservarán en el historial, pero quedarán marcadas como obsoletas.</div>
+        <label class="form-label" for="motivoReapertura">Motivo de reapertura</label>
+        <textarea id="motivoReapertura" class="form-control" rows="4" minlength="10" maxlength="500" required></textarea>
+        <div class="form-text mb-3">Ingresá al menos 10 caracteres. El motivo quedará auditado.</div>
+        <label class="form-label" for="passwordReapertura">Tu contraseña</label>
+        <input id="passwordReapertura" class="form-control" type="password" autocomplete="current-password" required>
+        <div class="form-text">Solo un usuario SUPER_ADMIN puede ejecutar esta acción.</div>
+      </div><div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button><button id="btnConfirmarReapertura" class="btn btn-warning" type="submit">Reabrir como BORRADOR</button></div></form>
     </div></div>
   </div>
 </div>

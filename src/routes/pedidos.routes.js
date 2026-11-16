@@ -7,7 +7,8 @@ const {
   requerirEscrituraEmpresa,
   requerirReportesEmpresa,
   requerirAccesoAlta,
-  requerirAccesoPedido
+  requerirAccesoPedido,
+  requerirSuperAdmin
 } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
@@ -374,6 +375,24 @@ router.post('/:id/anular', requerirAccesoPedido, requerirEscrituraEmpresa, async
       req.params.id, req.body || {}, req.idEmpresa, usuarioAuditoria(req)
     );
     return res.json({ ok: true, mensaje: 'Pedido anulado correctamente.', resultado });
+  } catch (error) {
+    return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
+  }
+});
+
+router.post('/:id/reabrir', requerirAccesoPedido, requerirSuperAdmin, async (req, res) => {
+  try {
+    const resultado = await pedidosService.reabrirPedido(
+      req.params.id,
+      req.body || {},
+      req.idEmpresa,
+      req.usuario || req.session?.usuario || {}
+    );
+    return res.json({
+      ok: true,
+      mensaje: 'Pedido reabierto como BORRADOR. Las exportaciones anteriores quedaron obsoletas.',
+      resultado
+    });
   } catch (error) {
     return res.status(error.status || 400).json({ ok: false, mensaje: error.message });
   }

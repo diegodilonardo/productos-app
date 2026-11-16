@@ -7,6 +7,7 @@ const path = require('path');
 const ftpService = require('./ftp.service');
 const purchaseOrderService = require('./purchaseOrder.service');
 const imagenesAltaService = require('./imagenesAlta.service');
+const authService = require('./auth.service');
 
 const ESTADOS_ALTAS_HABILITADOS_PEDIDOS = Object.freeze([
   'GENERADO_OK_EN_ERP',
@@ -1806,6 +1807,34 @@ async function anularPedido(idPedido, datos = {}, idEmpresa, usuarioAutenticado)
   );
 }
 
+async function reabrirPedido(idPedido, datos = {}, idEmpresa, contextoUsuario = {}) {
+  const id = validarIdPedido(idPedido);
+  const empresa = validarIdEmpresa(idEmpresa);
+
+  if (!contextoUsuario?.superAdmin) {
+    const error = new Error('Solo SUPER_ADMIN puede reabrir un pedido validado.');
+    error.status = 403;
+    throw error;
+  }
+
+  const motivo = texto(datos.motivo);
+  const password = String(datos.password ?? '');
+  const usuario = texto(contextoUsuario.usuario) || 'SISTEMA';
+
+  if (motivo.length < 10) throw new Error('El motivo de reapertura debe tener al menos 10 caracteres.');
+  if (motivo.length > 500) throw new Error('El motivo de reapertura supera los 500 caracteres.');
+  if (!password) throw new Error('La contraseña es obligatoria para reabrir el pedido.');
+
+  const passwordValida = await authService.validarPasswordActual(usuario, password);
+  if (!passwordValida) {
+    const error = new Error('La contraseña ingresada no es correcta.');
+    error.status = 401;
+    throw error;
+  }
+
+  return pedidosRepository.reabrirPedidoValidado(id, empresa, motivo, usuario);
+}
+
 
 /* ============================================================
    EXPORTAR PEDIDO VALIDADO A EXCEL
@@ -2613,6 +2642,7 @@ module.exports = {
   confirmarPedidoComex,
   confirmarPedidoPresea,
   anularPedido,
+  reabrirPedido,
   exportarPedidoExcel,
   exportarPurchaseOrder,
   exportarMasterDataAppExcel,

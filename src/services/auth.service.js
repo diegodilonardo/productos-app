@@ -321,10 +321,23 @@ async function crearHashPassword(password) {
   );
 }
 
+async function validarPasswordActual(usuario, password) {
+  const nombreUsuario = texto(usuario);
+  const clave = String(password ?? '');
+
+  if (!nombreUsuario || !clave) return false;
+
+  const usuarioDb = await repository.buscarUsuarioPorNombre(nombreUsuario);
+  if (!usuarioDb || !usuarioDb.ACTIVO || !usuarioDb.PASSWORD_HASH) return false;
+
+  return bcrypt.compare(clave, usuarioDb.PASSWORD_HASH);
+}
+
 
 module.exports = {
   login,
   construirContextoUsuario,
   crearHashPassword,
+  validarPasswordActual,
   validarContextoSesion
 };

@@ -1940,6 +1940,75 @@ async function listarExportacionesPedido(idPedido, idEmpresa) {
   return resultado.recordset;
 }
 
+async function reabrirPedidoValidado(idPedido, idEmpresa, motivo, usuario) {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+    const resultado = await new sql.Request(transaction)
+      .input('ID_PEDIDO', sql.BigInt, idPedido)
+      .input('ID_EMPRESA', sql.Int, idEmpresa)
+      .input('MOTIVO', sql.VarChar(500), motivo)
+      .input('USUARIO', sql.VarChar(100), usuario)
+      .query(`
+        DECLARE @ESTADO_ANTERIOR VARCHAR(20);
+        DECLARE @EXPORTACIONES_OBSOLETAS INT = 0;
+
+        SELECT @ESTADO_ANTERIOR = ESTADO
+        FROM dbo.PEDIDOS WITH (UPDLOCK, HOLDLOCK)
+        WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO;
+
+        IF @ESTADO_ANTERIOR IS NULL
+          THROW 51000, 'Pedido no encontrado.', 1;
+
+        IF UPPER(@ESTADO_ANTERIOR) <> 'VALIDADO'
+          THROW 51000, 'Solo se puede reabrir un pedido VALIDADO.', 1;
+
+        IF EXISTS (
+          SELECT 1 FROM dbo.PEDIDOS_CONFIRMACIONES_COMEX WITH (UPDLOCK, HOLDLOCK)
+          WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO AND ESTADO = 'CONFIRMADO'
+        ) OR EXISTS (
+          SELECT 1 FROM dbo.PEDIDOS_CONFIRMACIONES_PRESEA WITH (UPDLOCK, HOLDLOCK)
+          WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO AND ESTADO = 'CONFIRMADO'
+        )
+          THROW 51000, 'El pedido ya fue confirmado en COMEX o Presea y no puede reabrirse.', 1;
+
+        UPDATE dbo.PEDIDOS_EXPORTACIONES
+        SET ESTADO = 'ERROR',
+            OBSERVACIONES = LEFT(CONCAT(
+              CASE WHEN NULLIF(LTRIM(RTRIM(OBSERVACIONES)), '') IS NULL THEN '' ELSE CONCAT(OBSERVACIONES, ' | ') END,
+              'OBSOLETO POR REAPERTURA: ', @MOTIVO, ' [', @USUARIO, ']'
+            ), 500)
+        WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO AND ESTADO = 'OK';
+
+        SET @EXPORTACIONES_OBSOLETAS = @@ROWCOUNT;
+
+        UPDATE dbo.PEDIDOS
+        SET ESTADO = 'BORRADOR',
+            FECHA_VALIDACION = NULL,
+            USUARIO_VALIDACION = NULL,
+            FECHA_ACTUALIZACION = SYSDATETIME()
+        WHERE ID_EMPRESA = @ID_EMPRESA AND ID_PEDIDO = @ID_PEDIDO;
+
+        INSERT dbo.PEDIDOS_REAPERTURAS
+          (ID_EMPRESA, ID_PEDIDO, ESTADO_ANTERIOR, MOTIVO, USUARIO, EXPORTACIONES_OBSOLETAS)
+        VALUES
+          (@ID_EMPRESA, @ID_PEDIDO, @ESTADO_ANTERIOR, @MOTIVO, @USUARIO, @EXPORTACIONES_OBSOLETAS);
+
+        SELECT P.*, @EXPORTACIONES_OBSOLETAS AS EXPORTACIONES_OBSOLETAS
+        FROM dbo.PEDIDOS P
+        WHERE P.ID_EMPRESA = @ID_EMPRESA AND P.ID_PEDIDO = @ID_PEDIDO;
+      `);
+
+    await transaction.commit();
+    return resultado.recordset[0] || null;
+  } catch (error) {
+    try { await transaction.rollback(); } catch {}
+    throw error;
+  }
+}
+
 /* ============================================================
    CONFIRMAR IMPACTO EN COMEX
    - Hoy se registra manualmente.
@@ -2104,6 +2173,7 @@ module.exports = {
   obtenerDatosMasterPedido,
   registrarExportacionPedido,
   listarExportacionesPedido,
+  reabrirPedidoValidado,
   confirmarPedidoComex,
   confirmarPedidoPresea,
   obtenerConfiguracionExportacionPedido,

@@ -1183,7 +1183,7 @@ async function obtenerAltasAgregablesPedido(idPedido, idEmpresa, accesoEmpresa) 
   const pedido = await validarPedidoBorrador(idPedido, idEmpresa);
   if (texto(pedido.TIPO_PEDIDO).toUpperCase() === 'SERVICIOS') return [];
   const asociadas = new Set((pedido.IDS_ALTAS || []).map(Number));
-  const marcaPedido = texto(pedido.CODIGO_MARCA).toUpperCase();
+  const marcaPedido = normalizarCodigoMarcaPedido(pedido.CODIGO_MARCA).toUpperCase();
   const candidatas = (await obtenerAltasDisponibles(idEmpresa, accesoEmpresa))
     .filter(alta => !asociadas.has(Number(alta.ID_ALTA)))
     .filter(alta => texto(alta.CODIGO_MARCA).toUpperCase() === marcaPedido);
@@ -1206,7 +1206,7 @@ async function agregarAltaPedido(idPedido, idAlta, idEmpresa, accesoEmpresa) {
     throw Object.assign(new Error('El pedido ya alcanzó el máximo de 50 Altas asociadas.'), { status: 409 });
   }
   const alta = await validarAltaDisponible(idAlta, pedido.ID_EMPRESA, accesoEmpresa);
-  if (texto(alta.CODIGO_MARCA).toUpperCase() !== texto(pedido.CODIGO_MARCA).toUpperCase()) {
+  if (texto(alta.CODIGO_MARCA).toUpperCase() !== normalizarCodigoMarcaPedido(pedido.CODIGO_MARCA).toUpperCase()) {
     throw Object.assign(new Error('El Alta debe pertenecer a la misma marca del pedido para conservar el destino de exportación.'), { status: 409 });
   }
   const proveedores = await pedidosRepository.obtenerProveedoresPorAlta(alta.ID_ALTA, pedido.ID_EMPRESA);

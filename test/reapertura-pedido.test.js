@@ -39,3 +39,16 @@ test('la migración crea la auditoría y la UI solicita credenciales', () => {
   assert.match(cliente, /contextoUsuario\?\.superAdmin/);
   assert.match(cliente, /\/reabrir/);
 });
+
+test('un pedido con varias Altas de la misma marca admite agregar una nueva Alta compatible', () => {
+  const servicio = leer('src/services/pedidos.service.js');
+
+  assert.match(
+    servicio,
+    /const marcaPedido = normalizarCodigoMarcaPedido\(pedido\.CODIGO_MARCA\)\.toUpperCase\(\)/
+  );
+  assert.match(
+    servicio,
+    /texto\(alta\.CODIGO_MARCA\)\.toUpperCase\(\) !== normalizarCodigoMarcaPedido\(pedido\.CODIGO_MARCA\)\.toUpperCase\(\)/
+  );
+});

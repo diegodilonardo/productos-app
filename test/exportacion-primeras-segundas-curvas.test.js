@@ -49,3 +49,21 @@ test("sigue rechazando una PRIMERA realmente duplicada", () => {
     /Existe más de una PRIMERA/,
   );
 });
+
+test("permite reemitir una pareja histórica que ya existe en Presea", () => {
+  const primera = detalle("271F13519910135", "1");
+  const segunda = detalle("271F13519920135", "2");
+  primera.ESTADO_VALIDACION = "EXPORTADO";
+  segunda.ESTADO_VALIDACION = "EXPORTADO";
+
+  const registros = armarRegistrosPRIMERAS_SEGUNDAS(
+    {},
+    [primera, segunda],
+    { incluirHistorico: true },
+  );
+
+  assert.deepEqual(
+    registros.map((item) => [item.COD_ALFA, item.COD_ALFAR]),
+    [["271F13519910135", "271F13519920135"]],
+  );
+});

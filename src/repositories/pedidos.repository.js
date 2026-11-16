@@ -691,6 +691,7 @@ async function listarPedidos(idEmpresa) {
         P.FECHA_VALIDACION, P.USUARIO_VALIDACION,
         P.FECHA_SINCRONIZACION,
         P.FECHA_ANULACION, P.USUARIO_ANULACION, P.MOTIVO_ANULACION,
+        MAX(BUSQUEDA_PRODUCTOS.PRODUCTOS_BUSQUEDA) AS PRODUCTOS_BUSQUEDA,
         COUNT(D.ID_PEDIDO_DETALLE) AS CANTIDAD_PRODUCTOS,
         (
           SELECT COUNT(*) FROM dbo.PEDIDOS_DETALLE DI
@@ -734,6 +735,27 @@ async function listarPedidos(idEmpresa) {
         ON A.ID_EMPRESA = P.ID_EMPRESA AND A.ID_ALTA = P.ID_ALTA
       LEFT JOIN dbo.PEDIDOS_DETALLE D
         ON D.ID_EMPRESA = P.ID_EMPRESA AND D.ID_PEDIDO = P.ID_PEDIDO
+      OUTER APPLY (
+        SELECT STRING_AGG(
+          CONVERT(NVARCHAR(MAX), CONCAT(
+            ISNULL(DB.CODIGO_ALFA, ''), ' ',
+            ISNULL(DB.CODIGO_ERP, ''), ' ',
+            ISNULL(DB.CODIGO_EAN, ''), ' ',
+            ISNULL(DB.CODIGO_MODELO, ''), ' ',
+            ISNULL(DB.DETALLE_MODELO, ''), ' ',
+            ISNULL(DB.CODIGO_COLOR, ''), ' ',
+            ISNULL(DB.DETALLE_COLOR, ''), ' ',
+            ISNULL(DB.DETALLE_PRODUCTO, ''), ' ',
+            ISNULL(DB.CODIGO_TALLE, ''), ' ',
+            ISNULL(DB.DETALLE_TALLE, ''), ' ',
+            ISNULL(DB.CODIGO_MODULO, ''), ' ',
+            ISNULL(DB.DETALLE_MODULO, '')
+          )), N' '
+        ) AS PRODUCTOS_BUSQUEDA
+        FROM dbo.PEDIDOS_DETALLE DB
+        WHERE DB.ID_EMPRESA = P.ID_EMPRESA
+          AND DB.ID_PEDIDO = P.ID_PEDIDO
+      ) BUSQUEDA_PRODUCTOS
       OUTER APPLY (
         SELECT
           COUNT(*) AS CANTIDAD_EXPORTACIONES,

@@ -55,6 +55,96 @@ async function completarRelacionesReutilizadas(idAlta, relaciones, prueba = fals
 
 
 /* ============================================================
+   OBTENER PRIMERAS Y SEGUNDAS REUTILIZADAS POR MODULOS NUEVOS
+
+   Cuando un módulo usa sueltos creados por un Alta anterior, esos
+   productos no se duplican dentro del Alta actual. Esta consulta
+   recupera ambas partes de cada pareja para volver a emitirlas en
+   PRIMERAS_SEGUNDAS.DBI.
+   ============================================================ */
+
+async function obtenerPrimerasSegundasReutilizadas(idAlta, prueba = false) {
+    const pool = await getConnection();
+    const talles = [...Array.from({ length: 36 }, (_, i) => String(i + 15)), '38.5', '39.5', '40.5', '41.5', '42.5', '43.5', '44.5', '45.5', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+    const valores = talles.map(talle => {
+        const columna = /^\d+(\.\d+)?$/.test(talle) ? `T${talle.replace('.', '')}` : `T_${talle}`;
+        return `('${talle}', M.${columna})`;
+    }).join(',');
+
+    const resultado = await pool.request().input('ID_ALTA', sql.Int, idAlta).query(`
+        WITH PAREJAS AS (
+            SELECT H1.ID_DETALLE AS ID_PRIMERA, H2.ID_DETALLE AS ID_SEGUNDA
+            FROM dbo.ALTAS_PRODUCTOS_DETALLE P
+            JOIN dbo.ALTAS_PRODUCTOS A ON A.ID_ALTA = P.ID_ALTA
+            JOIN dbo.MAESTRO_TALLES_MODULOS M ON ${JOIN_MAESTRO_MODULO_POR_EMPRESA}
+            CROSS APPLY (VALUES ${valores}) T(TALLE, CANTIDAD)
+            CROSS APPLY (
+                SELECT TOP 1 D.ID_DETALLE
+                FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+                JOIN dbo.ALTAS_PRODUCTOS AH ON AH.ID_ALTA = D.ID_ALTA
+                WHERE D.ID_ALTA <> P.ID_ALTA
+                  AND D.ID_EMPRESA = P.ID_EMPRESA
+                  AND AH.CODIGO_MARCA = A.CODIGO_MARCA
+                  AND AH.CODIGO_RUBRO = A.CODIGO_RUBRO
+                  AND AH.CODIGO_ANO = A.CODIGO_ANO
+                  AND AH.CODIGO_TEMPORADA = A.CODIGO_TEMPORADA
+                  AND AH.ESTADO <> 'ANULADO'
+                  AND D.CODIGO_MODELO = P.CODIGO_MODELO
+                  AND D.CODIGO_COLOR = P.CODIGO_COLOR
+                  AND D.CODIGO_CLASIFICACION = '1'
+                  AND UPPER(REPLACE(ISNULL(D.TIPO_PRODUCTO_DETALLE, ''), ' ', '_')) = 'PAR_SUELTO'
+                  AND (D.CODIGO_TALLE IN (T.TALLE,
+                       CASE T.TALLE WHEN '2XL' THEN '2X' WHEN '3XL' THEN '3X' END)
+                       OR D.DETALLE_TALLE IN (T.TALLE,
+                       CASE T.TALLE WHEN '2XL' THEN '2X' WHEN '3XL' THEN '3X' END))
+                  AND D.ESTADO_VALIDACION IN ('EXISTE_ERP', 'EXPORTADO')
+                ORDER BY CASE WHEN D.ESTADO_VALIDACION = 'EXISTE_ERP' THEN 0 ELSE 1 END,
+                         D.ID_DETALLE
+            ) H1
+            CROSS APPLY (
+                SELECT TOP 1 D.ID_DETALLE
+                FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+                JOIN dbo.ALTAS_PRODUCTOS AH ON AH.ID_ALTA = D.ID_ALTA
+                WHERE D.ID_ALTA <> P.ID_ALTA
+                  AND D.ID_EMPRESA = P.ID_EMPRESA
+                  AND AH.CODIGO_MARCA = A.CODIGO_MARCA
+                  AND AH.CODIGO_RUBRO = A.CODIGO_RUBRO
+                  AND AH.CODIGO_ANO = A.CODIGO_ANO
+                  AND AH.CODIGO_TEMPORADA = A.CODIGO_TEMPORADA
+                  AND AH.ESTADO <> 'ANULADO'
+                  AND D.CODIGO_MODELO = P.CODIGO_MODELO
+                  AND D.CODIGO_COLOR = P.CODIGO_COLOR
+                  AND D.CODIGO_CLASIFICACION = '2'
+                  AND UPPER(REPLACE(ISNULL(D.TIPO_PRODUCTO_DETALLE, ''), ' ', '_')) = 'PAR_SUELTO'
+                  AND (D.CODIGO_TALLE IN (T.TALLE,
+                       CASE T.TALLE WHEN '2XL' THEN '2X' WHEN '3XL' THEN '3X' END)
+                       OR D.DETALLE_TALLE IN (T.TALLE,
+                       CASE T.TALLE WHEN '2XL' THEN '2X' WHEN '3XL' THEN '3X' END))
+                  AND D.ESTADO_VALIDACION IN ('EXISTE_ERP', 'EXPORTADO')
+                ORDER BY CASE WHEN D.ESTADO_VALIDACION = 'EXISTE_ERP' THEN 0 ELSE 1 END,
+                         D.ID_DETALLE
+            ) H2
+            WHERE P.ID_ALTA = @ID_ALTA
+              AND T.CANTIDAD > 0
+              AND UPPER(REPLACE(ISNULL(P.TIPO_PRODUCTO_DETALLE, ''), ' ', '_')) = 'MODULO'
+              ${prueba ? '' : "AND P.ESTADO_VALIDACION = 'VALIDO'"}
+        )
+        SELECT D.*
+        FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+        WHERE D.ID_DETALLE IN (
+            SELECT ID_PRIMERA FROM PAREJAS
+            UNION
+            SELECT ID_SEGUNDA FROM PAREJAS
+        )
+        ORDER BY D.CODIGO_MODELO, D.CODIGO_COLOR, D.CODIGO_TALLE,
+                 D.CODIGO_CLASIFICACION;
+    `);
+
+    return resultado.recordset;
+}
+
+
+/* ============================================================
    OBTENER ALTA PARA EXPORTACION
    ============================================================ */
 
@@ -1130,6 +1220,8 @@ module.exports = {
     obtenerRelacionesModuloPrimera,
 
     obtenerRelacionesModuloPrimeraPrueba,
+
+    obtenerPrimerasSegundasReutilizadas,
 
     registrarExportacion,
 

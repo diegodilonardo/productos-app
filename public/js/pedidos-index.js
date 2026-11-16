@@ -215,7 +215,17 @@ function pintarPedidosFiltrados() {
   const ex = document.getElementById('filtroExportacionPedido')?.value || '';
   const mostrarAnulados = document.getElementById('mostrarAnuladosPedido')?.checked === true;
   const lista = pedidos.filter(p => {
-    const texto = [p.CODIGO_PEDIDO,p.CODIGO_ALTA,p.CODIGO_PROVEEDOR,p.DETALLE_PROVEEDOR,p.NUMERO_ORDEN,p.DETALLE_RUBRO,p.CODIGO_ANO,p.DETALLE_TEMPORADA].join(' ').toUpperCase();
+    const texto = [
+      p.CODIGO_PEDIDO,
+      p.CODIGO_ALTA,
+      p.CODIGO_PROVEEDOR,
+      p.DETALLE_PROVEEDOR,
+      p.NUMERO_ORDEN,
+      p.DETALLE_RUBRO,
+      p.CODIGO_ANO,
+      p.DETALLE_TEMPORADA,
+      p.PRODUCTOS_BUSQUEDA
+    ].join(' ').toUpperCase();
     return (mostrarAnulados || estado(p) !== 'ANULADO') && (!q || texto.includes(q)) && (!e || estado(p)===e) && (!ex || estadoExportacion(p)===ex);
   });
   const totalPaginas = Math.max(1, Math.ceil(lista.length / PEDIDOS_POR_PAGINA));

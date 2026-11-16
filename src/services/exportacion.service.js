@@ -1031,6 +1031,26 @@ function armarRegistrosPRIMERAS_SEGUNDAS(alta, detalles, opciones = {}) {
   return registros;
 }
 
+async function completarPrimerasSegundasReutilizadas(
+  idAlta,
+  detalles,
+  prueba = false,
+) {
+  const reutilizados =
+    await exportacionRepository.obtenerPrimerasSegundasReutilizadas(
+      idAlta,
+      prueba,
+    );
+  const unicos = new Map();
+
+  for (const detalle of [...detalles, ...reutilizados]) {
+    const clave = texto(detalle.CODIGO_ALFA) || `ID:${detalle.ID_DETALLE}`;
+    if (!unicos.has(clave)) unicos.set(clave, detalle);
+  }
+
+  return [...unicos.values()];
+}
+
 function archivoLocalValido(ruta) {
   if (!fs.existsSync(ruta)) {
     return false;
@@ -1356,16 +1376,21 @@ async function exportarConControl(idAlta, datosEntrada = {}) {
 
   validarArchivoAuxiliar("MODELOS", registrosMODELOS, camposMODELOS);
 
+  const detallesPrimerasSegundas =
+    await completarPrimerasSegundasReutilizadas(
+      alta.ID_ALTA,
+      detallesTodos,
+    );
+
   const registrosPRIMERAS_SEGUNDAS = armarRegistrosPRIMERAS_SEGUNDAS(
     alta,
-    detallesTodos,
+    detallesPrimerasSegundas,
+    { incluirHistorico: true },
   );
 
   /*
-   * PRIMERAS_SEGUNDAS solamente se exporta cuando existe al menos
-   * una pareja nueva que relacionar. Si PRIMERA y SEGUNDA ya existen
-   * ambas en Presea, armarRegistrosPRIMERAS_SEGUNDAS() las omite y
-   * un resultado vacío es válido para este lote.
+   * PRIMERAS_SEGUNDAS vuelve a incluir las parejas reutilizadas por
+   * los módulos del lote. Presea puede ignorar las que ya existen.
    */
   if (registrosPRIMERAS_SEGUNDAS.length > 0) {
     validarArchivoAuxiliar(
@@ -1451,9 +1476,8 @@ async function exportarConControl(idAlta, datosEntrada = {}) {
   ];
 
   /*
-   * PRIMERAS_SEGUNDAS es opcional por lote.
-   * Si todas las parejas ya existen en Presea no hay nada nuevo que
-   * enviar y no debe bloquearse la exportación del módulo.
+   * PRIMERAS_SEGUNDAS es opcional únicamente cuando el lote no posee
+   * ninguna pareja de primera/segunda relacionada.
    */
   if (registrosPRIMERAS_SEGUNDAS.length > 0) {
     definiciones.push({
@@ -1743,9 +1767,15 @@ async function regenerarArchivosAlta(idAlta, opciones = {}) {
     ),
   );
   const registrosMODELOS = armarRegistrosMODELOS(alta, detalles);
+  const detallesPrimerasSegundas =
+    await completarPrimerasSegundasReutilizadas(
+      id,
+      detallesTodos,
+      true,
+    );
   const registrosPRIMERAS = armarRegistrosPRIMERAS_SEGUNDAS(
     alta,
-    detallesTodos,
+    detallesPrimerasSegundas,
     { incluirHistorico: true },
   );
   const config = await exportacionRepository.obtenerConfiguracionExportacion(

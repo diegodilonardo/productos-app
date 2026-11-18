@@ -13,6 +13,31 @@ test('el maestro de productos importa C_ESTADIO antes del código de empresa', (
   assert.equal(resultado.registros[0].C_ESTADIO, '9');
 });
 
+test('el maestro ampliado importa grupo, subgrupo y línea sin romper el formato anterior', () => {
+  const ampliado = parsearArchivoProductos(
+    Buffer.from('ALFA01|100|7791234567890|CALZADO|9|3000|Z1|ZZ|O1\r\n'),
+    '3000'
+  ).registros[0];
+  assert.equal(ampliado.CODIGO_GRUPO, 'Z1');
+  assert.equal(ampliado.CODIGO_SUBGRUPO, 'ZZ');
+  assert.equal(ampliado.CODIGO_LINEA, 'O1');
+
+  const historico = parsearArchivoProductos(
+    Buffer.from('ALFA02|101||CALZADO||3000\r\n'),
+    '3000'
+  ).registros[0];
+  assert.equal(historico.CODIGO_GRUPO, null);
+  assert.equal(historico.CODIGO_SUBGRUPO, null);
+  assert.equal(historico.CODIGO_LINEA, null);
+});
+
+test('el maestro de productos rechaza cantidades intermedias de columnas', () => {
+  assert.throws(
+    () => parsearArchivoProductos(Buffer.from('ALFA01|100||CALZADO||3000|Z1\r\n'), '3000'),
+    /6 o 9 columnas/
+  );
+});
+
 test('C_ESTADIO 9 se excluye de Pedidos y permanece visible como histórico en EAN', () => {
   const maestros = fs.readFileSync(path.join(__dirname, '../src/repositories/maestros.repository.js'), 'utf8');
   const pedidos = fs.readFileSync(path.join(__dirname, '../src/repositories/pedidos.repository.js'), 'utf8');

@@ -27,7 +27,8 @@ test('la simulación deduplica módulos y no convierte relaciones excepcionales 
     temporadas: [{ CODIGO_TEMPORADA: '1', DETALLE_TEMPORADA: 'IN' }],
     anos: [{ CODIGO_ANO: '27', DETALLE_ANO: '2027' }],
     proveedores: [{ CODIGO: 'PB0001', NVA_RAZON_SOCIAL: 'LINK-HO (BELLA)' }],
-    existentes: new Set()
+    existentes: new Set(),
+    atributosProductos: new Map()
   };
   const resultado = _internals.construirPreview(filas, relaciones, catalogos);
   assert.equal(resultado.resumen.modulosUnicos, 1);
@@ -35,6 +36,7 @@ test('la simulación deduplica módulos y no convierte relaciones excepcionales 
   assert.equal(resultado.resumen.primeras, 1);
   assert.equal(resultado.resumen.segundasDeducidas, 1);
   assert.equal(resultado.resumen.relacionesExcepcionales, 1);
+  assert.equal(resultado.resumen.modulosSinAtributos, 1);
 });
 
 test('Altas expone el importador de reorden únicamente como simulación', () => {

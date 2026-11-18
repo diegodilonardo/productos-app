@@ -129,12 +129,13 @@ async function cargarCatalogos(idEmpresa, codigos) {
     pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`SELECT CODIGO_TEMPORADA, DETALLE_TEMPORADA FROM dbo.MAESTRO_TEMPORADAS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1;`),
     pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`SELECT CODIGO_ANO, DETALLE_ANO FROM dbo.MAESTRO_ANOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1;`),
     pool.request().query(`SELECT CODIGO, NVA_RAZON_SOCIAL FROM dbo.MAESTRO_PROVEEDORES WHERE ACTIVO=1;`),
-    request.query(`SELECT DISTINCT UPPER(LTRIM(RTRIM(P.CODIGO_ALFA))) CODIGO_ALFA FROM dbo.PRODUCTOS P INNER JOIN OPENJSON(@CODIGOS_JSON) J ON UPPER(LTRIM(RTRIM(P.CODIGO_ALFA)))=UPPER(J.[value]) WHERE P.ID_EMPRESA=@ID_EMPRESA;`)
+    request.query(`SELECT UPPER(LTRIM(RTRIM(P.CODIGO_ALFA))) CODIGO_ALFA, MAX(P.CODIGO_GRUPO) CODIGO_GRUPO, MAX(P.CODIGO_SUBGRUPO) CODIGO_SUBGRUPO, MAX(P.CODIGO_LINEA) CODIGO_LINEA FROM dbo.PRODUCTOS P INNER JOIN OPENJSON(@CODIGOS_JSON) J ON UPPER(LTRIM(RTRIM(P.CODIGO_ALFA)))=UPPER(J.[value]) WHERE P.ID_EMPRESA=@ID_EMPRESA GROUP BY UPPER(LTRIM(RTRIM(P.CODIGO_ALFA)));`)
   ]);
   return {
     modelos: modelos.recordset, marcas: marcas.recordset, rubros: rubros.recordset,
     temporadas: temporadas.recordset, anos: anos.recordset, proveedores: proveedores.recordset,
-    existentes: new Set(productos.recordset.map(fila => texto(fila.CODIGO_ALFA).toUpperCase()))
+    existentes: new Set(productos.recordset.map(fila => texto(fila.CODIGO_ALFA).toUpperCase())),
+    atributosProductos: new Map(productos.recordset.map(fila => [texto(fila.CODIGO_ALFA).toUpperCase(), fila]))
   };
 }
 
@@ -188,9 +189,13 @@ function construirPreview(filas, relaciones, catalogos) {
       codigoRubro: datos.rubro, rubro: rubro?.DETALLE_RUBRO || modelo?.RUBRO_MODELO || datos.rubro,
       codigoMarca: marca?.CODIGO_MARCA || null, marca: marca?.DETALLE_MARCA || modelo?.MARCA_MODELO || 'SIN IDENTIFICAR',
       licencia, tipoProducto: 'MODULO', cantidadModulos: 0, cantidadPrimeras: 0,
-      cantidadSegundas: 0, excepciones: 0, proveedores: new Map(), codigos: new Set(), primerasCodigos: new Set(), segundasCodigos: new Set()
+      cantidadSegundas: 0, excepciones: 0, proveedores: new Map(), codigos: new Set(), primerasCodigos: new Set(), segundasCodigos: new Set(), modulosSinAtributos: []
     });
     const grupo = grupos.get(clave);
+    const atributosModulo = catalogos.atributosProductos?.get(fila.codigoAlfa);
+    if (!texto(atributosModulo?.CODIGO_GRUPO) || !texto(atributosModulo?.CODIGO_SUBGRUPO) || !texto(atributosModulo?.CODIGO_LINEA)) {
+      grupo.modulosSinAtributos.push(fila.codigoAlfa);
+    }
     grupo.cantidadModulos += 1;
     grupo.codigos.add(fila.codigoAlfa);
     todosCodigos.add(fila.codigoAlfa);
@@ -213,13 +218,13 @@ function construirPreview(filas, relaciones, catalogos) {
   const altas = [...grupos.values()].map(grupo => {
     const codigos = [...grupo.codigos];
     const existentes = codigos.filter(codigo => catalogos.existentes.has(codigo)).length;
-    return { ...grupo, cantidadPrimeras: grupo.primerasCodigos.size, cantidadSegundas: grupo.segundasCodigos.size, proveedores: [...grupo.proveedores.values()], codigos: undefined, primerasCodigos: undefined, segundasCodigos: undefined, productosTotales: codigos.length, productosExistentes: existentes, productosAReemitir: codigos.length - existentes };
+    return { ...grupo, cantidadPrimeras: grupo.primerasCodigos.size, cantidadSegundas: grupo.segundasCodigos.size, proveedores: [...grupo.proveedores.values()], codigos: undefined, primerasCodigos: undefined, segundasCodigos: undefined, cantidadModulosSinAtributos: grupo.modulosSinAtributos.length, productosTotales: codigos.length, productosExistentes: existentes, productosAReemitir: codigos.length - existentes };
   }).sort((a, b) => `${a.codigoAno}${a.codigoTemporada}`.localeCompare(`${b.codigoAno}${b.codigoTemporada}`));
 
   const existentes = [...todosCodigos].filter(codigo => catalogos.existentes.has(codigo)).length;
   return {
     simulacion: true,
-    resumen: { filasArchivo: filas.length, modulosUnicos: unicos.size, filasDuplicadas: filas.length - unicos.size, modulosEncontrados: unicos.size - errores.length, modulosSinRelacion: errores.length, primeras: primerasUnicas.size, segundasDeducidas: segundasUnicas.size, relacionesExcepcionales: excepciones, productosUnicos: todosCodigos.size, productosExistentes: existentes, productosAReemitir: todosCodigos.size - existentes, altasPropuestas: altas.length },
+    resumen: { filasArchivo: filas.length, modulosUnicos: unicos.size, filasDuplicadas: filas.length - unicos.size, modulosEncontrados: unicos.size - errores.length, modulosSinRelacion: errores.length, modulosSinAtributos: altas.reduce((total, alta) => total + alta.cantidadModulosSinAtributos, 0), primeras: primerasUnicas.size, segundasDeducidas: segundasUnicas.size, relacionesExcepcionales: excepciones, productosUnicos: todosCodigos.size, productosExistentes: existentes, productosAReemitir: todosCodigos.size - existentes, altasPropuestas: altas.length },
     altas, errores, advertencias: [...new Set(advertencias)]
   };
 }

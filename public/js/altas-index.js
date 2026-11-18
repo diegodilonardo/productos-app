@@ -4,6 +4,7 @@ let vistaAltas =
     ? 'tabla'
     : 'tarjetas';
 let modalProductosAlta = null;
+let modalReordenAlta = null;
 let paginaAltas = 1;
 const ALTAS_POR_PAGINA = 20;
 const filtrosMultiplesAltas = {
@@ -27,6 +28,9 @@ async function iniciarPantallaAltas() {
   document
     .getElementById('btnActualizarAltas')
     .addEventListener('click', cargarAltas);
+
+  document.getElementById('btnImportarReorden')?.addEventListener('click', abrirImportadorReorden);
+  document.getElementById('btnSimularReordenAlta')?.addEventListener('click', simularReordenAlta);
 
   document
     .getElementById('buscarAlta')
@@ -74,6 +78,82 @@ async function iniciarPantallaAltas() {
   mostrarMensajeGuardado();
   aplicarVistaAltas(vistaAltas);
   await cargarAltas();
+}
+
+function abrirImportadorReorden() {
+  const elemento = document.getElementById('modalReordenAlta');
+  if (!modalReordenAlta) modalReordenAlta = new bootstrap.Modal(elemento);
+  document.getElementById('estadoReordenAlta').innerHTML = '';
+  document.getElementById('previewReordenAlta').classList.add('d-none');
+  modalReordenAlta.show();
+}
+
+function archivoComoBase64(archivo) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(String(lector.result || '').split(',').pop());
+    lector.onerror = () => reject(new Error('No se pudo leer el archivo seleccionado.'));
+    lector.readAsDataURL(archivo);
+  });
+}
+
+async function simularReordenAlta() {
+  const archivo = document.getElementById('archivoReordenAlta')?.files?.[0];
+  const boton = document.getElementById('btnSimularReordenAlta');
+  const estado = document.getElementById('estadoReordenAlta');
+  const preview = document.getElementById('previewReordenAlta');
+  if (!archivo) {
+    estado.innerHTML = '<div class="alert alert-warning mb-0">Seleccioná un archivo.</div>';
+    return;
+  }
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Analizando...';
+    estado.innerHTML = '<div class="text-secondary">Leyendo archivo y cruzando relaciones históricas...</div>';
+    preview.classList.add('d-none');
+    const response = await fetch('/api/altas/reorden/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-id-empresa': String(obtenerEmpresaActivaAltas()) },
+      body: JSON.stringify({ nombreArchivo: archivo.name, archivoBase64: await archivoComoBase64(archivo) })
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.mensaje || `Error HTTP ${response.status}.`);
+    estado.innerHTML = '<div class="alert alert-success mb-0">Simulación terminada. No se guardaron Altas.</div>';
+    pintarPreviewReorden(data.resultado);
+  } catch (error) {
+    estado.innerHTML = `<div class="alert alert-danger mb-0">${escapar(error.message)}</div>`;
+  } finally {
+    boton.disabled = false;
+    boton.textContent = 'Analizar archivo';
+  }
+}
+
+function pintarPreviewReorden(resultado) {
+  const contenedor = document.getElementById('previewReordenAlta');
+  const r = resultado.resumen || {};
+  const metricas = [
+    ['Filas', r.filasArchivo], ['Módulos únicos', r.modulosUnicos], ['Duplicadas', r.filasDuplicadas],
+    ['Con relación', r.modulosEncontrados], ['Sin relación', r.modulosSinRelacion], ['Altas propuestas', r.altasPropuestas],
+    ['Productos existentes', r.productosExistentes], ['A reemitir', r.productosAReemitir]
+  ];
+  const tarjetas = (resultado.altas || []).map(alta => `
+    <div class="card mb-2"><div class="card-body py-3">
+      <div class="d-flex flex-wrap justify-content-between gap-2">
+        <div><strong>${escapar(alta.marca)} · ${escapar(alta.rubro)}</strong><div class="small text-secondary">${escapar(alta.ano)} · ${escapar(alta.temporada)} · ${escapar(alta.licencia)}</div></div>
+        <span class="badge text-bg-light border">${alta.cantidadModulos} módulos</span>
+      </div>
+      <div class="small mt-2">${alta.cantidadPrimeras} primeras · ${alta.cantidadSegundas} segundas deducidas · ${alta.productosExistentes} existentes · <strong>${alta.productosAReemitir} a reemitir</strong></div>
+      <div class="small text-secondary mt-1">Proveedores: ${(alta.proveedores || []).map(p => `${escapar(p.codigo || '?')} ${escapar(p.detalle)} (${p.modulos})`).join(' · ') || 'Sin informar'}</div>
+      ${alta.excepciones ? `<div class="small text-warning mt-1">${alta.excepciones} relación(es) excepcional(es) para revisar</div>` : ''}
+    </div></div>`).join('');
+  const errores = (resultado.errores || []).map(e => `<li>Fila ${e.fila}: <strong>${escapar(e.codigoAlfa)}</strong> — ${escapar(e.mensaje)}</li>`).join('');
+  const advertencias = (resultado.advertencias || []).slice(0, 50).map(m => `<li>${escapar(m)}</li>`).join('');
+  contenedor.innerHTML = `
+    <div class="row g-2 mb-3">${metricas.map(([etiqueta, valor]) => `<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><div class="small text-secondary">${etiqueta}</div><div class="h5 mb-0">${Number(valor || 0).toLocaleString('es-AR')}</div></div></div>`).join('')}</div>
+    <h3 class="h6">Altas propuestas</h3>${tarjetas || '<div class="text-secondary">No hay Altas para proponer.</div>'}
+    ${errores ? `<details class="mt-3"><summary class="text-danger fw-semibold">Códigos sin relación (${resultado.errores.length})</summary><ul class="small mt-2">${errores}</ul></details>` : ''}
+    ${advertencias ? `<details class="mt-2"><summary class="text-warning fw-semibold">Advertencias (${resultado.advertencias.length})</summary><ul class="small mt-2">${advertencias}</ul></details>` : ''}`;
+  contenedor.classList.remove('d-none');
 }
 
 function actualizarEmpresaAltas(event) {

@@ -22,6 +22,14 @@
 
     <div class="d-flex flex-wrap gap-2">
       <button
+        id="btnImportarReorden"
+        type="button"
+        class="btn btn-outline-primary"
+      >
+        Importar reorden
+      </button>
+
+      <button
         id="btnActualizarAltas"
         type="button"
         class="btn btn-outline-secondary"
@@ -262,6 +270,35 @@
 
 </div>
 
+<div class="modal fade" id="modalReordenAlta" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="altas-kicker">REORDEN HISTÓRICO</div>
+          <h2 class="modal-title h5 mb-0">Simular generación de Altas</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          Esta etapa solo analiza el archivo y propone las Altas. No modifica la base ni genera productos.
+        </div>
+        <label for="archivoReordenAlta" class="form-label fw-semibold">Archivo Excel o TXT</label>
+        <input id="archivoReordenAlta" class="form-control" type="file" accept=".xlsx,.xls,.txt,.csv,.dbi">
+        <div class="form-text">Excel sin cabecera: COD_ALFA en columna A y proveedor en columna E. También se admite TXT con COD_ALFA|PROVEEDOR.</div>
+        <div id="estadoReordenAlta" class="mt-3"></div>
+        <div id="previewReordenAlta" class="d-none mt-3"></div>
+      </div>
+      <div class="modal-footer">
+        <span class="me-auto small text-secondary">Simulación sin impacto</span>
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cerrar</button>
+        <button id="btnSimularReordenAlta" type="button" class="btn btn-primary">Analizar archivo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="modalProductosAlta" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content altas-products-modal">
@@ -310,4 +347,4 @@
   </div>
 </div>
 
-<script src="/js/altas-index.js?v=17"></script>
+<script src="/js/altas-index.js?v=18"></script>

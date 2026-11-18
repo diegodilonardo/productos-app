@@ -17,6 +17,9 @@ const borradorExcelService =
 const imagenesAltaService =
     require('../services/imagenesAlta.service');
 
+const reordenAltaService =
+    require('../services/reordenAlta.service');
+
 const {
     ejecutarProductosErpProgramado
 } = require('../jobs/productosErpSync.scheduler');
@@ -85,6 +88,23 @@ router.get('/', requerirEmpresa, async (req, res) => {
             ok: false,
             mensaje: error.message
         });
+    }
+});
+
+/* ============================================================
+   SIMULAR IMPORTACION DE REORDEN HISTORICO (NO GRABA DATOS)
+   ============================================================ */
+
+router.post('/reorden/preview', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const resultado = await reordenAltaService.simularReorden({
+            idEmpresa: req.idEmpresa,
+            nombreArchivo: req.body?.nombreArchivo,
+            archivoBase64: req.body?.archivoBase64
+        });
+        res.json({ ok: true, mensaje: 'Simulación generada. No se guardaron Altas.', resultado });
+    } catch (error) {
+        res.status(400).json({ ok: false, mensaje: error.message });
     }
 });
 

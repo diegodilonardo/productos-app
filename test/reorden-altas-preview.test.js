@@ -39,11 +39,13 @@ test('la simulación deduplica módulos y no convierte relaciones excepcionales 
   assert.equal(resultado.resumen.modulosSinAtributos, 1);
 });
 
-test('Altas expone el importador de reorden únicamente como simulación', () => {
+test('Altas permite confirmar solamente los borradores válidos después de simular', () => {
   const vista = fs.readFileSync(path.join(__dirname, '..', 'views', 'altas', 'index.hbs'), 'utf8');
   const rutas = fs.readFileSync(path.join(__dirname, '..', 'src', 'routes', 'altas.routes.js'), 'utf8');
   assert.match(vista, /id="btnImportarReorden"/);
   assert.match(vista, /Simulación sin impacto/);
+  assert.match(vista, /id="btnConfirmarReordenAlta"/);
   assert.match(rutas, /router\.post\('\/reorden\/preview'/);
-  assert.doesNotMatch(rutas, /router\.post\('\/reorden\/confirmar'/);
+  assert.match(rutas, /router\.post\('\/reorden\/confirmar'/);
+  assert.match(rutas, /requerirEscrituraEmpresa/);
 });

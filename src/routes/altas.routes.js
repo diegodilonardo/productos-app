@@ -108,6 +108,21 @@ router.post('/reorden/preview', requerirEmpresa, requerirEscrituraEmpresa, async
     }
 });
 
+router.post('/reorden/confirmar', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const resultado = await reordenAltaService.confirmarReorden({
+            idEmpresa: req.idEmpresa,
+            nombreArchivo: req.body?.nombreArchivo,
+            archivoBase64: req.body?.archivoBase64,
+            usuario: req.usuario.usuario,
+            contextoUsuario: req.usuario
+        });
+        res.status(201).json({ ok: true, mensaje: 'Borradores de reorden creados correctamente.', resultado });
+    } catch (error) {
+        res.status(400).json({ ok: false, mensaje: error.message });
+    }
+});
+
 
 /* ============================================================
    ACTUALIZAR ESTADO ERP DE UN ALTA

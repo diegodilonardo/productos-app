@@ -247,4 +247,110 @@ async function simularReorden({ idEmpresa, nombreArchivo, archivoBase64 }) {
   return construirPreview(filas, relaciones, catalogos);
 }
 
-module.exports = { simularReorden, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };
+async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuario, contextoUsuario }) {
+  const buffer = decodificarArchivo(archivoBase64);
+  const filas = filasDesdeArchivo(nombreArchivo, buffer);
+  if (!filas.length) throw new Error('No se encontraron códigos alfa en el archivo.');
+  const relaciones = await cargarRelaciones(idEmpresa);
+  const codigos = new Set();
+  for (const fila of filas) {
+    codigos.add(fila.codigoAlfa);
+    for (const relacionado of relaciones.get(fila.codigoAlfa) || []) {
+      codigos.add(relacionado);
+      const segunda = deducirSegunda(relacionado);
+      if (segunda) codigos.add(segunda);
+    }
+  }
+  const catalogos = await cargarCatalogos(idEmpresa, [...codigos]);
+  const preview = construirPreview(filas, relaciones, catalogos);
+  const modelos = new Map();
+  for (const modelo of catalogos.modelos) modelos.set(normalizar(modelo.CODIGO_MODELO), modelo);
+  const marcas = new Map(catalogos.marcas.map(item => [normalizar(item.DETALLE_MARCA), item]));
+  const unicos = new Map();
+  for (const fila of filas) if (!unicos.has(fila.codigoAlfa)) unicos.set(fila.codigoAlfa, fila);
+  const grupos = new Map();
+  const rechazados = [];
+  const sexoPorClasificacion = { '6': 'FEM', '7': 'MAS', '8': 'UNI' };
+
+  for (const fila of unicos.values()) {
+    const motivos = [];
+    if (!(relaciones.get(fila.codigoAlfa) || []).length) motivos.push('SIN_RELACION_HISTORICA');
+    const atributos = catalogos.atributosProductos.get(fila.codigoAlfa);
+    if (!texto(atributos?.CODIGO_GRUPO)) motivos.push('SIN_GRUPO');
+    if (!texto(atributos?.CODIGO_SUBGRUPO)) motivos.push('SIN_SUBGRUPO');
+    if (!texto(atributos?.CODIGO_LINEA)) motivos.push('SIN_LINEA');
+    const datos = datosCodigoAlfa(fila.codigoAlfa);
+    const modelo = modelos.get(normalizar(datos.modeloCrudo)) || modelos.get(normalizar(datos.modeloAlternativo));
+    if (!modelo) motivos.push('MODELO_NO_ENCONTRADO');
+    const proveedor = buscarProveedor(fila.proveedor, catalogos.proveedores);
+    if (!proveedor) motivos.push('PROVEEDOR_NO_RECONOCIDO');
+    const clasificacion = fila.codigoAlfa.slice(10, 11);
+    if (!sexoPorClasificacion[clasificacion]) motivos.push(`CLASIFICACION_${clasificacion || 'VACIA'}_NO_CONFIGURADA`);
+    const marca = marcas.get(normalizar(modelo?.MARCA_MODELO));
+    if (!marca) motivos.push('MARCA_NO_ENCONTRADA');
+    if (motivos.length) {
+      rechazados.push({ numeroFila: fila.numeroFila, codigoAlfa: fila.codigoAlfa, motivos });
+      continue;
+    }
+    const clave = [datos.ano, datos.temporada, datos.rubro, marca.CODIGO_MARCA, texto(modelo.LICENCIA) || 'SIN LICENCIA'].join('|');
+    if (!grupos.has(clave)) grupos.set(clave, {
+      cabecera: { codigoMarca: marca.CODIGO_MARCA, codigoRubro: datos.rubro, tipoProducto: 'MODULO', codigoTemporada: datos.temporada, codigoAno: datos.ano },
+      productos: []
+    });
+    grupos.get(clave).productos.push({
+      codigoModelo: modelo.CODIGO_MODELO,
+      codigoProveedor: proveedor.CODIGO,
+      codigoGrupo: atributos.CODIGO_GRUPO,
+      codigoSubgrupo: atributos.CODIGO_SUBGRUPO,
+      codigoLinea: atributos.CODIGO_LINEA,
+      codigoDeporte: 'N/A',
+      codigoEdad: '6',
+      sexo: sexoPorClasificacion[clasificacion],
+      codigoPais: '58',
+      codigoClasificacion: clasificacion,
+      codigoColor: fila.codigoAlfa.slice(11, 13),
+      codigoModulo: fila.codigoAlfa.slice(13, 15),
+      usuario
+    });
+  }
+
+  if (!grupos.size) {
+    throw new Error('Ningún módulo posee la información completa para crear un borrador.');
+  }
+
+  const altasService = require('./altas.service');
+  const creadas = [];
+  const fallidas = [];
+  for (const grupo of grupos.values()) {
+    let alta = null;
+    try {
+      alta = await altasService.crearAlta({ ...grupo.cabecera, idEmpresa, usuario }, contextoUsuario);
+      const detalle = await altasService.agregarDetalle(alta.ID_ALTA, { usuario, productos: grupo.productos }, contextoUsuario);
+      creadas.push({ idAlta: alta.ID_ALTA, codigoAlta: alta.CODIGO_ALTA, estado: alta.ESTADO, cantidadModulos: grupo.productos.length, cantidadDetalles: detalle.cantidad });
+    } catch (error) {
+      if (alta?.ID_ALTA) {
+        try { await altasService.anularAlta(alta.ID_ALTA, { usuario, motivo: `Importación de reorden incompleta: ${error.message}` }); } catch {}
+      }
+      fallidas.push({
+        codigoAno: grupo.cabecera.codigoAno,
+        codigoTemporada: grupo.cabecera.codigoTemporada,
+        cantidadModulos: grupo.productos.length,
+        motivo: error.message
+      });
+    }
+  }
+
+  if (!creadas.length) {
+    throw new Error(`No se pudo crear ningún borrador. ${fallidas.map(item => `${item.codigoAno}/${item.codigoTemporada}: ${item.motivo}`).join(' | ')}`);
+  }
+
+  return {
+    resumen: { altasCreadas: creadas.length, altasFallidas: fallidas.length, modulosIncluidos: creadas.reduce((total, alta) => total + alta.cantidadModulos, 0), modulosRechazados: rechazados.length + fallidas.reduce((total, item) => total + item.cantidadModulos, 0) },
+    altas: creadas,
+    fallidas,
+    rechazados,
+    simulacionPrevia: preview.resumen
+  };
+}
+
+module.exports = { simularReorden, confirmarReorden, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };

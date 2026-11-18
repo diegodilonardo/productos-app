@@ -31,6 +31,7 @@ async function iniciarPantallaAltas() {
 
   document.getElementById('btnImportarReorden')?.addEventListener('click', abrirImportadorReorden);
   document.getElementById('btnSimularReordenAlta')?.addEventListener('click', simularReordenAlta);
+  document.getElementById('btnConfirmarReordenAlta')?.addEventListener('click', confirmarReordenAlta);
 
   document
     .getElementById('buscarAlta')
@@ -85,6 +86,7 @@ function abrirImportadorReorden() {
   if (!modalReordenAlta) modalReordenAlta = new bootstrap.Modal(elemento);
   document.getElementById('estadoReordenAlta').innerHTML = '';
   document.getElementById('previewReordenAlta').classList.add('d-none');
+  document.getElementById('btnConfirmarReordenAlta').classList.add('d-none');
   modalReordenAlta.show();
 }
 
@@ -128,6 +130,38 @@ async function simularReordenAlta() {
   }
 }
 
+async function confirmarReordenAlta() {
+  const archivo = document.getElementById('archivoReordenAlta')?.files?.[0];
+  const boton = document.getElementById('btnConfirmarReordenAlta');
+  const estado = document.getElementById('estadoReordenAlta');
+  if (!archivo) return;
+  if (!window.confirm('Se crearán únicamente las Altas generables en estado BORRADOR. Los módulos incompletos quedarán fuera. ¿Continuar?')) return;
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Creando borradores...';
+    const response = await fetch('/api/altas/reorden/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-id-empresa': String(obtenerEmpresaActivaAltas()) },
+      body: JSON.stringify({ nombreArchivo: archivo.name, archivoBase64: await archivoComoBase64(archivo) })
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.mensaje || `Error HTTP ${response.status}.`);
+    const resultado = data.resultado;
+    estado.innerHTML = `<div class="alert ${resultado.resumen.altasFallidas ? 'alert-warning' : 'alert-success'} mb-0"><strong>${resultado.resumen.altasCreadas} borrador(es) creados</strong> con ${resultado.resumen.modulosIncluidos} módulos. ${resultado.resumen.modulosRechazados} módulos quedaron pendientes.${resultado.resumen.altasFallidas ? ` ${resultado.resumen.altasFallidas} grupo(s) no pudieron crearse.` : ''}</div>`;
+    document.getElementById('previewReordenAlta').innerHTML = `
+      <h3 class="h6">Borradores creados</h3>
+      <div class="list-group">${resultado.altas.map(alta => `<a class="list-group-item list-group-item-action d-flex justify-content-between" href="/altas/${alta.idAlta}/productos"><span><strong>${escapar(alta.codigoAlta)}</strong><br><small>${alta.cantidadModulos} módulos · ${alta.cantidadDetalles} productos</small></span><span class="badge text-bg-warning align-self-center">${escapar(alta.estado || 'BORRADOR')}</span></a>`).join('')}</div>
+      ${(resultado.fallidas || []).length ? `<h3 class="h6 mt-3 text-danger">Grupos no creados</h3><ul class="small">${resultado.fallidas.map(item => `<li>${escapar(item.codigoAno)}/${escapar(item.codigoTemporada)} (${item.cantidadModulos} módulos): ${escapar(item.motivo)}</li>`).join('')}</ul>` : ''}`;
+    boton.classList.add('d-none');
+    await cargarAltas();
+  } catch (error) {
+    estado.innerHTML = `<div class="alert alert-danger mb-0">${escapar(error.message)}</div>`;
+  } finally {
+    boton.disabled = false;
+    boton.textContent = 'Crear borradores válidos';
+  }
+}
+
 function pintarPreviewReorden(resultado) {
   const contenedor = document.getElementById('previewReordenAlta');
   const r = resultado.resumen || {};
@@ -149,12 +183,16 @@ function pintarPreviewReorden(resultado) {
     </div></div>`).join('');
   const errores = (resultado.errores || []).map(e => `<li>Fila ${e.fila}: <strong>${escapar(e.codigoAlfa)}</strong> — ${escapar(e.mensaje)}</li>`).join('');
   const advertencias = (resultado.advertencias || []).slice(0, 50).map(m => `<li>${escapar(m)}</li>`).join('');
+  const sinAtributos = (resultado.altas || []).flatMap(alta => (alta.modulosSinAtributos || []).map(codigo => `<li><strong>${escapar(codigo)}</strong> — ${escapar(alta.ano)} / ${escapar(alta.temporada)} / ${escapar(alta.marca)}</li>`)).join('');
   contenedor.innerHTML = `
     <div class="row g-2 mb-3">${metricas.map(([etiqueta, valor]) => `<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><div class="small text-secondary">${etiqueta}</div><div class="h5 mb-0">${Number(valor || 0).toLocaleString('es-AR')}</div></div></div>`).join('')}</div>
     <h3 class="h6">Altas propuestas</h3>${tarjetas || '<div class="text-secondary">No hay Altas para proponer.</div>'}
     ${errores ? `<details class="mt-3"><summary class="text-danger fw-semibold">Códigos sin relación (${resultado.errores.length})</summary><ul class="small mt-2">${errores}</ul></details>` : ''}
+    ${sinAtributos ? `<details class="mt-2"><summary class="text-danger fw-semibold">Módulos pendientes de atributos (${r.modulosSinAtributos})</summary><ul class="small mt-2">${sinAtributos}</ul></details>` : ''}
     ${advertencias ? `<details class="mt-2"><summary class="text-warning fw-semibold">Advertencias (${resultado.advertencias.length})</summary><ul class="small mt-2">${advertencias}</ul></details>` : ''}`;
   contenedor.classList.remove('d-none');
+  const generables = Number(r.modulosUnicos || 0) - Number(r.modulosSinRelacion || 0) - Number(r.modulosSinAtributos || 0);
+  document.getElementById('btnConfirmarReordenAlta')?.classList.toggle('d-none', generables <= 0);
 }
 
 function actualizarEmpresaAltas(event) {

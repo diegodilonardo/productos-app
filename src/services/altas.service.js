@@ -2474,11 +2474,17 @@ async function prepararDetalleProducto(
                 const codigoClasificacionHistorica = codigoHistorico.slice(10, 11);
                 const codigoColorHistorico = codigoHistorico.slice(11, 13);
                 const codigoTalleHistorico = codigoHistorico.slice(13, 15);
-                const [clasificacionHistorica, colorHistorico, talleHistorico] = await Promise.all([
+                const [clasificacionHistorica, colorHistorico] = await Promise.all([
                     altasRepository.buscarClasificacion(codigoClasificacionHistorica, idEmpresa),
-                    altasRepository.buscarColor(codigoColorHistorico, idEmpresa),
-                    altasRepository.buscarTalle(codigoTalleHistorico, idEmpresa)
+                    altasRepository.buscarColor(codigoColorHistorico, idEmpresa)
                 ]);
+                let talleHistorico = await altasRepository.buscarTalle(codigoTalleHistorico, idEmpresa);
+                if (!talleHistorico) {
+                    talleHistorico = tallesAutomaticos.find(item =>
+                        normalizarTexto(item.DETALLE_TALLE).toUpperCase() === codigoTalleHistorico ||
+                        normalizarTexto(item.CODIGO_TALLE).toUpperCase() === `T${codigoTalleHistorico}`
+                    ) || null;
+                }
                 if (!clasificacionHistorica || !colorHistorico || !talleHistorico) {
                     throw new Error(`La relación histórica ${codigoHistorico} no puede resolverse contra los maestros activos.`);
                 }

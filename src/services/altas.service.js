@@ -2112,7 +2112,8 @@ async function prepararDetalleProducto(
         padreTemporal,
         sufijoClave,
         codigoRubroCodAlfa = null,
-        cantidadRelacion = null
+        cantidadRelacion = null,
+        relacionHistoricaEspecial = false
     }) {
         const codigoAlfa =
             construirCodigoAlfa({
@@ -2230,10 +2231,10 @@ async function prepararDetalleProducto(
                 generadoAutomatico: true,
                 estadoValidacion:
                     existenteERP ? 'EXISTE_ERP' : 'VALIDO',
-                observacionValidacion:
-                    existenteERP
-                        ? observacionExisteERP(existenteERP)
-                        : null
+                observacionValidacion: [
+                    relacionHistoricaEspecial ? 'RELACION_HISTORICA_ESPECIAL' : null,
+                    existenteERP ? observacionExisteERP(existenteERP) : null
+                ].filter(Boolean).join(' | ') || null
             })
         );
     }
@@ -2458,6 +2459,45 @@ async function prepararDetalleProducto(
                     sufijoClave: 'SEG',
                     codigoRubroCodAlfa: codigoRubroHijosAplicable,
                     cantidadRelacion: talle.CANTIDAD_EN_MODULO
+                });
+            }
+
+            /* TBL_RELACION.TXT es la fuente de verdad para reórdenes.
+             * Las relaciones de clasificación 1 ya originaron PRIMERA y su
+             * SEGUNDA deducida arriba. Las demás se conservan exactamente. */
+            const relacionesHistoricas = Array.isArray(datosEntrada.relacionesHistoricas)
+                ? datosEntrada.relacionesHistoricas
+                : [];
+            for (const codigoHistoricoRaw of relacionesHistoricas) {
+                const codigoHistorico = normalizarTexto(codigoHistoricoRaw).toUpperCase();
+                if (!codigoHistorico || codigoHistorico.length < 15 || codigoHistorico[10] === '1') continue;
+                const codigoClasificacionHistorica = codigoHistorico.slice(10, 11);
+                const codigoColorHistorico = codigoHistorico.slice(11, 13);
+                const codigoTalleHistorico = codigoHistorico.slice(13, 15);
+                const [clasificacionHistorica, colorHistorico, talleHistorico] = await Promise.all([
+                    altasRepository.buscarClasificacion(codigoClasificacionHistorica, idEmpresa),
+                    altasRepository.buscarColor(codigoColorHistorico, idEmpresa),
+                    altasRepository.buscarTalle(codigoTalleHistorico, idEmpresa)
+                ]);
+                if (!clasificacionHistorica || !colorHistorico || !talleHistorico) {
+                    throw new Error(`La relación histórica ${codigoHistorico} no puede resolverse contra los maestros activos.`);
+                }
+                const talleCurva = tallesAutomaticos.find(item =>
+                    normalizarTexto(item.CODIGO_TALLE).toUpperCase() === codigoTalleHistorico ||
+                    normalizarTexto(item.DETALLE_TALLE).toUpperCase() === normalizarTexto(talleHistorico.DETALLE_TALLE).toUpperCase()
+                );
+                if (!talleCurva) {
+                    throw new Error(`La relación histórica ${codigoHistorico} utiliza un talle que no pertenece a la curva ${modulo.CODIGO_MODULO}.`);
+                }
+                await agregarAutomaticoSiCorresponde({
+                    color: colorHistorico,
+                    talle: talleHistorico,
+                    clasificacion: clasificacionHistorica,
+                    padreTemporal: claveModulo,
+                    sufijoClave: `HIST_${codigoClasificacionHistorica}`,
+                    codigoRubroCodAlfa: codigoRubroHijosAplicable,
+                    cantidadRelacion: talleCurva.CANTIDAD_EN_MODULO,
+                    relacionHistoricaEspecial: true
                 });
             }
         } else {
@@ -3228,7 +3268,10 @@ async function validarAlta(
         }
 
         if (tipoDetalle === 'PAR_SUELTO') {
-            if (!['1', '2'].includes(detalle.CODIGO_CLASIFICACION)) {
+            const relacionHistoricaEspecial =
+                Boolean(detalle.GENERADO_AUTOMATICO) &&
+                normalizarTexto(detalle.OBSERVACION_VALIDACION).includes('RELACION_HISTORICA_ESPECIAL');
+            if (!['1', '2'].includes(detalle.CODIGO_CLASIFICACION) && !relacionHistoricaEspecial) {
                 throw new Error(
                     `El producto ${codigoAlfa} debe tener ` +
                     `clasificación 1 - PRIMERA o 2 - SEGUNDA.`

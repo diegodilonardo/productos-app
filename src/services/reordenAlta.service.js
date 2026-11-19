@@ -310,6 +310,7 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
       codigoClasificacion: clasificacion,
       codigoColor: fila.codigoAlfa.slice(11, 13),
       codigoModulo: fila.codigoAlfa.slice(13, 15),
+      relacionesHistoricas: relaciones.get(fila.codigoAlfa) || [],
       usuario
     });
   }

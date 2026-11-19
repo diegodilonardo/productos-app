@@ -179,7 +179,7 @@ function pintarPreviewReorden(resultado) {
       <div class="small mt-2">${alta.cantidadPrimeras} primeras · ${alta.cantidadSegundas} segundas deducidas · ${alta.productosExistentes} existentes · <strong>${alta.productosAReemitir} a reemitir</strong></div>
       <div class="small text-secondary mt-1">Proveedores: ${(alta.proveedores || []).map(p => `${escapar(p.codigo || '?')} ${escapar(p.detalle)} (${p.modulos})`).join(' · ') || 'Sin informar'}</div>
       ${alta.cantidadModulosSinAtributos ? `<div class="small text-danger mt-1">${alta.cantidadModulosSinAtributos} módulo(s) sin grupo, subgrupo o línea</div>` : '<div class="small text-success mt-1">Atributos comerciales completos</div>'}
-      ${alta.excepciones ? `<div class="small text-warning mt-1">${alta.excepciones} relación(es) excepcional(es) para revisar</div>` : ''}
+      ${alta.excepciones ? `<div class="small text-info mt-1">${alta.excepciones} relación(es) histórica(s) especial(es) conservadas desde TBL_RELACION.TXT</div>` : ''}
     </div></div>`).join('');
   const errores = (resultado.errores || []).map(e => `<li>Fila ${e.fila}: <strong>${escapar(e.codigoAlfa)}</strong> — ${escapar(e.mensaje)}</li>`).join('');
   const advertencias = (resultado.advertencias || []).slice(0, 50).map(m => `<li>${escapar(m)}</li>`).join('');

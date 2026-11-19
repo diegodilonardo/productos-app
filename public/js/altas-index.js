@@ -58,6 +58,12 @@ async function iniciarPantallaAltas() {
     .addEventListener('click', () => aplicarVistaAltas('tabla'));
 
   document.addEventListener('click', event => {
+    const botonRecuperarImagenes = event.target.closest('[data-recuperar-imagenes-alta]');
+    if (botonRecuperarImagenes) {
+      event.preventDefault();
+      recuperarImagenesHistoricasAlta(botonRecuperarImagenes);
+      return;
+    }
     const botonActualizar = event.target.closest('[data-actualizar-erp-alta]');
     if (botonActualizar) {
       event.preventDefault();
@@ -670,6 +676,7 @@ function pintarTarjetasAltas(filas) {
           <span>Creada ${escapar(formatearFecha(alta.FECHA_CREACION))} · ${escapar(alta.USUARIO_CREACION || 'SISTEMA')}</span>
           <div class="d-flex justify-content-end flex-wrap gap-1">
             ${botonActualizarErpAlta(id)}
+            ${botonRecuperarImagenesAlta(id, estado)}
             ${botonEnviarFotosAlta(id, estado, fotosEnPresea)}
             ${botonVerProductos(id)}
             ${botonAccion(id, estado)}
@@ -854,6 +861,7 @@ function pintarTablaAltas(filas) {
       <td class="text-end">
         <div class="d-flex justify-content-end flex-wrap gap-1">
           ${botonActualizarErpAlta(id)}
+          ${botonRecuperarImagenesAlta(id, estado)}
           ${botonVerProductos(id)}
           ${botonAccion(id, estado)}
         </div>
@@ -1040,6 +1048,47 @@ function botonActualizarErpAlta(id) {
       Actualizar
     </button>
   `;
+}
+
+function botonRecuperarImagenesAlta(id, estado) {
+  if (!id || estado !== 'BORRADOR') return '';
+  return `
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-info altas-action-btn"
+      data-recuperar-imagenes-alta="${escapar(id)}"
+      title="Buscar fotos existentes en la carpeta histórica"
+    >
+      Recuperar fotos
+    </button>
+  `;
+}
+
+async function recuperarImagenesHistoricasAlta(boton) {
+  const idAlta = Number(boton.dataset.recuperarImagenesAlta);
+  if (!idAlta) return;
+  ocultarAlerta();
+  const textoOriginal = boton.textContent;
+  try {
+    boton.disabled = true;
+    boton.textContent = 'Buscando...';
+    const response = await fetch(`/api/altas/${encodeURIComponent(idAlta)}/recuperar-imagenes-historicas`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'x-id-empresa': String(obtenerEmpresaActivaAltas()) }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.ok === false) throw new Error(data?.mensaje || `No se pudieron recuperar las imágenes (${response.status}).`);
+    const resultado = data.resultado || {};
+    mostrarAlerta(`Alta ${idAlta}: ${Number(resultado.recuperadas || 0)} imágenes recuperadas y ${Number(resultado.faltantes || 0)} pendientes de carga manual.`, resultado.faltantes ? 'warning' : 'success');
+    await cargarAltas();
+  } catch (error) {
+    mostrarAlerta(error.message, 'danger');
+  } finally {
+    if (boton.isConnected) {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
+  }
 }
 
 async function actualizarErpAltaDesdeTarjeta(boton) {

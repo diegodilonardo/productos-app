@@ -266,6 +266,9 @@ async function recuperarImagenesHistoricasAlta(idAlta, datos = {}) {
   if (!Number.isInteger(id) || id <= 0) throw new Error('ID_ALTA inválido.');
   const alta = await altasRepository.obtenerAltaPorId(id);
   if (!alta) throw new Error('Alta no encontrada.');
+  if (texto(alta.ESTADO).toUpperCase() !== 'BORRADOR') {
+    throw new Error('Las imágenes históricas solamente pueden recuperarse en Altas BORRADOR.');
+  }
   const detalle = await altasRepository.obtenerDetalleAlta(id);
   const familias = new Map();
   for (const producto of detalle) {

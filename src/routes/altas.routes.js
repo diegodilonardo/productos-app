@@ -518,6 +518,22 @@ router.get('/:id/imagenes.zip', requerirAccesoAlta, async (req, res) => {
     }
 });
 
+router.post('/:id/recuperar-imagenes-historicas', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const resultado = await imagenesAltaService.recuperarImagenesHistoricasAlta(
+            req.params.id,
+            { usuario: req.usuario.usuario }
+        );
+        return res.json({
+            ok: true,
+            mensaje: `${resultado.recuperadas} imágenes recuperadas; ${resultado.faltantes} pendientes.`,
+            resultado
+        });
+    } catch (error) {
+        return res.status(400).json({ ok: false, mensaje: error.message });
+    }
+});
+
 router.post('/:id/fotos-erp', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado = await imagenesAltaService.enviarFotosAltaErp(

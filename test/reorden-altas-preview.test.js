@@ -59,4 +59,9 @@ test('los borradores de reorden recuperan imágenes históricas sin bloquear fal
   assert.match(imagenes, /producto\.CODIGO_MODELO\)}\$\{texto\(producto\.CODIGO_COLOR/);
   assert.match(imagenes, /copyFile\(historica\.archivo, destino\)/);
   assert.match(imagenes, /detalleFaltantes/);
+  assert.match(imagenes, /solamente pueden recuperarse en Altas BORRADOR/);
+  const rutas = fs.readFileSync(path.join(__dirname, '..', 'src', 'routes', 'altas.routes.js'), 'utf8');
+  const cliente = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'altas-index.js'), 'utf8');
+  assert.match(rutas, /\/:id\/recuperar-imagenes-historicas/);
+  assert.match(cliente, /data-recuperar-imagenes-alta/);
 });

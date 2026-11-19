@@ -320,6 +320,7 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
   }
 
   const altasService = require('./altas.service');
+  const imagenesAltaService = require('./imagenesAlta.service');
   const creadas = [];
   const fallidas = [];
   for (const grupo of grupos.values()) {
@@ -327,7 +328,13 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
     try {
       alta = await altasService.crearAlta({ ...grupo.cabecera, idEmpresa, usuario }, contextoUsuario);
       const detalle = await altasService.agregarDetalle(alta.ID_ALTA, { usuario, productos: grupo.productos }, contextoUsuario);
-      creadas.push({ idAlta: alta.ID_ALTA, codigoAlta: alta.CODIGO_ALTA, estado: alta.ESTADO, cantidadModulos: grupo.productos.length, cantidadDetalles: detalle.cantidad });
+      let imagenes = { recuperadas: 0, faltantes: grupo.productos.length, error: null };
+      try {
+        imagenes = await imagenesAltaService.recuperarImagenesHistoricasAlta(alta.ID_ALTA, { usuario });
+      } catch (errorImagen) {
+        imagenes.error = errorImagen.message;
+      }
+      creadas.push({ idAlta: alta.ID_ALTA, codigoAlta: alta.CODIGO_ALTA, estado: alta.ESTADO, cantidadModulos: grupo.productos.length, cantidadDetalles: detalle.cantidad, imagenesRecuperadas: imagenes.recuperadas, imagenesPendientes: imagenes.faltantes, errorImagenes: imagenes.error });
     } catch (error) {
       if (alta?.ID_ALTA) {
         try { await altasService.anularAlta(alta.ID_ALTA, { usuario, motivo: `Importación de reorden incompleta: ${error.message}` }); } catch {}

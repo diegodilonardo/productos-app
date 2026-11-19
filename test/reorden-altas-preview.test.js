@@ -49,3 +49,14 @@ test('Altas permite confirmar solamente los borradores válidos después de simu
   assert.match(rutas, /router\.post\('\/reorden\/confirmar'/);
   assert.match(rutas, /requerirEscrituraEmpresa/);
 });
+
+test('los borradores de reorden recuperan imágenes históricas sin bloquear faltantes', () => {
+  const servicio = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'reordenAlta.service.js'), 'utf8');
+  const imagenes = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'imagenesAlta.service.js'), 'utf8');
+  assert.match(servicio, /recuperarImagenesHistoricasAlta/);
+  assert.match(servicio, /errorImagenes/);
+  assert.match(imagenes, /rutaFotosErp\(alta\)/);
+  assert.match(imagenes, /producto\.CODIGO_MODELO\)}\$\{texto\(producto\.CODIGO_COLOR/);
+  assert.match(imagenes, /copyFile\(historica\.archivo, destino\)/);
+  assert.match(imagenes, /detalleFaltantes/);
+});

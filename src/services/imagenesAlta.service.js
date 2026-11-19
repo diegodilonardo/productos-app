@@ -107,6 +107,14 @@ function buscarImagen(clave, carpeta = carpetaImagenes()) {
     : null;
 }
 
+function buscarImagenPorClaves(claves, carpeta) {
+  for (const clave of claves.map(texto).filter(Boolean)) {
+    const encontrada = buscarImagen(clave, carpeta);
+    if (encontrada) return { ...encontrada, clave };
+  }
+  return null;
+}
+
 function csvValor(valor) {
   const dato = texto(valor).replaceAll('"', '""');
   return `"${dato}"`;
@@ -251,6 +259,52 @@ async function registrarImagenFamilia(alta, producto, imagen, datos = {}) {
     rutaRelativa: path.relative(carpetaImagenes(), imagen.archivo).replaceAll('\\', '/'),
     usuario: texto(datos.usuario) || 'SISTEMA',
   });
+}
+
+async function recuperarImagenesHistoricasAlta(idAlta, datos = {}) {
+  const id = Number(idAlta);
+  if (!Number.isInteger(id) || id <= 0) throw new Error('ID_ALTA inválido.');
+  const alta = await altasRepository.obtenerAltaPorId(id);
+  if (!alta) throw new Error('Alta no encontrada.');
+  const detalle = await altasRepository.obtenerDetalleAlta(id);
+  const familias = new Map();
+  for (const producto of detalle) {
+    if (esVerdadero(producto.GENERADO_AUTOMATICO)) continue;
+    const clave = `${texto(producto.CODIGO_MODELO)}|${texto(producto.CODIGO_COLOR)}`.toUpperCase();
+    if (!familias.has(clave)) familias.set(clave, producto);
+  }
+  const carpetaHistorica = texto(datos.rutaHistorica) || rutaFotosErp(alta);
+  const recuperadas = [];
+  const faltantes = [];
+  for (const producto of familias.values()) {
+    const claveActual = [alta.CODIGO_ANO, alta.CODIGO_TEMPORADA, producto.CODIGO_MODELO, producto.CODIGO_COLOR].map(texto).join('');
+    const claves = [
+      claveActual,
+      `${texto(producto.CODIGO_MODELO)}${texto(producto.CODIGO_COLOR)}`
+    ];
+    const existente = buscarImagen(claveActual, carpetaOrganizada(alta, producto)) || buscarImagen(claveActual);
+    const historica = existente ? null : buscarImagenPorClaves(claves, carpetaHistorica);
+    const origen = existente || historica;
+    if (!origen) {
+      faltantes.push({ codigoModelo: texto(producto.CODIGO_MODELO), codigoColor: texto(producto.CODIGO_COLOR), clave: claveActual });
+      continue;
+    }
+    let imagen = origen;
+    if (historica) {
+      const destinoCarpeta = carpetaOrganizada(alta, producto);
+      await fs.promises.mkdir(destinoCarpeta, { recursive: true });
+      const destino = path.join(destinoCarpeta, `${nombreSeguro(claveActual)}${historica.extension}`);
+      try {
+        await fs.promises.access(destino, fs.constants.F_OK);
+      } catch {
+        await fs.promises.copyFile(historica.archivo, destino);
+      }
+      imagen = { archivo: destino, nombre: path.basename(destino), extension: historica.extension };
+    }
+    await registrarImagenFamilia(alta, producto, imagen, { usuario: datos.usuario, nombreOriginal: origen.nombre });
+    recuperadas.push({ codigoModelo: texto(producto.CODIGO_MODELO), codigoColor: texto(producto.CODIGO_COLOR), archivo: imagen.nombre, origen: historica ? 'HISTORICO' : 'EXISTENTE' });
+  }
+  return { rutaHistorica: carpetaHistorica, familias: familias.size, recuperadas: recuperadas.length, faltantes: faltantes.length, detalleRecuperadas: recuperadas, detalleFaltantes: faltantes };
 }
 
 async function listarFamiliasSinImagen(alta, detalle, datos = {}) {
@@ -407,6 +461,7 @@ module.exports = {
   buscarImagenProducto,
   listarFamiliasSinImagen,
   registrarImagenFamilia,
+  recuperarImagenesHistoricasAlta,
   enviarFotosAltaErp,
   rutaFotosErp,
   obtenerEstadoEnvioFotosErp

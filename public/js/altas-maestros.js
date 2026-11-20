@@ -5,6 +5,7 @@ let consultaMaestros = [];
 let paginaConsultaMaestros = 1;
 let solicitudMaestroPorConfirmar = null;
 let puedeAdministrarEan = false;
+let puedeActualizarMaestros = false;
 const filasPorPaginaConsulta = 25;
 function idEmpresa() { return Number(sessionStorage.getItem('app.idEmpresa') || sessionStorage.getItem('pedidos.idEmpresa') || document.getElementById('navbarEmpresaSelector')?.value); }
 function empresaValida() { const id = idEmpresa(); return Number.isInteger(id) && id > 0 ? id : null; }
@@ -169,10 +170,39 @@ async function aplicarPermisosPantallaMaestros() {
     const accesoActivo = (usuario.empresas || []).find(x => Number(x.idEmpresa) === empresaValida());
     const puedeEscribir = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN','OPERADOR'].includes(String(accesoActivo?.rol || '').toUpperCase());
     puedeAdministrarEan = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN'].includes(String(accesoActivo?.rol || '').toUpperCase());
+    puedeActualizarMaestros = puedeAdministrarEan;
+    $('btnActualizarMaestros')?.classList.toggle('d-none', !puedeActualizarMaestros);
     $('formReglaEan')?.classList.toggle('d-none', !puedeAdministrarEan);
     $('tabAltasMaestros').classList.toggle('d-none', !puedeEscribir);
     if (!puedeEscribir) cambiarPanelMaestros('consulta');
   } catch (_) {}
+}
+
+async function actualizarMaestrosDesdePresea() {
+  const btn = $('btnActualizarMaestros');
+  if (!btn || !puedeActualizarMaestros) return;
+  const original = btn.textContent;
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Actualizando...';
+    alerta('Descargando e importando los maestros de Presea. Esta operación puede demorar unos minutos.', 'info');
+    const resultado = await api('/api/altas-maestros/sincronizar', { method: 'POST', body: '{}' });
+    consultaMaestros = [];
+    await Promise.all([
+      cargarCatalogosModelo(),
+      cargar(),
+      $('panelConsultaMaestros').classList.contains('d-none')
+        ? Promise.resolve()
+        : cargarConsultaMaestros()
+    ]);
+    const segundos = Math.max(1, Math.round(Number(resultado.duracionMs || 0) / 1000));
+    alerta(`${resultado.mensaje} Duración: ${segundos} s.`, 'success');
+  } catch (e) {
+    alerta(e.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
 }
 function opciones(items, codigo, detalle, inicial) { return `<option value="">${inicial}</option>` + items.map(x => `<option value="${x[codigo]}">${x[detalle]} (${x[codigo]})</option>`).join(''); }
 async function cargarCatalogosModelo() {
@@ -550,7 +580,7 @@ async function iniciar() {
   $('licenciaModelosMasivos').addEventListener('change', () => { ajustarLicenciaNuevaMasiva(); ajustarDisciplinaMasiva(); });
   $('disciplinaModelosMasivos').addEventListener('change', ajustarDisciplinaMasiva);
   $('btnSugerirCodigo').addEventListener('click', sugerir);
-  $('btnActualizarMaestros').addEventListener('click', cargar);
+  $('btnActualizarMaestros').addEventListener('click', actualizarMaestrosDesdePresea);
   $('btnEnviarMaestros').addEventListener('click', enviar);
   $('btnPrevisualizarModelos').addEventListener('click', previsualizarModelosMasivos);
   $('btnDescargarTemplateModelos').addEventListener('click', descargarTemplateModelos);

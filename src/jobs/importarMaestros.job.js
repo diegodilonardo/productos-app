@@ -57,7 +57,8 @@ function limpiarTimeout() {
    ============================================================ */
 
 async function ejecutarWorker(
-    origen
+    origen,
+    codigoEmpresa = null
 ) {
 
     const {
@@ -94,7 +95,9 @@ async function ejecutarWorker(
     try {
 
         const resultados =
-            await importarMaestrosMultiempresa();
+            await importarMaestrosMultiempresa(
+                codigoEmpresa
+            );
 
         console.table(
             resultados
@@ -207,7 +210,8 @@ async function ejecutarWorker(
    ============================================================ */
 
 function ejecutarMaestros(
-    origen = 'PROGRAMADO'
+    origen = 'PROGRAMADO',
+    codigoEmpresa = null
 ) {
 
     if (ejecutando) {
@@ -217,7 +221,10 @@ function ejecutarMaestros(
             'la sincronización anterior sigue activa.'
         );
 
-        return Promise.resolve(null);
+        return Promise.resolve({
+            ok: false,
+            omitida: true
+        });
     }
 
 
@@ -246,7 +253,10 @@ function ejecutarMaestros(
                     [
                         __filename,
                         '--run-once',
-                        origen
+                        origen,
+                        ...(codigoEmpresa
+                            ? [String(codigoEmpresa)]
+                            : [])
                     ],
                     {
                         cwd:
@@ -468,6 +478,27 @@ function ejecutarMaestrosAhora() {
 }
 
 
+function ejecutarMaestrosEmpresaAhora(
+    codigoEmpresa
+) {
+
+    const codigo =
+        String(codigoEmpresa || '')
+            .trim();
+
+    if (!codigo) {
+        throw new Error(
+            'Debe indicar la empresa que se actualizará.'
+        );
+    }
+
+    return ejecutarMaestros(
+        'MANUAL_WEB',
+        codigo
+    );
+}
+
+
 function cerrarProcesoActual() {
 
     limpiarTimeout();
@@ -510,8 +541,14 @@ if (
         process.argv[3] ||
         'MANUAL';
 
+    const codigoEmpresa =
+        String(process.argv[4] || '')
+            .trim() ||
+        null;
+
     ejecutarWorker(
-        origen
+        origen,
+        codigoEmpresa
     )
         .then(
             () =>
@@ -526,5 +563,6 @@ if (
 
 module.exports = {
     iniciarJobMaestros,
-    ejecutarMaestrosAhora
+    ejecutarMaestrosAhora,
+    ejecutarMaestrosEmpresaAhora
 };

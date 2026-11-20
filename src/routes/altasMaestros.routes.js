@@ -1,5 +1,7 @@
 const express = require('express');
 const service = require('../services/altasMaestros.service');
+const { getConnection, sql } = require('../config/database');
+const { ejecutarMaestrosEmpresaAhora } = require('../jobs/importarMaestros.job');
 const { requerirAutenticacion, requerirEmpresa, requerirEscrituraEmpresa, requerirAdminUsuarios } = require('../middlewares/auth.middleware');
 const router = express.Router();
 
@@ -69,6 +71,35 @@ router.post('/modelos/descargar-vista-previa', requerirEscrituraEmpresa, async (
 router.post('/enviar-presea', requerirEscrituraEmpresa, async (req, res) => {
   try { res.json({ ok: true, ...(await service.enviarPresea({ idEmpresa: req.idEmpresa, usuario: req.session?.usuario?.usuario })) }); }
   catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }
+});
+router.post('/sincronizar', requerirAdminUsuarios, async (req, res) => {
+  try {
+    const pool = await getConnection();
+    const empresa = await pool.request()
+      .input('ID_EMPRESA', sql.Int, req.idEmpresa)
+      .query(`
+        SELECT TOP 1 CODIGO_EMPRESA, RAZON_SOCIAL
+        FROM dbo.EMPRESAS
+        WHERE ID_EMPRESA=@ID_EMPRESA;
+      `);
+    const registro = empresa.recordset[0];
+    if (!registro) return res.status(404).json({ ok: false, mensaje: 'No se encontró la empresa activa.' });
+    const resultado = await ejecutarMaestrosEmpresaAhora(registro.CODIGO_EMPRESA);
+    if (resultado?.omitida) {
+      return res.status(409).json({ ok: false, mensaje: 'Ya hay una actualización de maestros en curso. Esperá a que finalice.' });
+    }
+    if (!resultado?.ok) {
+      return res.status(500).json({ ok: false, mensaje: 'La actualización de maestros no pudo completarse. Revisá el log del servidor.' });
+    }
+    return res.json({
+      ok: true,
+      empresa: registro.RAZON_SOCIAL,
+      duracionMs: resultado.ms,
+      mensaje: 'Los maestros se descargaron de Presea y se actualizaron correctamente.'
+    });
+  } catch (e) {
+    return res.status(e.status || 500).json({ ok: false, mensaje: e.message });
+  }
 });
 router.get('/reglas-ean', async (req,res) => {
   try { const resultado=await service.listarReglasEan(req.idEmpresa); res.json({ok:true,datos:resultado.reglas,configuracion:resultado.configuracion}); }

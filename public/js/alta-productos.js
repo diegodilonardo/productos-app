@@ -3393,6 +3393,10 @@ function configurarEventos() {
     ?.addEventListener('change', aplicarFiltrosProductos);
 
   document
+    .getElementById('filtroProductosImagen')
+    ?.addEventListener('change', aplicarFiltrosProductos);
+
+  document
     .getElementById('btnLimpiarFiltrosProductos')
     ?.addEventListener('click', limpiarFiltrosProductos);
 }
@@ -3966,6 +3970,8 @@ async function cargarEstadoImagenFila(
     if (
       data.existe
     ) {
+      actualizarFiltroImagenFamilia(fila, 'CON_FOTO');
+
       img.src =
         urlArchivoImagenFamilia(
           fila
@@ -4006,6 +4012,12 @@ async function cargarEstadoImagenFila(
       }
 
     } else {
+      actualizarFiltroImagenFamilia(fila, 'SIN_FOTO');
+
+      img.removeAttribute('src');
+      img.classList.add('d-none');
+      sinFoto?.classList.remove('d-none');
+
       if (estado) {
         estado.textContent =
           'Sin imagen';
@@ -4021,6 +4033,8 @@ async function cargarEstadoImagenFila(
     }
 
   } catch (error) {
+    actualizarFiltroImagenFamilia(fila, 'ERROR');
+
     if (estado) {
       estado.textContent =
         'Error';
@@ -4028,6 +4042,33 @@ async function cargarEstadoImagenFila(
       estado.className =
         'alta-family-image-status text-danger';
     }
+  }
+}
+
+
+function actualizarFiltroImagenFamilia(fila, valor) {
+  const id = String(
+    fila.ID_DETALLE ??
+    fila.idDetalle ??
+    ''
+  );
+
+  if (!id) return;
+
+  document
+    .querySelectorAll('#tablaProductosAlta tr')
+    .forEach(filaTabla => {
+      const perteneceFamilia =
+        filaTabla.dataset.idFamiliaPrincipal === id ||
+        filaTabla.dataset.idPadreFamilia === id;
+
+      if (perteneceFamilia) {
+        filaTabla.dataset.filtroImagen = valor;
+      }
+    });
+
+  if (document.getElementById('filtroProductosImagen')?.value) {
+    aplicarFiltrosProductos();
   }
 }
 
@@ -4785,6 +4826,9 @@ function pintarDetalle() {
     tr.dataset.filtroOrigen =
       origenFiltro;
 
+    tr.dataset.filtroImagen =
+      'CARGANDO';
+
     const badgeOrigen =
       esPrincipal
         ? '<span class="badge alta-badge-principal">PRINCIPAL</span>'
@@ -4926,6 +4970,11 @@ function obtenerFiltrosProductos() {
     origen:
       String(
         document.getElementById('filtroProductosOrigen')?.value || ''
+      ).trim().toUpperCase(),
+
+    imagen:
+      String(
+        document.getElementById('filtroProductosImagen')?.value || ''
       ).trim().toUpperCase()
   };
 }
@@ -4936,7 +4985,8 @@ function hayFiltrosProductosActivos(filtros = obtenerFiltrosProductos()) {
     filtros.texto ||
     filtros.estado ||
     filtros.tipo ||
-    filtros.origen
+    filtros.origen ||
+    filtros.imagen
   );
 }
 
@@ -5064,11 +5114,16 @@ function aplicarFiltrosProductos() {
       !filtros.origen ||
       fila.dataset.filtroOrigen === filtros.origen;
 
+    const coincideImagen =
+      !filtros.imagen ||
+      fila.dataset.filtroImagen === filtros.imagen;
+
     let visible =
       coincideTexto &&
       coincideEstado &&
       coincideTipo &&
-      coincideOrigen;
+      coincideOrigen &&
+      coincideImagen;
 
     /*
      * Un automático compartido puede tener varias filas visuales
@@ -5121,7 +5176,8 @@ function limpiarFiltrosProductos() {
     'filtroProductosTexto',
     'filtroProductosEstado',
     'filtroProductosTipo',
-    'filtroProductosOrigen'
+    'filtroProductosOrigen',
+    'filtroProductosImagen'
   ];
 
   for (const id of ids) {

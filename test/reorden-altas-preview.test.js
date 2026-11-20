@@ -9,6 +9,18 @@ test('la segunda se deduce cambiando solamente el dígito de clasificación', ()
   assert.equal(_internals.deducirSegunda('2742AF00073102X'), null);
 });
 
+test('una segunda histórica con espacio prevalece sobre la deducción normalizada', () => {
+  const primera = '26110MT53611040';
+  assert.deepEqual(_internals.candidatosSegunda(primera), [
+    '2611MT536 21040',
+    '26110MT53621040'
+  ]);
+  assert.equal(
+    _internals.resolverSegunda(primera, new Set(['2611MT536 21040'])),
+    '2611MT536 21040'
+  );
+});
+
 test('el histórico agrupa relaciones únicas por módulo', () => {
   const relaciones = _internals.relacionesDesdeTexto('MOD1|PRI1\nMOD1|PRI1\nMOD1|PRI2\n');
   assert.deepEqual(relaciones.get('MOD1'), ['PRI1', 'PRI2']);
@@ -55,6 +67,7 @@ test('los borradores de reorden recuperan imágenes históricas sin bloquear fal
   const imagenes = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'imagenesAlta.service.js'), 'utf8');
   assert.match(servicio, /recuperarImagenesHistoricasAlta/);
   assert.match(servicio, /errorImagenes/);
+  assert.match(servicio, /segundasHistoricas/);
   assert.match(imagenes, /rutaFotosErp\(alta\)/);
   assert.match(imagenes, /producto\.CODIGO_MODELO\)}\$\{texto\(producto\.CODIGO_COLOR/);
   assert.match(imagenes, /copyFile\(historica\.archivo, destino\)/);

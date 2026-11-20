@@ -150,7 +150,20 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   const codigoAnulado = anuladosDisponibles.find(item => {
     if (normalizar(item.MARCA) !== marca || normalizar(item.RUBRO) !== rubro) return false;
     if (normalizarLicencia(item.LICENCIA) !== licencia || ocupados.has(normalizar(item.CODIGO))) return false;
-    if (licencia !== 'SIN LICENCIA') return true;
+    if (licencia !== 'SIN LICENCIA') {
+      const codigoAnuladoNormalizado = normalizar(item.CODIGO);
+      if (nuevaLicencia) return codigoAnuladoNormalizado.startsWith(prefijoNuevo);
+      if (marca !== 'ATOMIK') return true;
+      const serieConfirmada = seriesModeloLicencia.find(x => x.aliases.includes(licencia));
+      if (serieConfirmada) {
+        return new RegExp(`^${serieConfirmada.prefijo}\\d{${serieConfirmada.largoCorrelativo}}$`).test(codigoAnuladoNormalizado);
+      }
+      const prefijosVigentes = modelosVigentes
+        .filter(x => normalizar(x.MARCA) === marca && normalizarLicencia(x.LICENCIA) === licencia)
+        .map(x => normalizar(x.CODIGO).slice(0, 2))
+        .filter(x => /^[A-Z]{2}$/.test(x));
+      return !prefijosVigentes.length || prefijosVigentes.includes(codigoAnuladoNormalizado.slice(0, 2));
+    }
     try {
       const datos = JSON.parse(item.DATOS_JSON || '{}');
       return normalizarDisciplina(datos.disciplina) === disciplina;
@@ -168,6 +181,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   let largoCorrelativo = 4;
   let ultimoConfirmado = -1;
   let correlativoSoloNumerico = false;
+  let codigosParaCorrelativo = [...ocupados];
   if (nuevaLicencia) {
     if (!/^[A-Z0-9]{2}$/.test(prefijoNuevo)) throw Object.assign(new Error('Para una licencia nueva indique sus 2 primeros caracteres.'), { status: 400 });
     if (modelosVigentes.some(x => normalizar(x.CODIGO).startsWith(prefijoNuevo))) throw Object.assign(new Error(`Los primeros caracteres ${prefijoNuevo} ya están utilizados por otra licencia.`), { status: 409 });
@@ -205,6 +219,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
       else {
         const candidatos = mismaLicencia.filter(x => normalizar(x.MARCA) === marca);
         const referencia = candidatos.length ? candidatos : mismaLicencia;
+        codigosParaCorrelativo = referencia.map(x => normalizar(x.CODIGO));
         const prefijosValidos = referencia.map(x => normalizar(x.CODIGO).slice(0, 2)).filter(x => /^[A-Z]{2}$/.test(x));
         prefijo = prefijosValidos.sort((a, b) => prefijosValidos.filter(x => x === b).length - prefijosValidos.filter(x => x === a).length)[0];
         if (!prefijo) throw Object.assign(new Error('No se encontró la serie de dos letras de esa licencia. Regístrela como licencia nueva.'), { status: 409 });
@@ -212,7 +227,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
     }
   }
   const patron = new RegExp(`^${prefijo}(${correlativoSoloNumerico ? '\\d' : '[A-Z0-9]'}{${largoCorrelativo}})$`);
-  const sufijos = [...ocupados].map(codigo => codigo.match(patron)?.[1]).filter(Boolean);
+  const sufijos = codigosParaCorrelativo.map(codigo => codigo.match(patron)?.[1]).filter(Boolean);
   const baseCorrelativo = !correlativoSoloNumerico && sufijos.some(sufijo => /[A-Z]/.test(sufijo)) ? 36 : 10;
   const mayor = sufijos.reduce((maximo, sufijo) => Math.max(maximo, Number.parseInt(sufijo, baseCorrelativo)), ultimoConfirmado);
   for (let numero = Math.max(0, mayor + 1); numero < baseCorrelativo ** largoCorrelativo; numero += 1) {

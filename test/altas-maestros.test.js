@@ -424,6 +424,23 @@ test('prioriza un modelo anulado disponible antes de continuar la numeración', 
   }
 });
 
+test('una licencia no reutiliza anulados de otra serie vigente', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  repository.listarModelosParaSugerencia = async () => [
+    { CODIGO: 'CAK000', MARCA: 'ATOMIK', RUBRO: 'INDUMENTARIA', LICENCIA: 'KIMBERLEY' },
+    { CODIGO: 'CAT084', MARCA: 'ATOMIK', RUBRO: 'INDUMENTARIA', LICENCIA: 'TALLERES' },
+    { CODIGO: 'KB0000', MARCA: 'ATOMIK', RUBRO: 'INDUMENTARIA', LICENCIA: 'KIMBERLEY', DATOS_JSON: '{}', REUTILIZABLE: true }
+  ];
+  try {
+    assert.equal(
+      await service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: 'INDUMENTARIA', licencia: 'KIMBERLEY' }),
+      'CAK001'
+    );
+  } finally {
+    repository.listarModelosParaSugerencia = original;
+  }
+});
+
 test('una licencia nueva exige dos caracteres todavía no utilizados', async () => {
   const original = repository.listarModelosParaSugerencia;
   repository.listarModelosParaSugerencia = async () => [{ CODIGO: 'AB0000', MARCA: 'ATOMIK', RUBRO: '01', LICENCIA: 'MARVEL' }];

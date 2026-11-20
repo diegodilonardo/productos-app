@@ -75,6 +75,25 @@ function deducirSegunda(codigoPrimera) {
     : null;
 }
 
+function candidatosSegunda(codigoPrimera) {
+  const codigo = texto(codigoPrimera).toUpperCase();
+  const candidatos = [];
+  /* Algunos productos históricos de modelos MONTAGNE de cinco posiciones
+   * reemplazaron el cero de relleno por un espacio en las SEGUNDAS:
+   * 26110MT53611040 -> 2611MT536 21040. */
+  if (codigo.length === 15 && codigo[4] === '0' && codigo[10] === '1') {
+    candidatos.push(`${codigo.slice(0, 4)}${codigo.slice(5, 10)} 2${codigo.slice(11)}`);
+  }
+  const deducida = deducirSegunda(codigo);
+  if (deducida) candidatos.push(deducida);
+  return [...new Set(candidatos)];
+}
+
+function resolverSegunda(codigoPrimera, existentes = new Set()) {
+  const candidatos = candidatosSegunda(codigoPrimera);
+  return candidatos.find(codigo => existentes.has(codigo)) || candidatos[0] || null;
+}
+
 function datosCodigoAlfa(codigoAlfa) {
   const codigo = texto(codigoAlfa).toUpperCase();
   return {
@@ -206,7 +225,7 @@ function construirPreview(filas, relaciones, catalogos) {
       todosCodigos.add(relacionado);
       if (relacionado.length >= 11 && relacionado[10] === '1') {
         primerasUnicas.add(relacionado); grupo.primerasCodigos.add(relacionado);
-        const segunda = deducirSegunda(relacionado);
+        const segunda = resolverSegunda(relacionado, catalogos.existentes);
         if (segunda) { todosCodigos.add(segunda); segundasUnicas.add(segunda); grupo.segundasCodigos.add(segunda); grupo.codigos.add(segunda); }
       } else {
         excepciones += 1; grupo.excepciones += 1;
@@ -239,8 +258,7 @@ async function simularReorden({ idEmpresa, nombreArchivo, archivoBase64 }) {
     codigosPrevios.add(fila.codigoAlfa);
     for (const relacionado of relaciones.get(fila.codigoAlfa) || []) {
       codigosPrevios.add(relacionado);
-      const segunda = deducirSegunda(relacionado);
-      if (segunda) codigosPrevios.add(segunda);
+      for (const segunda of candidatosSegunda(relacionado)) codigosPrevios.add(segunda);
     }
   }
   const catalogos = await cargarCatalogos(idEmpresa, [...codigosPrevios]);
@@ -257,8 +275,7 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
     codigos.add(fila.codigoAlfa);
     for (const relacionado of relaciones.get(fila.codigoAlfa) || []) {
       codigos.add(relacionado);
-      const segunda = deducirSegunda(relacionado);
-      if (segunda) codigos.add(segunda);
+      for (const segunda of candidatosSegunda(relacionado)) codigos.add(segunda);
     }
   }
   const catalogos = await cargarCatalogos(idEmpresa, [...codigos]);
@@ -311,6 +328,9 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
       codigoColor: fila.codigoAlfa.slice(11, 13),
       codigoModulo: fila.codigoAlfa.slice(13, 15),
       relacionesHistoricas: relaciones.get(fila.codigoAlfa) || [],
+      segundasHistoricas: (relaciones.get(fila.codigoAlfa) || [])
+        .map(codigo => resolverSegunda(codigo, catalogos.existentes))
+        .filter(Boolean),
       usuario
     });
   }
@@ -361,4 +381,4 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
   };
 }
 
-module.exports = { simularReorden, confirmarReorden, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };
+module.exports = { simularReorden, confirmarReorden, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, candidatosSegunda, resolverSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };

@@ -1602,6 +1602,7 @@
     minmax(145px, 0.62fr)
     minmax(145px, 0.62fr)
     minmax(145px, 0.62fr)
+    minmax(145px, 0.62fr)
     auto
     auto;
   align-items: end;
@@ -1760,7 +1761,7 @@
   .alta-products-filterbar {
     grid-template-columns:
       minmax(240px, 1.4fr)
-      repeat(3, minmax(130px, 0.7fr));
+      repeat(4, minmax(130px, 0.7fr));
   }
 
   .alta-products-clear-filter,

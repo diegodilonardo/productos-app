@@ -2113,10 +2113,11 @@ async function prepararDetalleProducto(
         sufijoClave,
         codigoRubroCodAlfa = null,
         cantidadRelacion = null,
-        relacionHistoricaEspecial = false
+        relacionHistoricaEspecial = false,
+        codigoAlfaExacto = null
     }) {
         const codigoAlfa =
-            construirCodigoAlfa({
+            normalizarTexto(codigoAlfaExacto).toUpperCase() || construirCodigoAlfa({
                 alta,
                 modelo,
                 clasificacion,
@@ -2458,7 +2459,16 @@ async function prepararDetalleProducto(
                     padreTemporal: claveModulo,
                     sufijoClave: 'SEG',
                     codigoRubroCodAlfa: codigoRubroHijosAplicable,
-                    cantidadRelacion: talle.CANTIDAD_EN_MODULO
+                    cantidadRelacion: talle.CANTIDAD_EN_MODULO,
+                    codigoAlfaExacto: (Array.isArray(datosEntrada.segundasHistoricas)
+                        ? datosEntrada.segundasHistoricas
+                        : []).find(codigo => {
+                        const historico = normalizarTexto(codigo).toUpperCase();
+                        return historico.length === 15 &&
+                            historico[10] === normalizarTexto(clasificacionSegunda.CODIGO_CLASIFICACION) &&
+                            historico.slice(11, 13) === normalizarTexto(color.CODIGO_COLOR).toUpperCase() &&
+                            historico.slice(13, 15) === normalizarTexto(talle.DETALLE_TALLE).toUpperCase();
+                    }) || null
                 });
             }
 

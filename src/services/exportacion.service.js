@@ -1368,7 +1368,14 @@ async function exportarConControl(idAlta, datosEntrada = {}) {
     validarArchivoAuxiliar("RELACION", registrosRELACION, camposRELACION);
   }
 
-  const registrosMODELOS = armarRegistrosMODELOS(alta, detalles);
+  /*
+   * MODELOS describe el modelo/color/curva del producto principal. En un
+   * reorden histórico ese principal puede existir en Presea y quedar como
+   * EXISTE_ERP, aunque sus productos relacionados deban reemitirse. Se
+   * incluyen ambos estados para no generar un archivo MODELOS vacío; Presea
+   * ignora el registro si ya lo posee.
+   */
+  const registrosMODELOS = armarRegistrosMODELOS(alta, detallesTodos);
 
   if (registrosMODELOS.length === 0) {
     throw new Error("No se pudieron generar registros para MODELOS.");
@@ -1766,7 +1773,12 @@ async function regenerarArchivosAlta(idAlta, opciones = {}) {
       codigosModulos.has(texto(item.COD_ALFA_MODULO)),
     ),
   );
-  const registrosMODELOS = armarRegistrosMODELOS(alta, detalles);
+  const detallesParaModelos = detallesTodos.filter((item) =>
+    ["VALIDO", "EXPORTADO", "EXISTE_ERP"].includes(
+      texto(item.ESTADO_VALIDACION).toUpperCase(),
+    ),
+  );
+  const registrosMODELOS = armarRegistrosMODELOS(alta, detallesParaModelos);
   const detallesPrimerasSegundas =
     await completarPrimerasSegundasReutilizadas(
       id,
@@ -1863,6 +1875,8 @@ module.exports = {
   regenerarArchivosAlta,
 
   armarRegistrosPRIMERAS_SEGUNDAS,
+
+  armarRegistrosMODELOS,
 
   armarRegistrosRELACION,
 

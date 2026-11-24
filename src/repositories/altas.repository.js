@@ -1,5 +1,17 @@
 const { getConnection, sql } = require("../config/database");
 
+function codigoAlfaERPComparable(expresion) {
+  const normalizado = `UPPER(LTRIM(RTRIM(ISNULL(${expresion}, ''))))`;
+  return `CASE
+    WHEN LEN(${normalizado}) = 15
+      AND SUBSTRING(${normalizado}, 10, 1) = ' '
+    THEN LEFT(${normalizado}, 4) + '0'
+      + SUBSTRING(${normalizado}, 5, 5)
+      + SUBSTRING(${normalizado}, 11, 5)
+    ELSE ${normalizado}
+  END`;
+}
+
 function alcanceMaestroComercialCompartido(alias) {
   return `${alias}.ID_EMPRESA IN (
     SELECT E_ALCANCE.ID_EMPRESA
@@ -948,20 +960,8 @@ async function buscarProductoERP(tipoProducto, codigoAlfa, idEmpresa) {
 
       WHERE
         ID_EMPRESA = @ID_EMPRESA
-        AND         UPPER(
-          LTRIM(
-            RTRIM(
-              ISNULL(CODIGO_ALFA, '')
-            )
-          )
-        ) =
-        UPPER(
-          LTRIM(
-            RTRIM(
-              @CODIGO_ALFA
-            )
-          )
-        )
+        AND ${codigoAlfaERPComparable('CODIGO_ALFA')} =
+            ${codigoAlfaERPComparable('@CODIGO_ALFA')}
 
       ORDER BY
         CASE WHEN ISNULL(ACTIVO, 0) = 1 THEN 0 ELSE 1 END,
@@ -1024,20 +1024,8 @@ async function reconciliarExistenciaERPAlta(idAlta) {
         FROM dbo.PRODUCTOS AS P0
         WHERE
           P0.ID_EMPRESA = D.ID_EMPRESA
-          AND           UPPER(
-            LTRIM(
-              RTRIM(
-                ISNULL(P0.CODIGO_ALFA, '')
-              )
-            )
-          ) =
-          UPPER(
-            LTRIM(
-              RTRIM(
-                ISNULL(D.CODIGO_ALFA, '')
-              )
-            )
-          )
+          AND ${codigoAlfaERPComparable('P0.CODIGO_ALFA')} =
+              ${codigoAlfaERPComparable('D.CODIGO_ALFA')}
         ORDER BY
           CASE WHEN ISNULL(P0.ACTIVO, 0) = 1 THEN 0 ELSE 1 END,
           P0.ID_PRODUCTO DESC
@@ -1182,8 +1170,8 @@ async function obtenerValidacionesMasivasAlta(idAlta) {
           P.ACTIVO
         FROM dbo.PRODUCTOS P
         WHERE P.ID_EMPRESA = D.ID_EMPRESA
-          AND UPPER(LTRIM(RTRIM(ISNULL(P.CODIGO_ALFA, '')))) =
-              UPPER(LTRIM(RTRIM(ISNULL(D.CODIGO_ALFA, ''))))
+          AND ${codigoAlfaERPComparable('P.CODIGO_ALFA')} =
+              ${codigoAlfaERPComparable('D.CODIGO_ALFA')}
         ORDER BY
           CASE WHEN ISNULL(P.ACTIVO, 0) = 1 THEN 0 ELSE 1 END,
           P.ID_PRODUCTO DESC
@@ -1964,6 +1952,28 @@ async function marcarAltaSinNovedadesERP(idAlta, usuario) {
   return resultado.recordset[0] || null;
 }
 
+async function marcarAltaValidadaSinNovedadesERP(idAlta, usuario) {
+  const pool = await getConnection();
+  const resultado = await pool
+    .request()
+    .input("ID_ALTA", sql.BigInt, idAlta)
+    .input("USUARIO_VALIDACION", sql.VarChar(100), usuario)
+    .query(`
+      UPDATE dbo.ALTAS_PRODUCTOS
+      SET
+        ESTADO = 'SIN_NOVEDADES_ERP',
+        FECHA_VALIDACION = COALESCE(FECHA_VALIDACION, SYSDATETIME()),
+        USUARIO_VALIDACION = COALESCE(USUARIO_VALIDACION, @USUARIO_VALIDACION),
+        FECHA_EXPORTACION = NULL,
+        USUARIO_EXPORTACION = NULL,
+        ARCHIVO_EXPORTADO = NULL
+      OUTPUT INSERTED.*
+      WHERE ID_ALTA = @ID_ALTA
+        AND ESTADO = 'VALIDADO';
+    `);
+  return resultado.recordset[0] || null;
+}
+
 
 /* ============================================================
    MARCAR ALTA COMO ANULADA
@@ -1998,6 +2008,7 @@ async function marcarAltaAnulada(
 }
 
 module.exports = {
+  codigoAlfaERPComparable,
   buscarMarca,
   buscarRubro,
   buscarTemporada,
@@ -2041,5 +2052,6 @@ module.exports = {
   buscarDuplicadosAlta,
   marcarAltaValidada,
   marcarAltaSinNovedadesERP,
+  marcarAltaValidadaSinNovedadesERP,
   marcarAltaAnulada,
 };

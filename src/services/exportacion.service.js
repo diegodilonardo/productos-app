@@ -915,6 +915,24 @@ function normalizarTalleCodigoAlfaRelacion(detalleTalle) {
   return equivalencias[talle] || talle;
 }
 
+function normalizarBaseCodigoAlfaHistorico(base) {
+  const valor = String(base ?? '').toUpperCase();
+
+  /*
+   * Algunos códigos históricos de MONTAGNE sustituyeron el cero de
+   * relleno que precede al modelo por un espacio al final del segmento:
+   *   26210MT508 + 11040
+   *   2621MT508  + 21040
+   * Ambos pertenecen a la misma familia. La normalización se usa sólo
+   * para emparejar PRIMERA/SEGUNDA; el DBI conserva los códigos originales.
+   */
+  if (/^[A-Z0-9]{4}[A-Z0-9]{5} $/.test(valor)) {
+    return `${valor.slice(0, 4)}0${valor.slice(4, 9)}`;
+  }
+
+  return valor;
+}
+
 function clavePrimeraSegunda(detalle) {
   const codigoAlfa = texto(detalle.CODIGO_ALFA).toUpperCase();
   const clasificacion = texto(detalle.CODIGO_CLASIFICACION);
@@ -923,7 +941,9 @@ function clavePrimeraSegunda(detalle) {
   const sufijo = `${clasificacion}${color}${talle}`;
 
   if (codigoAlfa && sufijo && codigoAlfa.endsWith(sufijo)) {
-    const baseCodigoAlfa = codigoAlfa.slice(0, -sufijo.length);
+    const baseCodigoAlfa = normalizarBaseCodigoAlfaHistorico(
+      codigoAlfa.slice(0, -sufijo.length),
+    );
 
     return [
       baseCodigoAlfa,
@@ -1075,7 +1095,7 @@ function eliminarSiExiste(ruta) {
    PREPARAR EXPORTACION
    ============================================================ */
 
-async function prepararExportacion(idAlta) {
+async function prepararExportacion(idAlta, opciones = {}) {
   const id = validarId(idAlta);
 
   const alta = await exportacionRepository.obtenerAltaParaExportacion(id);
@@ -1089,6 +1109,11 @@ async function prepararExportacion(idAlta) {
       `El alta debe estar en estado VALIDADO. ` +
         `Estado actual: ${alta.ESTADO}.`,
     );
+  }
+
+  if (opciones.reconciliarERP) {
+    await require('../repositories/altas.repository')
+      .reconciliarExistenciaERPAlta(id);
   }
 
   const detallesTodos =
@@ -1123,6 +1148,17 @@ async function prepararExportacion(idAlta) {
   );
 
   if (detalles.length === 0) {
+    if (opciones.reconciliarERP) {
+      await require('../repositories/altas.repository')
+        .marcarAltaValidadaSinNovedadesERP(
+          id,
+          texto(opciones.usuario) || 'SISTEMA',
+        );
+      throw new Error(
+        "Todos los productos ya existen en Presea. " +
+          "El Alta quedó cerrada como SIN_NOVEDADES_ERP y no requiere DBI.",
+      );
+    }
     throw new Error(
       "El alta no contiene productos nuevos para exportar. " +
         "Todos los productos ya existen en Presea.",
@@ -1322,7 +1358,10 @@ async function exportarConControl(idAlta, datosEntrada = {}) {
   await require('./maestrosPendientes.service').comprobarAlta(idAlta);
   const usuario = texto(datosEntrada.usuario) || "SISTEMA";
 
-  const preparacion = await prepararExportacion(idAlta);
+  const preparacion = await prepararExportacion(idAlta, {
+    reconciliarERP: true,
+    usuario,
+  });
 
   const alta = preparacion.alta;
 

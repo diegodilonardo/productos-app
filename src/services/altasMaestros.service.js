@@ -51,8 +51,8 @@ function mensajeNombreDuplicado(tipo, nombre, duplicado, marca = '', rubro = '')
   return `El ${entidad} "${nombre}"${alcance} ya existe ${origen} con el código ${duplicado.CODIGO}.`;
 }
 function normalizarLicencia(v) {
-  const valor = normalizar(v);
-  return !valor || valor === '__SIN_LICENCIA__' ? 'SIN LICENCIA' : valor;
+  const valor = normalizar(v).replaceAll('_', ' ').replace(/\s+/g, ' ').trim();
+  return !valor || valor === 'SIN LICENCIA' ? 'SIN LICENCIA' : valor;
 }
 function normalizarDisciplina(v) { const valor = normalizar(v); return !valor || valor === '__SIN_DISCIPLINA__' ? 'SIN DISCIPLINA' : valor; }
 function validarCodigoProveedor(valor) {

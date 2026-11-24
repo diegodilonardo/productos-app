@@ -546,6 +546,34 @@ test('San Lorenzo comparte la misma serie entre rubros', async () => {
   finally { repository.listarModelosParaSugerencia = original; }
 });
 
+test('las licencias configuradas con guiones bajos conservan su numeración', async () => {
+  const original = repository.listarModelosParaSugerencia;
+  repository.listarModelosParaSugerencia = async () => [
+    { CODIGO: 'SL0190', MARCA: 'ATOMIK', RUBRO: 'ACCESORIOS', LICENCIA: 'SAN LORENZO' },
+    { CODIGO: 'VS0094', MARCA: 'ATOMIK', RUBRO: 'INDUMENTARIA', LICENCIA: 'VELEZ SARSFIELD' }
+  ];
+  try {
+    assert.equal(
+      await service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: 'CALZADO', licencia: 'SAN_LORENZO' }),
+      'SL0191'
+    );
+    assert.equal(
+      await service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: 'CALZADO', licencia: 'VELEZ_SARSFIELD' }),
+      'VS0095'
+    );
+  } finally {
+    repository.listarModelosParaSugerencia = original;
+  }
+});
+
+test('el selector incluye licencias configuradas aunque todavía no tengan modelos', () => {
+  const fuente = fs.readFileSync(path.join(process.cwd(), 'src/repositories/maestros.repository.js'), 'utf8');
+  assert.match(fuente, /FROM dbo\.ALTAS_MAESTROS_DESTINOS D/);
+  assert.match(fuente, /D\.ID_EMPRESA = @ID_EMPRESA/);
+  assert.match(fuente, /D\.ACTIVO = 1/);
+  assert.match(fuente, /REPLACE\(LTRIM\(RTRIM\(D\.LICENCIA\)\), '_', ' '\)/);
+});
+
 test('todas las marcas habilitan y seleccionan sin licencia aunque el rubro todavía no tenga modelos', () => {
   const js = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
   assert.match(js, /CODIGO_LICENCIA: '__SIN_LICENCIA__'/);

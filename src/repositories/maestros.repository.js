@@ -274,6 +274,16 @@ async function buscarLicenciasModelos({
         'ID_EMPRESA',
         sql.Int,
         idEmpresa
+      )
+      .input(
+        'MARCA',
+        sql.VarChar(30),
+        marca || null
+      )
+      .input(
+        'RUBRO',
+        sql.VarChar(20),
+        rubro || null
       );
 
   let where = `
@@ -283,24 +293,12 @@ async function buscarLicenciasModelos({
 
   if (marca) {
 
-    request.input(
-      'MARCA',
-      sql.VarChar(30),
-      marca
-    );
-
     where += `
       AND MARCA_MODELO = @MARCA
     `;
   }
 
   if (rubro) {
-
-    request.input(
-      'RUBRO',
-      sql.VarChar(20),
-      rubro
-    );
 
     where += `
       AND RUBRO_MODELO = @RUBRO
@@ -344,6 +342,24 @@ async function buscarLicenciasModelos({
             OR LTRIM(RTRIM(LICENCIA)) = ''
           )
         )
+
+        UNION
+
+        /* Una licencia puede estar habilitada para recibir Altas aunque aún
+         * no tenga modelos en el maestro sincronizado. En ese caso la fuente
+         * es la configuración de destinos por empresa, marca y rubro. */
+        SELECT DISTINCT
+          REPLACE(LTRIM(RTRIM(D.LICENCIA)), '_', ' ')
+            AS CODIGO_LICENCIA,
+          REPLACE(LTRIM(RTRIM(D.LICENCIA)), '_', ' ')
+            AS DETALLE_LICENCIA
+        FROM dbo.ALTAS_MAESTROS_DESTINOS D
+        WHERE D.ID_EMPRESA = @ID_EMPRESA
+          AND D.ACTIVO = 1
+          AND (@MARCA IS NULL OR UPPER(LTRIM(RTRIM(D.MARCA))) = UPPER(LTRIM(RTRIM(@MARCA))) )
+          AND (@RUBRO IS NULL OR UPPER(LTRIM(RTRIM(D.RUBRO))) = UPPER(LTRIM(RTRIM(@RUBRO))) )
+          AND NULLIF(LTRIM(RTRIM(D.LICENCIA)), '') IS NOT NULL
+          AND UPPER(REPLACE(LTRIM(RTRIM(D.LICENCIA)), '_', ' ')) <> 'SIN LICENCIA'
       ) AS L
       ORDER BY
         CASE

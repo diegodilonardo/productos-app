@@ -2,7 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const XLSX = require('xlsx');
 const { _internals } = require('../src/services/reordenAlta.service');
+const reordenAltaService = require('../src/services/reordenAlta.service');
 
 test('la segunda se deduce cambiando solamente el dígito de clasificación', () => {
   assert.equal(_internals.deducirSegunda('2742AF00071102X'), '2742AF00072102X');
@@ -60,6 +62,22 @@ test('Altas permite confirmar solamente los borradores válidos después de simu
   assert.match(rutas, /router\.post\('\/reorden\/preview'/);
   assert.match(rutas, /router\.post\('\/reorden\/confirmar'/);
   assert.match(rutas, /requerirEscrituraEmpresa/);
+});
+
+test('Importar reorder permite descargar un template compatible con el importador', () => {
+  const archivo = reordenAltaService.generarTemplateReorden();
+  const libro = XLSX.read(archivo, { type: 'buffer', raw: false });
+  assert.deepEqual(libro.SheetNames, ['REORDER', 'INSTRUCCIONES']);
+  const filas = XLSX.utils.sheet_to_json(libro.Sheets.REORDER, { header: 1, defval: '' });
+  assert.deepEqual(filas[0], ['COD_ALFA', 'PROVEEDOR']);
+  assert.equal(filas.length, 1);
+
+  const vista = fs.readFileSync(path.join(__dirname, '..', 'views', 'altas', 'index.hbs'), 'utf8');
+  const rutas = fs.readFileSync(path.join(__dirname, '..', 'src', 'routes', 'altas.routes.js'), 'utf8');
+  assert.match(vista, /href="\/api\/altas\/reorden\/template"/);
+  assert.match(vista, />Descargar template<\/a>/);
+  assert.match(rutas, /router\.get\('\/reorden\/template'/);
+  assert.match(rutas, /IMPORTAR_REORDER_TEMPLATE\.xlsx/);
 });
 
 test('los borradores de reorden recuperan imágenes históricas sin bloquear faltantes', () => {

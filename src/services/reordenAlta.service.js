@@ -7,6 +7,31 @@ const { descargarArchivos } = require('./ftp.service');
 const ARCHIVO_RELACIONES = 'TBL_RELACION.TXT';
 const MAX_ARCHIVO_BYTES = 8 * 1024 * 1024;
 
+function generarTemplateReorden() {
+  const libro = XLSX.utils.book_new();
+  const hojaCarga = XLSX.utils.aoa_to_sheet([
+    ['COD_ALFA', 'PROVEEDOR']
+  ]);
+  hojaCarga['!cols'] = [{ wch: 24 }, { wch: 34 }];
+  hojaCarga['!autofilter'] = { ref: 'A1:B1' };
+  hojaCarga['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+  const hojaInstrucciones = XLSX.utils.aoa_to_sheet([
+    ['TEMPLATE DE IMPORTACIÓN DE REORDER'],
+    ['Campo', 'Qué cargar', 'Ejemplo'],
+    ['COD_ALFA', 'Código alfa del módulo histórico. Mantenerlo como texto y no modificar espacios internos.', '27110MOD01101A'],
+    ['PROVEEDOR', 'Código o razón social del proveedor reconocido por la aplicación.', 'PB0001'],
+    [],
+    ['Importante'],
+    ['Cargar un módulo por fila en la hoja REORDER. No cambiar los encabezados ni agregar filas antes de la cabecera.']
+  ]);
+  hojaInstrucciones['!cols'] = [{ wch: 24 }, { wch: 78 }, { wch: 24 }];
+
+  XLSX.utils.book_append_sheet(libro, hojaCarga, 'REORDER');
+  XLSX.utils.book_append_sheet(libro, hojaInstrucciones, 'INSTRUCCIONES');
+  return XLSX.write(libro, { type: 'buffer', bookType: 'xlsx' });
+}
+
 function texto(valor) {
   return String(valor ?? '').trim();
 }
@@ -381,4 +406,4 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
   };
 }
 
-module.exports = { simularReorden, confirmarReorden, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, candidatosSegunda, resolverSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };
+module.exports = { generarTemplateReorden, simularReorden, confirmarReorden, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, candidatosSegunda, resolverSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };

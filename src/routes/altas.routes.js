@@ -95,6 +95,17 @@ router.get('/', requerirEmpresa, async (req, res) => {
    SIMULAR IMPORTACION DE REORDEN HISTORICO (NO GRABA DATOS)
    ============================================================ */
 
+router.get('/reorden/template', requerirEmpresa, requerirEscrituraEmpresa, (req, res) => {
+    try {
+        const archivo = reordenAltaService.generarTemplateReorden();
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="IMPORTAR_REORDER_TEMPLATE.xlsx"');
+        res.send(archivo);
+    } catch (error) {
+        res.status(500).json({ ok: false, mensaje: error.message });
+    }
+});
+
 router.post('/reorden/preview', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado = await reordenAltaService.simularReorden({

@@ -284,9 +284,12 @@
         <div class="alert alert-info">
           Esta etapa solo analiza el archivo y propone las Altas. No modifica la base ni genera productos.
         </div>
-        <label for="archivoReordenAlta" class="form-label fw-semibold">Archivo Excel o TXT</label>
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+          <label for="archivoReordenAlta" class="form-label fw-semibold mb-0">Archivo Excel o TXT</label>
+          <a class="btn btn-sm btn-outline-primary" href="/api/altas/reorden/template">Descargar template</a>
+        </div>
         <input id="archivoReordenAlta" class="form-control" type="file" accept=".xlsx,.xls,.txt,.csv,.dbi">
-        <div class="form-text">Excel sin cabecera: COD_ALFA en columna A y proveedor en columna E. También se admite TXT con COD_ALFA|PROVEEDOR.</div>
+        <div class="form-text">El template usa COD_ALFA y PROVEEDOR. También se admite TXT con COD_ALFA|PROVEEDOR y el formato histórico sin cabecera.</div>
         <div id="estadoReordenAlta" class="mt-3"></div>
         <div id="previewReordenAlta" class="d-none mt-3"></div>
       </div>

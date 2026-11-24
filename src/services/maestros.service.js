@@ -726,7 +726,7 @@ async function obtenerLicenciasModelos({
       idEmpresa,
       marca,
       rubro,
-      incluirOtrosRubros: incluirOtrosRubros && acceso.todosRubros && Boolean(marca && rubro)
+      incluirOtrosRubros: incluirOtrosRubros && Boolean(marca && rubro)
     });
 
   const modelosDisponibles = await buscarModelos({ idEmpresa, acceso, marca, rubro, sinLimite: true });

@@ -717,14 +717,16 @@ async function obtenerLicenciasModelos({
   idEmpresa,
   acceso,
   marca,
-  rubro
+  rubro,
+  incluirOtrosRubros = false
 }) {
 
   const datos =
     await repository.buscarLicenciasModelos({
       idEmpresa,
       marca,
-      rubro
+      rubro,
+      incluirOtrosRubros: incluirOtrosRubros && acceso.todosRubros && Boolean(marca && rubro)
     });
 
   const modelosDisponibles = await buscarModelos({ idEmpresa, acceso, marca, rubro, sinLimite: true });

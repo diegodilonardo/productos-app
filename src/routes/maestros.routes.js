@@ -317,6 +317,7 @@ router.get(
 
       const datos =
         await maestrosService.obtenerLicenciasModelos({
+          incluirOtrosRubros: req.query.incluirOtrosRubros === 'true',
           idEmpresa:
             req.idEmpresa,
 

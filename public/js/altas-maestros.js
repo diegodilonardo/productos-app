@@ -248,7 +248,7 @@ async function cargarLicencias() {
   $('codigoMaestro').value = '';
   $('datosLicenciaNueva').classList.add('d-none');
   if (!marca || !rubro) { $('licenciaModelo').innerHTML = '<option value="">Seleccione primero marca y rubro...</option>'; $('licenciaModelo').disabled = true; return; }
-  const d = await api(`/api/maestros/licencias-modelos?marca=${encodeURIComponent(marca)}&rubro=${encodeURIComponent(rubro)}`);
+  const d = await api(`/api/maestros/licencias-modelos?marca=${encodeURIComponent(marca)}&rubro=${encodeURIComponent(rubro)}&incluirOtrosRubros=true`);
   const licencias = Array.isArray(d.datos) ? d.datos : [];
   const tieneSinLicencia = licencias.some(x => x.CODIGO_LICENCIA === '__SIN_LICENCIA__');
   const opcionesLicencia = (!tieneSinLicencia ? [{ CODIGO_LICENCIA: '__SIN_LICENCIA__', DETALLE_LICENCIA: 'Sin licencia' }, ...licencias] : licencias);
@@ -261,7 +261,7 @@ async function cargarLicenciasMasivas() {
   const marca = $('marcaModelosMasivos').value, rubro = $('rubroModelosMasivos').value;
   vistaPreviaModelos = []; $('panelVistaPreviaModelos').classList.add('d-none'); $('datosLicenciaNuevaMasiva').classList.add('d-none');
   if (!marca || !rubro) { $('licenciaModelosMasivos').innerHTML = '<option value="">Seleccione primero marca y rubro...</option>'; $('licenciaModelosMasivos').disabled = true; return; }
-  const d = await api(`/api/maestros/licencias-modelos?marca=${encodeURIComponent(marca)}&rubro=${encodeURIComponent(rubro)}`);
+  const d = await api(`/api/maestros/licencias-modelos?marca=${encodeURIComponent(marca)}&rubro=${encodeURIComponent(rubro)}&incluirOtrosRubros=true`);
   const licencias = Array.isArray(d.datos) ? d.datos : [], tieneSinLicencia = licencias.some(x => x.CODIGO_LICENCIA === '__SIN_LICENCIA__');
   const lista = !tieneSinLicencia ? [{ CODIGO_LICENCIA: '__SIN_LICENCIA__', DETALLE_LICENCIA: 'Sin licencia' }, ...licencias] : licencias;
   $('licenciaModelosMasivos').innerHTML = '<option value="">Seleccione licencia...</option>' + lista.map(x => `<option value="${x.CODIGO_LICENCIA}">${x.DETALLE_LICENCIA}</option>`).join('') + '<option value="__NUEVA__">+ Nueva licencia</option>';

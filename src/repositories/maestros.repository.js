@@ -262,7 +262,8 @@ async function buscarModelos({
 async function buscarLicenciasModelos({
   marca,
   rubro,
-  idEmpresa
+  idEmpresa,
+  incluirOtrosRubros = false
 }) {
 
   const pool =
@@ -298,7 +299,7 @@ async function buscarLicenciasModelos({
     `;
   }
 
-  if (rubro) {
+  if (rubro && !incluirOtrosRubros) {
 
     where += `
       AND RUBRO_MODELO = @RUBRO

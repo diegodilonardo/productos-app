@@ -30,6 +30,7 @@ async function iniciarPantallaAltas() {
     .addEventListener('click', cargarAltas);
 
   document.getElementById('btnImportarReorden')?.addEventListener('click', abrirImportadorReorden);
+  document.getElementById('btnDescargarTemplateReorden')?.addEventListener('click', descargarTemplateReorden);
   document.getElementById('btnSimularReordenAlta')?.addEventListener('click', simularReordenAlta);
   document.getElementById('btnConfirmarReordenAlta')?.addEventListener('click', confirmarReordenAlta);
 
@@ -103,6 +104,42 @@ function archivoComoBase64(archivo) {
     lector.onerror = () => reject(new Error('No se pudo leer el archivo seleccionado.'));
     lector.readAsDataURL(archivo);
   });
+}
+
+async function descargarTemplateReorden() {
+  const boton = document.getElementById('btnDescargarTemplateReorden');
+  const estado = document.getElementById('estadoReordenAlta');
+  const textoOriginal = boton?.textContent || 'Descargar template';
+  try {
+    const idEmpresa = obtenerEmpresaActivaAltas();
+    if (!idEmpresa) throw new Error('Debe seleccionar una empresa desde la barra superior.');
+    boton.disabled = true;
+    boton.textContent = 'Preparando...';
+    const response = await fetch('/api/altas/reorden/template', {
+      headers: { 'x-id-empresa': String(idEmpresa) }
+    });
+    if (!response.ok) {
+      let mensaje = `Error HTTP ${response.status}`;
+      try { mensaje = (await response.json())?.mensaje || mensaje; } catch {}
+      throw new Error(mensaje);
+    }
+    const blob = await response.blob();
+    const disposicion = response.headers.get('Content-Disposition') || '';
+    const coincidencia = disposicion.match(/filename="?([^";]+)"?/i);
+    const enlace = document.createElement('a');
+    enlace.href = URL.createObjectURL(blob);
+    enlace.download = coincidencia?.[1] || 'IMPORTAR_REORDER_TEMPLATE.xlsx';
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 1500);
+    estado.innerHTML = '<div class="alert alert-success mb-0">Template descargado correctamente.</div>';
+  } catch (error) {
+    estado.innerHTML = `<div class="alert alert-danger mb-0">${escaparHtml(error.message)}</div>`;
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
 }
 
 async function simularReordenAlta() {

@@ -286,7 +286,7 @@
         </div>
         <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
           <label for="archivoReordenAlta" class="form-label fw-semibold mb-0">Archivo Excel o TXT</label>
-          <a class="btn btn-sm btn-outline-primary" href="/api/altas/reorden/template">Descargar template</a>
+          <button id="btnDescargarTemplateReorden" class="btn btn-sm btn-outline-primary" type="button">Descargar template</button>
         </div>
         <input id="archivoReordenAlta" class="form-control" type="file" accept=".xlsx,.xls,.txt,.csv,.dbi">
         <div class="form-text">El template usa COD_ALFA y PROVEEDOR. También se admite TXT con COD_ALFA|PROVEEDOR y el formato histórico sin cabecera.</div>
@@ -351,4 +351,4 @@
   </div>
 </div>
 
-<script src="/js/altas-index.js?v=18"></script>
+<script src="/js/altas-index.js?v=19"></script>

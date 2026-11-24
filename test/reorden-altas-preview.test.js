@@ -74,10 +74,13 @@ test('Importar reorder permite descargar un template compatible con el importado
 
   const vista = fs.readFileSync(path.join(__dirname, '..', 'views', 'altas', 'index.hbs'), 'utf8');
   const rutas = fs.readFileSync(path.join(__dirname, '..', 'src', 'routes', 'altas.routes.js'), 'utf8');
-  assert.match(vista, /href="\/api\/altas\/reorden\/template"/);
-  assert.match(vista, />Descargar template<\/a>/);
+  assert.match(vista, /id="btnDescargarTemplateReorden"/);
+  assert.match(vista, />Descargar template<\/button>/);
   assert.match(rutas, /router\.get\('\/reorden\/template'/);
   assert.match(rutas, /IMPORTAR_REORDER_TEMPLATE\.xlsx/);
+  const cliente = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'altas-index.js'), 'utf8');
+  assert.match(cliente, /function descargarTemplateReorden/);
+  assert.match(cliente, /'x-id-empresa': String\(idEmpresa\)/);
 });
 
 test('los borradores de reorden recuperan imágenes históricas sin bloquear faltantes', () => {

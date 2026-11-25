@@ -526,6 +526,11 @@ function claveDestinoMaestro(marca, licencia, rubro) {
   return `${segmentoRutaMaestro(marca, 'marca')}|${claveLicencia}|${segmentoRutaMaestro(rubro, 'rubro')}`;
 }
 
+function errorDestinoFaltante(registro, licencia) {
+  const destino = { marca: normalizar(registro.MARCA), rubro: normalizar(registro.RUBRO), licencia };
+  return Object.assign(new Error(`Exportación bloqueada: no existe una ruta FTP activa para marca ${destino.marca}, rubro ${destino.rubro} y licencia ${licencia}.`), { status: 409, destino });
+}
+
 function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = null) {
   const grupos = new Map();
   const destinos = destinosConfigurados === null ? null : new Map(destinosConfigurados.map(destino => [
@@ -541,7 +546,7 @@ function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = 
       if (destinos) {
         const clave = claveDestinoMaestro(marca, 'SIN LICENCIA', rubro);
         ruta = destinos.get(clave);
-        if (!ruta) throw Object.assign(new Error(`Exportación bloqueada: no existe una ruta FTP activa para marca ${normalizar(registro.MARCA)}, rubro ${normalizar(registro.RUBRO)} y licencia SIN LICENCIA.`), { status: 409 });
+        if (!ruta) throw errorDestinoFaltante(registro, 'SIN LICENCIA');
       } else {
         ruta += `/${marca}/${rubro}`;
       }
@@ -552,7 +557,7 @@ function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = 
       if (destinos) {
         const clave = claveDestinoMaestro(marca, tipo === 'MODELO' ? licencia : 'SIN LICENCIA', rubro);
         ruta = destinos.get(clave);
-        if (!ruta) throw Object.assign(new Error(`Exportación bloqueada: no existe una ruta FTP activa para marca ${normalizar(registro.MARCA)}, rubro ${normalizar(registro.RUBRO)} y licencia ${tipo === 'MODELO' ? licencia : 'SIN LICENCIA'}.`), { status: 409 });
+        if (!ruta) throw errorDestinoFaltante(registro, tipo === 'MODELO' ? licencia : 'SIN LICENCIA');
       } else {
         const aliases = { SL: 'SAN_LORENZO', VS: 'VELEZ_SARSFIELD', TA: 'TALLERES', VELEZ: 'VELEZ_SARSFIELD' };
         ruta += `/${marca}`;

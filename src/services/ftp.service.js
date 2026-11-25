@@ -1190,7 +1190,22 @@ async function descargarArchivos(
 }
 
 
+async function verificarCarpeta(ruta) {
+    const config = obtenerConfiguracion();
+    return ejecutarConCircuitBreaker(config, async () => {
+        const cliente = new ftp.Client(config.timeout);
+        try {
+            const { host, port, user, password, secure } = config;
+            await cliente.access({ host, port, user, password, secure });
+            await cliente.cd(ruta);
+        } finally {
+            cliente.close();
+        }
+    });
+}
+
 module.exports = {
+    verificarCarpeta,
     subirArchivo,
     existeArchivo,
     limpiarCarpeta,

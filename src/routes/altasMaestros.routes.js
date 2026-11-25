@@ -70,7 +70,65 @@ router.post('/modelos/descargar-vista-previa', requerirEscrituraEmpresa, async (
 });
 router.post('/enviar-presea', requerirEscrituraEmpresa, async (req, res) => {
   try { res.json({ ok: true, ...(await service.enviarPresea({ idEmpresa: req.idEmpresa, usuario: req.session?.usuario?.usuario })) }); }
-  catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }
+  catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message, destino: e.destino }); }
+});
+
+function rutaDestino(valor) {
+  const ruta = service.resolverRutaDestinoMaestros(valor)?.replace(/\/+$/, '');
+  if (!ruta || ruta.length > 500 || !/^\/ALTAS_MAESTROS(?:\/[A-Za-z0-9_ -]+)+$/i.test(ruta)) {
+    throw Object.assign(new Error('Ingresá una carpeta válida dentro de /ALTAS_MAESTROS.'), { status: 400 });
+  }
+  return ruta;
+}
+
+router.use('/destinos', requerirAdminUsuarios, (req, res, next) => {
+  if (req.session?.usuario?.superAdmin || ['ADMIN', 'SUPER_ADMIN'].includes(String(req.accesoEmpresa?.rol || '').toUpperCase())) return next();
+  return res.status(403).json({ mensaje: 'Solo un administrador de esta empresa puede configurar sus destinos FTP.' });
+});
+
+router.get('/destinos', async (req, res) => {
+  try {
+    const pool = await getConnection();
+    const { recordset } = await pool.request().input('empresa', sql.Int, req.idEmpresa).query(
+      'SELECT MARCA, RUBRO, LICENCIA, RUTA_DESTINO, ACTIVO FROM dbo.ALTAS_MAESTROS_DESTINOS WHERE ID_EMPRESA=@empresa ORDER BY MARCA,RUBRO,LICENCIA'
+    );
+    res.json({ datos: recordset });
+  } catch (e) { res.status(500).json({ mensaje: e.message }); }
+});
+
+router.post('/destinos/verificar', async (req, res) => {
+  try {
+    const ruta = rutaDestino(req.body?.ruta);
+    await require('../services/ftp.service').verificarCarpeta(ruta);
+    res.json({ ok: true });
+  } catch (e) { res.status(e.status || 422).json({ mensaje: e.status ? e.message : 'No se pudo acceder a la carpeta FTP.' }); }
+});
+
+router.put('/destinos', async (req, res) => {
+  try {
+    const { marca, rubro, licencia, ruta, activo } = req.body || {};
+    const normalizar = valor => String(valor ?? '').trim().toUpperCase();
+    const clave = service.claveDestinoMaestro(marca, licencia, rubro);
+    const [, licenciaCanonica] = clave.split('|');
+    if ([marca, rubro, licenciaCanonica].some(v => normalizar(v).length > 50) || typeof activo !== 'boolean') {
+      return res.status(400).json({ mensaje: 'Revisá la combinación del destino y su estado.' });
+    }
+    const pool = await getConnection();
+    const request = pool.request().input('empresa', sql.Int, req.idEmpresa)
+      .input('marca', sql.VarChar(50), normalizar(marca))
+      .input('rubro', sql.VarChar(50), normalizar(rubro))
+      .input('licencia', sql.VarChar(50), licenciaCanonica)
+      .input('ruta', sql.VarChar(500), rutaDestino(ruta)).input('activo', sql.Bit, activo);
+    await request.query(`
+      MERGE dbo.ALTAS_MAESTROS_DESTINOS WITH (HOLDLOCK) AS D
+      USING (SELECT @empresa ID_EMPRESA,@marca MARCA,@rubro RUBRO,@licencia LICENCIA) AS S
+      ON D.ID_EMPRESA=S.ID_EMPRESA AND D.MARCA=S.MARCA AND D.RUBRO=S.RUBRO AND D.LICENCIA=S.LICENCIA
+      WHEN MATCHED THEN UPDATE SET RUTA_DESTINO=@ruta, ACTIVO=@activo, FECHA_ACTUALIZACION=SYSDATETIME()
+      WHEN NOT MATCHED THEN INSERT(ID_EMPRESA,MARCA,RUBRO,LICENCIA,RUTA_DESTINO,ACTIVO)
+        VALUES(@empresa,@marca,@rubro,@licencia,@ruta,@activo);
+    `);
+    res.json({ ok: true });
+  } catch (e) { res.status(e.status || 500).json({ mensaje: e.message }); }
 });
 router.post('/sincronizar', requerirAdminUsuarios, async (req, res) => {
   try {

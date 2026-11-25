@@ -105,8 +105,29 @@
     id="tabReglasEan"
     class="nav-link"
     type="button"
-  >Control de EAN</button></div>
+  >Control de EAN</button><button id="tabDestinos" class="nav-link d-none" type="button">Destinos de exportación</button></div>
 <div id="alertaAltasMaestros" class="alert d-none"></div>
+<section id="panelDestinos" class="card shadow-sm mb-4 d-none">
+  <div class="card-body">
+    <h2 class="h5">Destinos FTP de la empresa seleccionada</h2>
+    <form id="formDestino" class="row g-2 align-items-end mb-3">
+      <label class="col-md-2">Marca <input name="marca" class="form-control" required maxlength="50"></label>
+      <label class="col-md-2">Rubro <input name="rubro" class="form-control" required maxlength="50"></label>
+      <label class="col-md-2">Licencia <input name="licencia" class="form-control" value="SIN LICENCIA" maxlength="50"></label>
+      <label class="col-md-6">Ruta FTP <input name="ruta" class="form-control" required maxlength="500" placeholder="/ALTAS_MAESTROS/..."></label>
+      <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
+        <label class="me-2"><input name="activo" type="checkbox" checked> Activo</label>
+        <button id="verificarDestino" type="button" class="btn btn-outline-primary">Verificar carpeta</button>
+        <button type="submit" class="btn btn-primary">Guardar destino</button>
+        <button type="reset" class="btn btn-outline-secondary">Limpiar</button>
+      </div>
+    </form>
+    <div class="table-responsive"><table class="table table-sm">
+      <thead><tr><th>Marca</th><th>Rubro</th><th>Licencia</th><th>Ruta FTP</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody id="tablaDestinos"></tbody>
+    </table></div>
+  </div>
+</section>
 <div id="panelReglasEan" class="d-none">
   <div class="card shadow-sm mb-4"><div class="card-body">
       <div

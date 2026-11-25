@@ -16,7 +16,7 @@ async function esperarEmpresaActiva(maximoMs = 15000) {
   }
   return empresaValida();
 }
-async function api(url, opciones = {}) { const empresa = empresaValida(); if (!empresa) throw new Error('Debe seleccionar una empresa desde la barra superior.'); const r = await fetch(url, { ...opciones, headers: { 'Content-Type': 'application/json', 'x-id-empresa': String(empresa), ...(opciones.headers || {}) } }); const d = await r.json(); if (!r.ok) throw new Error(d.mensaje || 'No se pudo completar la operación.'); return d; }
+async function api(url, opciones = {}) { const empresa = empresaValida(); if (!empresa) throw new Error('Debe seleccionar una empresa desde la barra superior.'); const r = await fetch(url, { ...opciones, headers: { 'Content-Type': 'application/json', 'x-id-empresa': String(empresa), ...(opciones.headers || {}) } }); const d = await r.json(); if (!r.ok) throw Object.assign(new Error(d.mensaje || 'No se pudo completar la operación.'), { destino: d.destino }); return d; }
 function alerta(m, tipo = 'success') { const e = $('alertaAltasMaestros'); e.textContent = m; e.className = `alert alert-${tipo}`; }
 function limpiarAvisoEmpresa() { const e = $('alertaAltasMaestros'); if (e.textContent.includes('seleccionar una empresa')) { e.textContent = ''; e.className = 'alert d-none'; } }
 function textoSeguro(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -45,15 +45,67 @@ function proveedorVistaPrevia(x) { return textoSeguro(x.proveedorNombre || '-') 
 function cambiarPanelMaestros(panel) {
   const consulta = panel === 'consulta';
   const reglasEan = panel === 'ean';
-  $('panelGestionMaestros').classList.toggle('d-none', consulta || reglasEan);
+  const destinos = panel === 'destinos';
+  $('panelDestinos').classList.toggle('d-none', !destinos);
+  $('tabDestinos').classList.toggle('active', destinos);
+  $('panelGestionMaestros').classList.toggle('d-none', consulta || reglasEan || destinos);
   $('panelConsultaMaestros').classList.toggle('d-none', !consulta);
   $('panelReglasEan').classList.toggle('d-none', !reglasEan);
-  $('accionesAltasMaestros').classList.toggle('d-none', consulta || reglasEan);
-  $('tabAltasMaestros').classList.toggle('active', !consulta && !reglasEan);
+  $('accionesAltasMaestros').classList.toggle('d-none', consulta || reglasEan || destinos);
+  $('tabAltasMaestros').classList.toggle('active', !consulta && !reglasEan && !destinos);
   $('tabConsultaMaestros').classList.toggle('active', consulta);
   $('tabReglasEan').classList.toggle('active', reglasEan);
   if (consulta && empresaValida() && !consultaMaestros.length) cargarConsultaMaestros();
   if (reglasEan && empresaValida()) cargarReglasEan();
+  if (destinos && empresaValida()) cargarDestinos();
+}
+function completarDestino({ marca, rubro, licencia, ruta = '', activo = true }) {
+  const campos = $('formDestino').elements;
+  for (const [nombre, valor] of Object.entries({ marca, rubro, licencia, ruta })) campos.namedItem(nombre).value = valor;
+  campos.namedItem('activo').checked = activo;
+  campos.namedItem('ruta').focus();
+}
+
+async function cargarDestinos() {
+  const tabla = $('tablaDestinos');
+  tabla.replaceChildren();
+  const empresa = empresaValida();
+  try {
+    const { datos } = await api('/api/altas-maestros/destinos');
+    if (empresa !== empresaValida()) return;
+    for (const d of datos) {
+      const fila = tabla.insertRow();
+      for (const texto of [d.MARCA, d.RUBRO, d.LICENCIA, d.RUTA_DESTINO, d.ACTIVO ? 'Activo' : 'Inactivo']) {
+        fila.insertCell().textContent = texto;
+      }
+      const editar = document.createElement('button');
+      editar.type = 'button';
+      editar.className = 'btn btn-sm btn-outline-primary';
+      editar.textContent = 'Editar';
+      editar.onclick = () => completarDestino({
+        marca: d.MARCA, rubro: d.RUBRO, licencia: d.LICENCIA, ruta: d.RUTA_DESTINO, activo: d.ACTIVO
+      });
+      fila.insertCell().append(editar);
+    }
+  } catch (e) { alerta(e.message, 'danger'); }
+}
+
+async function operarDestino(evento, verificar) {
+  evento.preventDefault();
+  const form = $('formDestino');
+  if (!form.reportValidity()) return;
+  const boton = evento.submitter || evento.currentTarget;
+  const datos = Object.fromEntries(new FormData(form));
+  datos.activo = form.elements.namedItem('activo').checked;
+  boton.disabled = true;
+  try {
+    await api('/api/altas-maestros/destinos' + (verificar ? '/verificar' : ''), {
+      method: verificar ? 'POST' : 'PUT', body: JSON.stringify(datos)
+    });
+    alerta(verificar ? 'La carpeta FTP está disponible.' : 'Destino guardado.');
+    if (!verificar) await cargarDestinos();
+  } catch (e) { alerta(e.message, 'danger'); }
+  finally { boton.disabled = false; }
 }
 function filasConsultaFiltradas() {
   const texto = $('buscarConsultaMaestros').value.trim().toUpperCase();
@@ -171,6 +223,7 @@ async function aplicarPermisosPantallaMaestros() {
     const puedeEscribir = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN','OPERADOR'].includes(String(accesoActivo?.rol || '').toUpperCase());
     puedeAdministrarEan = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN'].includes(String(accesoActivo?.rol || '').toUpperCase());
     puedeActualizarMaestros = puedeAdministrarEan;
+    $('tabDestinos').classList.toggle('d-none', !puedeAdministrarEan);
     $('btnActualizarMaestros')?.classList.toggle('d-none', !puedeActualizarMaestros);
     $('formReglaEan')?.classList.toggle('d-none', !puedeAdministrarEan);
     $('tabAltasMaestros').classList.toggle('d-none', !puedeEscribir);
@@ -463,7 +516,30 @@ async function confirmarSolicitudMaestro() {
     btn.textContent = textoOriginal;
   }
 }
-async function enviar() { if (!confirm('¿Generar y enviar los DBI pendientes a Presea?')) return; try { const d = await api('/api/altas-maestros/enviar-presea', { method: 'POST', body: '{}' }); alerta(`${d.registros} registros enviados correctamente en ${d.archivos.length} archivo(s).`); await cargar(); mostrarConfirmacionEnvioMaestros(d); } catch (e) { alerta(e.message, 'danger'); } }
+async function enviar() {
+  if (!confirm('¿Generar y enviar los DBI pendientes a Presea?')) return;
+  const empresa = empresaValida();
+  try {
+    const d = await api('/api/altas-maestros/enviar-presea', { method: 'POST', body: '{}' });
+    alerta(`${d.registros} registros enviados correctamente en ${d.archivos.length} archivo(s).`);
+    await cargar();
+    mostrarConfirmacionEnvioMaestros(d);
+  } catch (e) {
+    alerta(e.message, 'danger');
+    if (e.destino && puedeAdministrarEan && empresa === empresaValida()) {
+      const boton = document.createElement('button');
+      boton.type = 'button';
+      boton.className = 'btn btn-sm btn-outline-danger ms-2';
+      boton.textContent = 'Configurar destino';
+      boton.onclick = () => {
+        if (empresa !== empresaValida()) return;
+        cambiarPanelMaestros('destinos');
+        completarDestino(e.destino);
+      };
+      $('alertaAltasMaestros').append(boton);
+    }
+  }
+}
 function pintarVistaPreviaModelos(resultado) {
   vistaPreviaModelos = resultado.filas || [];
   $('panelVistaPreviaModelos').classList.remove('d-none');
@@ -557,6 +633,12 @@ async function iniciar() {
   $('tabAltasMaestros').addEventListener('click', () => cambiarPanelMaestros('altas'));
   $('tabConsultaMaestros').addEventListener('click', () => cambiarPanelMaestros('consulta'));
   $('tabReglasEan').addEventListener('click', () => cambiarPanelMaestros('ean'));
+  $('tabDestinos').addEventListener('click', () => {
+    $('formDestino').reset();
+    cambiarPanelMaestros('destinos');
+  });
+  $('formDestino').addEventListener('submit', e => operarDestino(e, false));
+  $('verificarDestino').addEventListener('click', e => operarDestino(e, true));
   $('tipoConsultaMaestros').addEventListener('change', cargarConsultaMaestros);
   $('buscarConsultaMaestros').addEventListener('input', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
   $('estadoConsultaModulos').addEventListener('change', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });
@@ -595,6 +677,13 @@ async function iniciar() {
   $('formAltaMaestro').addEventListener('submit', guardar);
   window.addEventListener('app:empresa-cambiada', event => {
     event.preventDefault();
+    if (!$('panelDestinos').classList.contains('d-none')) {
+      $('formDestino').reset();
+      $('tablaDestinos').replaceChildren();
+      alerta('');
+      $('alertaAltasMaestros').classList.add('d-none');
+      cambiarPanelMaestros('altas');
+    }
     limpiarAvisoEmpresa();
     vistaPreviaModelos = [];
     consultaMaestros = [];

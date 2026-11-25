@@ -59,9 +59,52 @@ function cambiarPanelMaestros(panel) {
   if (reglasEan && empresaValida()) cargarReglasEan();
   if (destinos && empresaValida()) cargarDestinos();
 }
+function seleccionarDestino(select, valor) {
+  const normalizar = texto => texto.trim().toUpperCase().replaceAll('_', ' ');
+  const opcion = [...select.options].find(o => normalizar(o.value) === normalizar(valor));
+  if (!opcion) select.add(new Option(valor, valor));
+  select.value = opcion?.value ?? valor;
+}
+
+let consultaLicenciasDestino = 0;
+async function cargarLicenciasDestino(licencia = 'SIN LICENCIA') {
+  const consulta = ++consultaLicenciasDestino;
+  const campos = $('formDestino').elements;
+  const select = campos.namedItem('licencia');
+  const marca = campos.namedItem('marca').value;
+  const rubro = campos.namedItem('rubro').value;
+  const empresa = empresaValida();
+  const vigente = () => consulta === consultaLicenciasDestino && empresa === empresaValida();
+  select.replaceChildren(new Option('Sin licencia', 'SIN LICENCIA'));
+  select.disabled = !marca || !rubro;
+  if (!marca || !rubro) return;
+  select.disabled = true;
+  try {
+    const q = new URLSearchParams({ marca, rubro, incluirOtrosRubros: 'true' });
+    const { datos } = await api('/api/maestros/licencias-modelos?' + q);
+    if (!vigente()) return;
+    for (const d of datos) {
+      if (!['__SIN_LICENCIA__', 'SIN LICENCIA'].includes(d.CODIGO_LICENCIA)) {
+        select.add(new Option(d.DETALLE_LICENCIA, d.CODIGO_LICENCIA));
+      }
+    }
+    seleccionarDestino(select, licencia);
+  } catch (e) {
+    if (vigente()) {
+      seleccionarDestino(select, licencia);
+      alerta(e.message, 'danger');
+    }
+  } finally {
+    if (vigente()) select.disabled = false;
+  }
+}
+
 function completarDestino({ marca, rubro, licencia, ruta = '', activo = true }) {
   const campos = $('formDestino').elements;
-  for (const [nombre, valor] of Object.entries({ marca, rubro, licencia, ruta })) campos.namedItem(nombre).value = valor;
+  seleccionarDestino(campos.namedItem('marca'), marca);
+  seleccionarDestino(campos.namedItem('rubro'), rubro);
+  cargarLicenciasDestino(licencia);
+  campos.namedItem('ruta').value = ruta;
   campos.namedItem('activo').checked = activo;
   campos.namedItem('ruta').focus();
 }
@@ -93,6 +136,7 @@ async function cargarDestinos() {
 async function operarDestino(evento, verificar) {
   evento.preventDefault();
   const form = $('formDestino');
+  if (!verificar && form.elements.namedItem('licencia').disabled) return;
   if (!form.reportValidity()) return;
   const boton = evento.submitter || evento.currentTarget;
   const datos = Object.fromEntries(new FormData(form));
@@ -262,6 +306,17 @@ async function cargarCatalogosModelo() {
   const [marcas, rubros, proveedores, disciplinas] = await Promise.all([api('/api/maestros/marcas'), api('/api/maestros/rubros'), api('/api/maestros/proveedores'), api('/api/maestros/deportes')]);
   $('marcaModelo').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca...');
   $('rubroModelo').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Seleccione rubro...');
+  const destino = $('formDestino').elements;
+  for (const [nombre, datos, campo] of [
+    ['marca', marcas.datos, 'DETALLE_MARCA'],
+    ['rubro', rubros.datos, 'DETALLE_RUBRO']
+  ]) {
+    const valores = [...new Set(datos.map(fila => fila[campo]).filter(Boolean))];
+    destino.namedItem(nombre).replaceChildren(
+      new Option('Seleccioná ' + nombre, ''),
+      ...valores.map(valor => new Option(valor, valor))
+    );
+  }
   $('marcaReferenciaColor').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Sin referencia de marca');
   $('marcaModulo').innerHTML = opciones(marcas.datos, 'DETALLE_MARCA', 'DETALLE_MARCA', 'Seleccione marca del módulo...');
   $('rubroReferenciaColor').innerHTML = opciones(rubros.datos, 'DETALLE_RUBRO', 'DETALLE_RUBRO', 'Sin referencia de rubro');
@@ -638,6 +693,10 @@ async function iniciar() {
     cambiarPanelMaestros('destinos');
   });
   $('formDestino').addEventListener('submit', e => operarDestino(e, false));
+  $('formDestino').addEventListener('change', e => {
+    if (['marca', 'rubro'].includes(e.target.name)) cargarLicenciasDestino();
+  });
+  $('formDestino').addEventListener('reset', () => queueMicrotask(() => cargarLicenciasDestino()));
   $('verificarDestino').addEventListener('click', e => operarDestino(e, true));
   $('tipoConsultaMaestros').addEventListener('change', cargarConsultaMaestros);
   $('buscarConsultaMaestros').addEventListener('input', () => { paginaConsultaMaestros = 1; renderConsultaMaestros(); });

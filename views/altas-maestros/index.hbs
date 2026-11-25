@@ -111,9 +111,9 @@
   <div class="card-body">
     <h2 class="h5">Destinos FTP de la empresa seleccionada</h2>
     <form id="formDestino" class="row g-2 align-items-end mb-3">
-      <label class="col-md-2">Marca <input name="marca" class="form-control" required maxlength="50"></label>
-      <label class="col-md-2">Rubro <input name="rubro" class="form-control" required maxlength="50"></label>
-      <label class="col-md-2">Licencia <input name="licencia" class="form-control" value="SIN LICENCIA" maxlength="50"></label>
+      <label class="col-md-2">Marca <select name="marca" class="form-select" required></select></label>
+      <label class="col-md-2">Rubro <select name="rubro" class="form-select" required></select></label>
+      <label class="col-md-2">Licencia <select name="licencia" class="form-select" required><option value="SIN LICENCIA">Sin licencia</option></select></label>
       <label class="col-md-6">Ruta FTP <input name="ruta" class="form-control" required maxlength="500" placeholder="/ALTAS_MAESTROS/..."></label>
       <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
         <label class="me-2"><input name="activo" type="checkbox" checked> Activo</label>

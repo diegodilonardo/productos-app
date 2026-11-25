@@ -130,7 +130,7 @@ router.put('/destinos', async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(e.status || 500).json({ mensaje: e.message }); }
 });
-router.post('/sincronizar', requerirAdminUsuarios, async (req, res) => {
+router.post('/sincronizar', requerirEscrituraEmpresa, async (req, res) => {
   try {
     const pool = await getConnection();
     const empresa = await pool.request()

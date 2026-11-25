@@ -12,7 +12,7 @@ test('la pantalla permite actualizar los maestros de Presea manualmente', () => 
   assert.match(cliente, /actualizarMaestrosDesdePresea/);
   assert.match(cliente, /\/api\/altas-maestros\/sincronizar/);
   assert.match(cliente, /btnActualizarMaestros'\)\.addEventListener\('click', actualizarMaestrosDesdePresea\)/);
-  assert.match(rutas, /router\.post\('\/sincronizar', requerirAdminUsuarios/);
+  assert.match(rutas, /router\.post\('\/sincronizar', requerirEscrituraEmpresa/);
   assert.match(rutas, /ejecutarMaestrosEmpresaAhora/);
 });
 

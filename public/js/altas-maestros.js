@@ -285,7 +285,7 @@ async function aplicarPermisosPantallaMaestros() {
     const accesoActivo = (usuario.empresas || []).find(x => Number(x.idEmpresa) === empresaValida());
     const puedeEscribir = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN','OPERADOR'].includes(String(accesoActivo?.rol || '').toUpperCase());
     puedeAdministrarEan = Boolean(usuario.superAdmin) || ['SUPER_ADMIN','ADMIN'].includes(String(accesoActivo?.rol || '').toUpperCase());
-    puedeActualizarMaestros = puedeAdministrarEan;
+    puedeActualizarMaestros = puedeEscribir;
     $('tabDestinos').classList.toggle('d-none', !puedeAdministrarEan);
     $('btnActualizarMaestros')?.classList.toggle('d-none', !puedeActualizarMaestros);
     $('formReglaEan')?.classList.toggle('d-none', !puedeAdministrarEan);

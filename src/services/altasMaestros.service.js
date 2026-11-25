@@ -42,6 +42,15 @@ const seriesModeloLicencia = [
 const seriesModeloPorMarca = {
   VANTEK: { prefijo: 'VK', largoCorrelativo: 4, ultimoConfirmado: 0 }
 };
+function serieLicenciaParaRubro(marca, rubro, licencia) {
+  if (marca !== 'ATOMIK') return null;
+  if (licencia === 'GIMNASIA ESGRIMA LP') {
+    if (rubro === 'CALZADO') return { prefijo: 'GLP', largoCorrelativo: 3, ultimoConfirmado: -1 };
+    if (['ACCESORIOS', 'INDUMENTARIA'].includes(rubro)) return { prefijo: 'GE', largoCorrelativo: 4, ultimoConfirmado: -1 };
+    return null;
+  }
+  return seriesModeloLicencia.find(serie => serie.aliases.includes(licencia));
+}
 function normalizar(v) { return String(v ?? '').trim().toUpperCase(); }
 function normalizarNombre(v) { return normalizar(v).replace(/\s+/g, ' '); }
 function mensajeNombreDuplicado(tipo, nombre, duplicado, marca = '', rubro = '') {
@@ -147,19 +156,23 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   const modelosVigentes = modelos.filter(x => x.REUTILIZABLE !== true && x.REUTILIZABLE !== 1);
   const anuladosDisponibles = modelos.filter(x => x.REUTILIZABLE === true || x.REUTILIZABLE === 1);
   const ocupados = new Set([...modelosVigentes.map(x => normalizar(x.CODIGO)), ...(filtros.ocupadosAdicionales || []).map(normalizar)]);
+  const serieLicenciada = serieLicenciaParaRubro(marca, rubro, licencia);
+  const referenciasLicencia = modelosVigentes.filter(x =>
+    normalizar(x.MARCA) === marca && normalizarLicencia(x.LICENCIA) === licencia
+  );
+  const referenciasRubro = referenciasLicencia.filter(x => normalizar(x.RUBRO) === rubro);
+  const referencias = referenciasRubro.length ? referenciasRubro : referenciasLicencia;
   const codigoAnulado = anuladosDisponibles.find(item => {
     if (normalizar(item.MARCA) !== marca || normalizar(item.RUBRO) !== rubro) return false;
     if (normalizarLicencia(item.LICENCIA) !== licencia || ocupados.has(normalizar(item.CODIGO))) return false;
     if (licencia !== 'SIN LICENCIA') {
       const codigoAnuladoNormalizado = normalizar(item.CODIGO);
       if (nuevaLicencia) return codigoAnuladoNormalizado.startsWith(prefijoNuevo);
-      if (marca !== 'ATOMIK') return true;
-      const serieConfirmada = seriesModeloLicencia.find(x => x.aliases.includes(licencia));
+      const serieConfirmada = serieLicenciada;
       if (serieConfirmada) {
         return new RegExp(`^${serieConfirmada.prefijo}\\d{${serieConfirmada.largoCorrelativo}}$`).test(codigoAnuladoNormalizado);
       }
-      const prefijosVigentes = modelosVigentes
-        .filter(x => normalizar(x.MARCA) === marca && normalizarLicencia(x.LICENCIA) === licencia)
+      const prefijosVigentes = referencias
         .map(x => normalizar(x.CODIGO).slice(0, 2))
         .filter(x => /^[A-Z]{2}$/.test(x));
       return !prefijosVigentes.length || prefijosVigentes.includes(codigoAnuladoNormalizado.slice(0, 2));
@@ -172,7 +185,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
     }
   });
   if (codigoAnulado) return normalizar(codigoAnulado.CODIGO);
-  if (marca !== 'ATOMIK') {
+  if (marca !== 'ATOMIK' && licencia === 'SIN LICENCIA') {
     const serieConfigurada = seriesModeloPorMarca[marca];
     if (serieConfigurada) return sugerirPorSerieConfigurada(ocupados, serieConfigurada);
     return sugerirPorMarcaYRubro(modelosVigentes, ocupados, marca, rubro);
@@ -188,7 +201,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
     prefijo = prefijoNuevo;
     correlativoSoloNumerico = true;
   } else {
-    const mismaLicencia = modelosVigentes.filter(x => normalizar(x.LICENCIA || 'SIN LICENCIA') === licencia);
+    const mismaLicencia = modelosVigentes.filter(x => normalizarLicencia(x.LICENCIA) === licencia);
     if (licencia === 'SIN LICENCIA') {
       const serieConfirmada = marca === 'ATOMIK' ? seriesModeloSinLicencia[`${rubro}|${disciplina}`] : null;
       if (serieConfirmada) { ({ prefijo, largoCorrelativo, ultimoConfirmado } = serieConfirmada); correlativoSoloNumerico = true; }
@@ -214,11 +227,10 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
         } else throw Object.assign(new Error('No hay una numeración habilitada para esa marca y rubro sin licencia.'), { status: 409 });
       }
     } else {
-      const serieConfirmada = marca === 'ATOMIK' ? seriesModeloLicencia.find(x => x.aliases.includes(licencia)) : null;
+      const serieConfirmada = serieLicenciada;
       if (serieConfirmada) { ({ prefijo, largoCorrelativo, ultimoConfirmado } = serieConfirmada); correlativoSoloNumerico = true; }
       else {
-        const candidatos = mismaLicencia.filter(x => normalizar(x.MARCA) === marca);
-        const referencia = candidatos.length ? candidatos : mismaLicencia;
+        const referencia = referencias;
         codigosParaCorrelativo = referencia.map(x => normalizar(x.CODIGO));
         const prefijosValidos = referencia.map(x => normalizar(x.CODIGO).slice(0, 2)).filter(x => /^[A-Z]{2}$/.test(x));
         prefijo = prefijosValidos.sort((a, b) => prefijosValidos.filter(x => x === b).length - prefijosValidos.filter(x => x === a).length)[0];

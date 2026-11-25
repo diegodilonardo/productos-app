@@ -109,6 +109,22 @@ function completarDestino({ marca, rubro, licencia, ruta = '', activo = true }) 
   campos.namedItem('ruta').focus();
 }
 
+function filtrarDestinos() {
+  const normalizar = valor => valor.normalize('NFD').replace(/\p{M}/gu, '').replaceAll('_', ' ').toLowerCase().trim();
+  const terminos = normalizar($('buscarDestinos').value).split(/\s+/).filter(Boolean);
+  let visibles = 0;
+  const filas = [...$('tablaDestinos').rows];
+  for (const fila of filas) {
+    const texto = normalizar(fila.dataset.busqueda);
+    fila.hidden = !terminos.every(termino => {
+      if (termino === 'activo' || termino === 'inactivo') return fila.dataset.estado === termino;
+      return texto.includes(termino);
+    });
+    if (!fila.hidden) visibles++;
+  }
+  $('resumenDestinos').textContent = `${visibles} de ${filas.length} destinos`;
+}
+
 async function cargarDestinos() {
   const tabla = $('tablaDestinos');
   tabla.replaceChildren();
@@ -118,6 +134,8 @@ async function cargarDestinos() {
     if (empresa !== empresaValida()) return;
     for (const d of datos) {
       const fila = tabla.insertRow();
+      fila.dataset.busqueda = [d.MARCA, d.RUBRO, d.LICENCIA, d.RUTA_DESTINO].join(' ');
+      fila.dataset.estado = d.ACTIVO ? 'activo' : 'inactivo';
       for (const texto of [d.MARCA, d.RUBRO, d.LICENCIA, d.RUTA_DESTINO, d.ACTIVO ? 'Activo' : 'Inactivo']) {
         fila.insertCell().textContent = texto;
       }
@@ -130,6 +148,7 @@ async function cargarDestinos() {
       });
       fila.insertCell().append(editar);
     }
+    filtrarDestinos();
   } catch (e) { alerta(e.message, 'danger'); }
 }
 
@@ -693,6 +712,7 @@ async function iniciar() {
     cambiarPanelMaestros('destinos');
   });
   $('formDestino').addEventListener('submit', e => operarDestino(e, false));
+  $('buscarDestinos').addEventListener('input', filtrarDestinos);
   $('formDestino').addEventListener('change', e => {
     if (['marca', 'rubro'].includes(e.target.name)) cargarLicenciasDestino();
   });
@@ -739,6 +759,8 @@ async function iniciar() {
     if (!$('panelDestinos').classList.contains('d-none')) {
       $('formDestino').reset();
       $('tablaDestinos').replaceChildren();
+      $('buscarDestinos').value = '';
+      filtrarDestinos();
       alerta('');
       $('alertaAltasMaestros').classList.add('d-none');
       cambiarPanelMaestros('altas');

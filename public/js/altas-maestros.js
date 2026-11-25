@@ -51,7 +51,7 @@ function cambiarPanelMaestros(panel) {
   $('panelGestionMaestros').classList.toggle('d-none', consulta || reglasEan || destinos);
   $('panelConsultaMaestros').classList.toggle('d-none', !consulta);
   $('panelReglasEan').classList.toggle('d-none', !reglasEan);
-  $('accionesAltasMaestros').classList.toggle('d-none', consulta || reglasEan || destinos);
+  $('btnEnviarMaestros').classList.toggle('d-none', consulta || reglasEan || destinos);
   $('tabAltasMaestros').classList.toggle('active', !consulta && !reglasEan && !destinos);
   $('tabConsultaMaestros').classList.toggle('active', consulta);
   $('tabReglasEan').classList.toggle('active', reglasEan);

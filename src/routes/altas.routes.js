@@ -195,6 +195,17 @@ router.post('/:id/actualizar-erp', requerirAccesoAlta, requerirEscrituraEmpresa,
    AGREGAR DETALLE / PRODUCTOS
    ============================================================ */
 
+router.post('/:id/desde-modulo', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const datos = await altasService.generarDesdeModulo(req.params.id, {
+            ...req.body, usuario: req.usuario.usuario
+        }, req.usuario, req.body?.confirmar === true);
+        res.json({ ok: true, datos });
+    } catch (error) {
+        res.status(400).json({ ok: false, mensaje: error.message });
+    }
+});
+
 router.post('/:id/detalle', requerirAccesoAlta, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado =

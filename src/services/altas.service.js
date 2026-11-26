@@ -2665,6 +2665,48 @@ function expandirCombinatoriaCurvas(datosEntrada) {
     };
 }
 
+async function generarDesdeModulo(idAlta, entrada, contextoUsuario, confirmar = false) {
+    const alta = await altasRepository.obtenerAltaPorId(validarId(idAlta));
+    if (!alta || alta.ESTADO !== 'BORRADOR' || normalizarTipoProducto(alta.TIPO_PRODUCTO) !== 'MODULO') {
+        throw new Error('Seleccioná un alta de módulos en borrador.');
+    }
+    const alfa = normalizarTexto(entrada.codigoAlfaOrigen).toUpperCase();
+    const codigoColor = normalizarTexto(entrada.codigoColor).toUpperCase();
+    const codigoModulo = normalizarTexto(entrada.codigoModulo).toUpperCase();
+    if (!alfa || !codigoColor || !codigoModulo) throw new Error('Completá el código alfa, color y curva.');
+    const erp = await altasRepository.buscarProductoERP('MODULO', alfa, alta.ID_EMPRESA);
+    if (!erp?.ACTIVO) throw new Error('El módulo de origen no figura activo en Presea.');
+    const origen = await altasRepository.buscarModuloOrigen(alta.ID_EMPRESA, alfa);
+    if (!origen) throw new Error('El módulo existe en Presea, pero la app no tiene su ficha completa para copiar los atributos.');
+    validarAlcanceAlta(contextoUsuario, alta, origen.LICENCIA || 'SIN LICENCIA');
+    for (const campo of ['CODIGO_MARCA', 'CODIGO_RUBRO', 'CODIGO_ANO', 'CODIGO_TEMPORADA']) {
+        if (normalizarTexto(alta[campo]) !== normalizarTexto(origen[campo])) {
+            throw new Error('El alta debe coincidir con el módulo de origen en marca, rubro, año y temporada.');
+        }
+    }
+    if (codigoColor === origen.CODIGO_COLOR && codigoModulo === origen.CODIGO_MODULO) {
+        throw new Error('Elegí otro color o curva para generar una variante.');
+    }
+    const datos = {
+        codigoColor, codigoModulo, usuario: entrada.usuario,
+        codigoModelo: origen.CODIGO_MODELO, codigoProveedor: origen.CODIGO_PROVEEDOR,
+        codigoGrupo: origen.CODIGO_GRUPO, codigoSubgrupo: origen.CODIGO_SUBGRUPO,
+        codigoLinea: origen.CODIGO_LINEA, codigoDeporte: origen.CODIGO_DEPORTE,
+        codigoEdad: origen.CODIGO_EDAD, sexo: origen.SEXO, codigoPais: origen.CODIGO_PAIS,
+        codigoClasificacion: origen.CODIGO_CLASIFICACION
+    };
+    const preparado = await prepararDetalleProducto(idAlta, datos, {
+        contextoUsuario, codigosGenerados: new Set(), prefijoClave: 'P1'
+    });
+    if (preparado.detallesAGuardar.some(d => normalizarTexto(d.LICENCIA) !== normalizarTexto(origen.LICENCIA))) {
+        throw new Error('La licencia actual del modelo difiere de la ficha de origen.');
+    }
+    if (confirmar) {
+        await altasRepository.crearDetalles(preparado.idAlta, preparado.detallesAGuardar, preparado.usuario, preparado.relacionesFamilia);
+    }
+    return { productos: preparado.detallesAGuardar, omitidos: preparado.omitidos };
+}
+
 async function agregarDetalle(
     idAlta,
     datosEntrada,
@@ -3505,6 +3547,7 @@ async function anularAlta(
    ============================================================ */
 
 module.exports = {
+    generarDesdeModulo,
 
     crearAlta,
 

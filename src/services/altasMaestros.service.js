@@ -6,6 +6,7 @@ const ExcelJS = require('exceljs');
 const maestrosRepository = require('../repositories/maestros.repository');
 const { escribirDBFGenerico } = require('./dbfWriterGenerico.service');
 const ftpService = require('./ftp.service');
+const { accesoPermiteAlta } = require('../middlewares/auth.middleware');
 
 function resolverRutaDestinoMaestros(rutaConfigurada) {
   const ruta = String(rutaConfigurada || '').trim().replaceAll('/', '\\');
@@ -130,9 +131,21 @@ async function sugerirCodigo(idEmpresa, tipoEntrada) {
   throw Object.assign(new Error(`No quedan códigos disponibles para ${tipo}.`), { status: 409 });
 }
 
-async function listar(idEmpresa, usuario = 'SISTEMA') {
+async function listar(idEmpresa, usuario = 'SISTEMA', acceso) {
   await repository.conciliarModelosRegistrados(idEmpresa, usuario);
-  return repository.listar(idEmpresa);
+  const registros = await repository.listar(idEmpresa);
+  // Las solicitudes de maestros guardan descripciones; los permisos usan códigos.
+  const catalogo = (items, codigo, detalle) => new Map(
+    (items || []).flatMap(item => [item[codigo], item[detalle]]
+      .filter(Boolean).map(valor => [normalizar(valor), item[codigo]]))
+  );
+  const marcas = catalogo(acceso?.marcas, 'codigoMarca', 'detalleMarca');
+  const rubros = catalogo(acceso?.rubros, 'codigoRubro', 'detalleRubro');
+  return registros.filter(registro => accesoPermiteAlta(acceso, {
+    CODIGO_MARCA: marcas.get(normalizar(registro.MARCA)),
+    CODIGO_RUBRO: rubros.get(normalizar(registro.RUBRO)),
+    LICENCIA_ALTA: normalizarLicencia(registro.LICENCIA)
+  }));
 }
 
 async function eliminarPendiente({ idEmpresa, idAltaMaestro, usuario }) {

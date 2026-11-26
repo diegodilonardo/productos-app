@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.use(requerirAutenticacion, requerirEmpresa);
 router.get('/', async (req, res) => {
-  try { res.json({ ok: true, registros: await service.listar(req.idEmpresa, req.session?.usuario?.usuario || 'SISTEMA') }); }
+  try { res.json({ ok: true, registros: await service.listar(req.idEmpresa, req.session?.usuario?.usuario || 'SISTEMA', req.accesoEmpresa) }); }
   catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }
 });
 router.get('/siguiente-codigo/:tipo', async (req, res) => {

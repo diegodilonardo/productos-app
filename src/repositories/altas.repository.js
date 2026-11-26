@@ -913,6 +913,23 @@ async function buscarConfiguracionRubroFact({
    VALIDAR EXISTENCIA ERP
    ============================================================ */
 
+async function buscarModuloOrigen(idEmpresa, codigoAlfa) {
+  const pool = await getConnection();
+  const { recordset } = await pool.request()
+    .input('empresa', sql.Int, idEmpresa)
+    .input('alfa', sql.VarChar(30), codigoAlfa)
+    .query(`
+      SELECT TOP 1 D.*, A.CODIGO_MARCA, A.CODIGO_RUBRO, A.CODIGO_ANO, A.CODIGO_TEMPORADA
+      FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+      JOIN dbo.ALTAS_PRODUCTOS A ON A.ID_ALTA=D.ID_ALTA AND A.ID_EMPRESA=D.ID_EMPRESA
+      WHERE D.ID_EMPRESA=@empresa AND D.CODIGO_ALFA=@alfa
+        AND D.TIPO_PRODUCTO_DETALLE='MODULO'
+        AND A.ESTADO IN ('GENERADO_OK_EN_ERP','SIN_NOVEDADES_ERP','EXPORTADO')
+      ORDER BY D.ID_DETALLE DESC
+    `);
+  return recordset[0];
+}
+
 async function buscarProductoERP(tipoProducto, codigoAlfa, idEmpresa) {
   const pool = await getConnection();
 
@@ -2040,6 +2057,7 @@ module.exports = {
   buscarConfiguracionRubroFact,
 
   buscarProductoERP,
+  buscarModuloOrigen,
   reconciliarExistenciaERPAlta,
   buscarDetallePorCodigoAlfa,
   buscarCodigoAlfaEnOtraAlta,

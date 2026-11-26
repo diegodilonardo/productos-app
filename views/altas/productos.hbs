@@ -71,6 +71,19 @@
         </div>
 
         <div class="card-body px-4 pb-4">
+          <details class="mb-3">
+            <summary>Generar desde un módulo de Presea</summary>
+            <form id="formDesdeModulo" class="row g-2 mt-2">
+              <label class="col-md-4">COD_ALFA de origen <input name="codigoAlfaOrigen" class="form-control" maxlength="30" required></label>
+              <label class="col-md-4">Código de color destino <input name="codigoColor" class="form-control" required></label>
+              <label class="col-md-4">Código de curva destino <input name="codigoModulo" class="form-control" required></label>
+              <div class="col-12">
+                <button class="btn btn-outline-primary" type="submit">Vista previa</button>
+                <button id="confirmarDesdeModulo" class="btn btn-primary" type="button" disabled>Agregar al borrador</button>
+              </div>
+              <div id="resultadoDesdeModulo" class="col-12" role="status"></div>
+            </form>
+          </details>
           <form id="formProducto">
             <!-- BLOQUE 1 -->
             <div class="alta-form-section">
@@ -1100,4 +1113,4 @@
 
 
 <script src="/js/reglas-talles-par-suelto.js?v=1"></script>
-<script src="/js/alta-productos.js?v=18"></script>
+<script src="/js/alta-productos.js?v=19"></script>

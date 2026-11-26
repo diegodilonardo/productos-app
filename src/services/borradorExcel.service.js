@@ -305,7 +305,7 @@ async function generarBorradorExcel(
 
 
     hoja.mergeCells(
-        'A1:U2'
+        'A1:Y2'
     );
 
 
@@ -417,7 +417,11 @@ async function generarBorradorExcel(
         'MATERIAL_SUELA',
         'TIPO_AJUSTE',
         'DESCRIPCION',
-        'FLOW'
+        'FLOW',
+        'GRUPO',
+        'SUBGRUPO',
+        'LINEA',
+        'DEPORTE'
     ];
 
 
@@ -639,7 +643,11 @@ async function generarBorradorExcel(
         {
             key: 'flow',
             width: 20
-        }
+        },
+        { key: 'grupo', width: 24 },
+        { key: 'subgrupo', width: 24 },
+        { key: 'linea', width: 24 },
+        { key: 'deporte', width: 24 }
     ];
 
 
@@ -687,7 +695,11 @@ async function generarBorradorExcel(
                 texto(detalle.MATERIAL_SUELA),
                 texto(detalle.TIPO_AJUSTE),
                 texto(detalle.DESCRIPCION),
-                texto(detalle.FLOW)
+                texto(detalle.FLOW),
+                texto(detalle.DETALLE_GRUPO || detalle.CODIGO_GRUPO),
+                texto(detalle.DETALLE_SUBGRUPO || detalle.CODIGO_SUBGRUPO),
+                texto(detalle.DETALLE_LINEA || detalle.CODIGO_LINEA),
+                texto(detalle.DETALLE_DEPORTE || detalle.CODIGO_DEPORTE)
             ]);
 
 
@@ -843,7 +855,7 @@ async function generarBorradorExcel(
                 3,
 
             column:
-                21
+                encabezados.length
         }
     };
 

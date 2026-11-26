@@ -29,6 +29,10 @@ const encabezadosEsperados = [
   'TIPO_AJUSTE',
   'DESCRIPCION',
   'FLOW',
+  'GRUPO',
+  'SUBGRUPO',
+  'LINEA',
+  'DEPORTE',
 ];
 
 test('el Excel incluye la información adicional durante todo el circuito del Alta', async () => {
@@ -110,8 +114,8 @@ test('el Excel incluye la información adicional durante todo el circuito del Al
         'El CODIGO_ALFA no fue exportado en la columna L.'
       );
       assert.ok(
-        hoja.autoFilter === 'A3:U3' ||
-        hoja.autoFilter?.to?.column === 21,
+        hoja.autoFilter === 'A3:Y3' ||
+        hoja.autoFilter?.to?.column === 25,
         `Rango de autofiltro inesperado: ${JSON.stringify(hoja.autoFilter)}`
       );
     }

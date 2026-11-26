@@ -27,6 +27,60 @@ const columnasTallesModuloMixto = [
 ];
 
 document.addEventListener('DOMContentLoaded', iniciar);
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('formDesdeModulo');
+  if (!form) return;
+  const confirmar = document.getElementById('confirmarDesdeModulo');
+  const resultado = document.getElementById('resultadoDesdeModulo');
+  let vista = null;
+  form.addEventListener('input', () => {
+    vista = null;
+    confirmar.disabled = true;
+    resultado.replaceChildren();
+  });
+  async function ejecutar(datos, guardar) {
+    const campos = [...form.elements];
+    campos.forEach(campo => { campo.disabled = true; });
+    try {
+      const { datos: respuesta } = await apiJson(`/api/altas/${ID_ALTA}/desde-modulo`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...datos, confirmar: guardar })
+      });
+      if (guardar) {
+        vista = null;
+        form.reset();
+        resultado.textContent = 'Productos agregados al borrador.';
+        await cargarAlta();
+      } else {
+        vista = respuesta.productos.length ? datos : null;
+        const lista = document.createElement('ul');
+        for (const p of respuesta.productos) {
+          const fila = document.createElement('li');
+          const estado = p.ESTADO_VALIDACION === 'EXISTE_ERP' ? 'Ya existe en Presea' : 'Nuevo';
+          fila.textContent = `${p.CODIGO_ALFA} · ${p.DETALLE_PRODUCTO} · ${estado}`;
+          lista.append(fila);
+        }
+        resultado.replaceChildren(document.createTextNode(
+          `${respuesta.productos.length} renglones · ${respuesta.omitidos.length} omitidos`
+        ), lista);
+      }
+    } catch (e) {
+      vista = null;
+      resultado.textContent = e.message;
+    } finally {
+      campos.forEach(campo => { campo.disabled = false; });
+      confirmar.disabled = !vista;
+    }
+  }
+  form.addEventListener('submit', evento => {
+    evento.preventDefault();
+    vista = null;
+    ejecutar(Object.fromEntries(new FormData(form)), false);
+  });
+  confirmar.addEventListener('click', () => {
+    if (vista) ejecutar(vista, true);
+  });
+});
 
 async function iniciar() {
   try {

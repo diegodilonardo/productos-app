@@ -178,7 +178,7 @@ test('concilia modelos existentes en Presea y muestra quién realizó el alta', 
   repository.conciliarModelosRegistrados = async (empresa, usuario) => { llamadas.push([empresa, usuario]); return 1; };
   repository.listar = async () => [{ CODIGO: 'AF0001', ESTADO: 'CONFIRMADO_ERP', USUARIO_CREACION: 'DIEGO' }];
   try {
-    const registros = await service.listar(1, 'DIEGO');
+    const registros = await service.listar(1, 'DIEGO', { todasMarcas: true, todosRubros: true, todasLicencias: true });
     assert.deepEqual(llamadas, [[1, 'DIEGO']]);
     assert.equal(registros[0].ESTADO, 'CONFIRMADO_ERP');
   } finally {

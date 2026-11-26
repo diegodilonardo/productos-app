@@ -406,4 +406,4 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
   };
 }
 
-module.exports = { generarTemplateReorden, simularReorden, confirmarReorden, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, candidatosSegunda, resolverSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };
+module.exports = { generarTemplateReorden, simularReorden, confirmarReorden, cargarRelaciones, candidatosSegunda, _internals: { filasDesdeArchivo, relacionesDesdeTexto, deducirSegunda, candidatosSegunda, resolverSegunda, datosCodigoAlfa, construirPreview, buscarProveedor } };

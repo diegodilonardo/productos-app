@@ -1561,6 +1561,7 @@ function construirDetalleProducto({
    ============================================================ */
 
 const moduloERPReutilizado = Symbol('moduloERPReutilizado');
+const sueltosERPRelacionados = Symbol('sueltosERPRelacionados');
 
 async function prepararDetalleProducto(
     idAlta,
@@ -2447,6 +2448,12 @@ async function prepararDetalleProducto(
             for (const talle of tallesAutomaticos) {
                 const historico = datosEntrada[moduloERPReutilizado];
                 const codigoTalleHistorico = normalizarTexto(talle.DETALLE_TALLE).toUpperCase();
+                const colorDestino = normalizarTexto(color.CODIGO_COLOR).toUpperCase();
+                const relacionados = (datosEntrada[sueltosERPRelacionados] || [])
+                    .filter(codigo => codigo.length === 15 && codigo.slice(-2) === codigoTalleHistorico)
+                    .map(codigo => codigo.slice(0, -4) + colorDestino + codigo.slice(-2));
+                const primerasRelacionadas = relacionados.filter(codigo => codigo[10] === '1');
+                const segundasRelacionadas = relacionados.filter(codigo => codigo[10] === '2');
                 const primeraHistorica = historico?.length === 14
                     ? `${historico.slice(0, 10)}1${historico.slice(-4, -2)}${codigoTalleHistorico}` : null;
                 const segundaHistorica = historico?.length === 14
@@ -2456,13 +2463,22 @@ async function prepararDetalleProducto(
                     const producto = await altasRepository.buscarProductoERP('PAR_SUELTO', codigo, idEmpresa);
                     return producto?.ACTIVO ? normalizarTexto(producto.CODIGO_ALFA) : null;
                 };
+                async function encontrarHistorico(candidatos) {
+                    for (const codigo of new Set(candidatos)) {
+                        const existente = await codigoHistoricoExistente(codigo);
+                        if (existente) return existente;
+                    }
+                    return null;
+                }
+                const candidatosSegunda = primerasRelacionadas.length
+                    ? require('./reordenAlta.service').candidatosSegunda : () => [];
                 await agregarAutomaticoSiCorresponde({
                     color,
                     talle,
                     clasificacion: clasificacionPrimera,
                     padreTemporal: claveModulo,
                     sufijoClave: 'PRI',
-                    codigoAlfaExacto: await codigoHistoricoExistente(primeraHistorica),
+                    codigoAlfaExacto: await encontrarHistorico([...primerasRelacionadas, primeraHistorica]),
                     codigoRubroCodAlfa: codigoRubroHijosAplicable,
                     cantidadRelacion: talle.CANTIDAD_EN_MODULO
                 });
@@ -2475,7 +2491,9 @@ async function prepararDetalleProducto(
                     sufijoClave: 'SEG',
                     codigoRubroCodAlfa: codigoRubroHijosAplicable,
                     cantidadRelacion: talle.CANTIDAD_EN_MODULO,
-                    codigoAlfaExacto: await codigoHistoricoExistente(segundaHistorica) || (Array.isArray(datosEntrada.segundasHistoricas)
+                    codigoAlfaExacto: await encontrarHistorico([
+                        ...segundasRelacionadas, ...primerasRelacionadas.flatMap(candidatosSegunda), segundaHistorica
+                    ]) || (Array.isArray(datosEntrada.segundasHistoricas)
                         ? datosEntrada.segundasHistoricas
                         : []).find(codigo => {
                         const historico = normalizarTexto(codigo).toUpperCase();
@@ -2680,7 +2698,7 @@ function expandirCombinatoriaCurvas(datosEntrada) {
     };
 }
 
-async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario, cargarFichas) {
+async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario, cargarFichas, cargarRelaciones) {
     const alfa = normalizarTexto(entrada.codigoAlfaOrigen).toUpperCase();
     const codigoColor = normalizarTexto(entrada.codigoColor).toUpperCase();
     const codigoModulo = normalizarTexto(entrada.codigoModulo).toUpperCase();
@@ -2722,6 +2740,10 @@ async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario, carga
     if (codigoColor === normalizarTexto(origen.CODIGO_COLOR).toUpperCase() &&
         codigoModulo === normalizarTexto(origen.CODIGO_MODULO).toUpperCase()) {
         datos[moduloERPReutilizado] = alfaERP;
+    }
+    if (cargarRelaciones) {
+        const relaciones = await cargarRelaciones();
+        datos[sueltosERPRelacionados] = relaciones.get(alfaERP) || relaciones.get(alfa) || [];
     }
     return { origen, datos };
 }

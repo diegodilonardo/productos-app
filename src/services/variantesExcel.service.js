@@ -15,6 +15,7 @@ async function importar({ archivoBase64, idEmpresa, usuario, confirmar, contexto
   const rechazadas = [];
   const vistos = new Set();
   let fichas;
+  let relaciones;
   const cargarFichas = () => fichas ||= require('./productosErpSync.service').cargarFichasVariantes(idEmpresa);
 
   for (const [i, fila] of filas.entries()) {
@@ -25,7 +26,7 @@ async function importar({ archivoBase64, idEmpresa, usuario, confirmar, contexto
       if (!/^PB[A-Z0-9]{4}$/.test(codigoProveedor)) throw new Error('Ingresá un COD_PROVEEDOR válido (PBXXXX).');
       const { origen, datos } = await altas.resolverVarianteModulo(idEmpresa, {
         codigoAlfaOrigen, codigoColor, codigoModulo, codigoProveedor, usuario
-      }, contextoUsuario, cargarFichas);
+      }, contextoUsuario, cargarFichas, () => relaciones ||= require('./reordenAlta.service').cargarRelaciones(idEmpresa));
       const cabecera = {
         codigoMarca: origen.CODIGO_MARCA, codigoRubro: origen.CODIGO_RUBRO,
         codigoAno: origen.CODIGO_ANO, codigoTemporada: origen.CODIGO_TEMPORADA,

@@ -117,10 +117,10 @@ function parsear(
       Se conserva compatibilidad con el formato histórico de 6 columnas.
       El formato ampliado agrega grupo, subgrupo y línea al final.
     */
-    if (![6, 9].includes(partes.length)) {
+    if (![6, 9, 18, 19].includes(partes.length)) {
       throw new Error(
         `Estructura inválida en línea ${i + 1}. ` +
-        `Se esperaban 6 o 9 columnas y se encontraron ${partes.length}.`
+        `Se esperaban 6, 9, 18 o 19 columnas y se encontraron ${partes.length}.`
       );
     }
 
@@ -194,7 +194,13 @@ function parsear(
 
         CODIGO_GRUPO: codigoGrupo,
         CODIGO_SUBGRUPO: codigoSubgrupo,
-        CODIGO_LINEA: codigoLinea
+        CODIGO_LINEA: codigoLinea,
+        ...(partes.length >= 18 && { fichaVariante: {
+          CODIGO_MARCA: partes[9], CODIGO_MODELO: partes[10],
+          CODIGO_ANO: partes[11], CODIGO_TEMPORADA: partes[12], LICENCIA: partes[13],
+          CODIGO_DEPORTE: partes[14], CODIGO_EDAD: partes[15], SEXO: partes[16],
+          CODIGO_CLASIFICACION: partes[17], CODIGO_PAIS: partes[18]
+        } })
       }
     );
   }
@@ -1424,7 +1430,20 @@ function resolverArchivo() {
 }
 
 
+async function cargarFichasVariantes(idEmpresa) {
+  const empresa = (await obtenerEmpresasProductos()).find(e => Number(e.ID_EMPRESA) === Number(idEmpresa));
+  if (!empresa) throw new Error('La empresa no tiene un maestro de productos configurado.');
+  const archivo = await descargarArchivoEmpresa(empresa);
+  const { registros } = parsear(fs.readFileSync(archivo), empresa.CODIGO_EMPRESA);
+  return new Map(registros.filter(r => r.fichaVariante).map(r => [r.CODIGO_ALFA, {
+    ...r.fichaVariante, ID_EMPRESA: idEmpresa,
+    CODIGO_GRUPO: r.CODIGO_GRUPO, CODIGO_SUBGRUPO: r.CODIGO_SUBGRUPO, CODIGO_LINEA: r.CODIGO_LINEA,
+    RUBRO_ERP: r.RUBRO_ERP
+  }]));
+}
+
 module.exports = {
+  cargarFichasVariantes,
   sincronizarProductosErp,
   resolverArchivo,
   parsearArchivoProductos: parsear

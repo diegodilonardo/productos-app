@@ -34,7 +34,7 @@ test('el maestro ampliado importa grupo, subgrupo y línea sin romper el formato
 test('el maestro de productos rechaza cantidades intermedias de columnas', () => {
   assert.throws(
     () => parsearArchivoProductos(Buffer.from('ALFA01|100||CALZADO||3000|Z1\r\n'), '3000'),
-    /6 o 9 columnas/
+    /6, 9, 18 o 19 columnas/
   );
 });
 

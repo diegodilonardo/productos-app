@@ -2666,14 +2666,35 @@ function expandirCombinatoriaCurvas(datosEntrada) {
     };
 }
 
-async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario) {
+async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario, cargarFichas) {
     const alfa = normalizarTexto(entrada.codigoAlfaOrigen).toUpperCase();
     const codigoColor = normalizarTexto(entrada.codigoColor).toUpperCase();
     const codigoModulo = normalizarTexto(entrada.codigoModulo).toUpperCase();
     if (!alfa || !codigoColor || !codigoModulo) throw new Error('Completá el código alfa, color y curva.');
     const erp = await altasRepository.buscarProductoERP('MODULO', alfa, idEmpresa);
     if (!erp?.ACTIVO) throw new Error('El módulo de origen no figura activo en Presea.');
-    const origen = await altasRepository.buscarModuloOrigen(idEmpresa, String(erp.CODIGO_ALFA).trim());
+    const alfaERP = String(erp.CODIGO_ALFA).trim().toUpperCase();
+    let origen = await altasRepository.buscarModuloOrigen(idEmpresa, alfaERP);
+    if (!origen && cargarFichas) {
+        const ficha = (await cargarFichas()).get(alfaERP);
+        if (ficha) {
+            const faltantes = Object.entries(ficha).filter(([campo, valor]) => campo !== 'LICENCIA' && !normalizarTexto(valor)).map(([campo]) => campo);
+            if (faltantes.length) throw new Error('Faltan datos en el maestro: ' + faltantes.join(', '));
+            const [marca, rubro, temporada] = await Promise.all([
+                altasRepository.buscarMarca(ficha.CODIGO_MARCA, idEmpresa),
+                altasRepository.buscarRubro(alfaERP[3], idEmpresa),
+                altasRepository.buscarTemporada(ficha.CODIGO_TEMPORADA, idEmpresa)
+            ]);
+            if (!marca || !rubro || !temporada) throw new Error('La marca, rubro o temporada de origen no figura en los maestros activos.');
+            if (![rubro.CODIGO_RUBRO, rubro.DETALLE_RUBRO].some(v => normalizarTexto(v).toUpperCase() === ficha.RUBRO_ERP.toUpperCase())) {
+                throw new Error('El rubro del maestro no coincide con el código alfa de origen.');
+            }
+            origen = { ...ficha, CODIGO_RUBRO: rubro.CODIGO_RUBRO, DETALLE_RUBRO: rubro.DETALLE_RUBRO,
+                DETALLE_MARCA: marca.DETALLE_MARCA, DETALLE_TEMPORADA: temporada.DETALLE_TEMPORADA,
+                CODIGO_COLOR: alfaERP.slice(-4, -2), CODIGO_MODULO: alfaERP.slice(-2),
+                LICENCIA: normalizarTexto(ficha.LICENCIA).toUpperCase() === 'SIN LICENCIA' ? null : ficha.LICENCIA };
+        }
+    }
     if (!origen) throw new Error('El módulo existe en Presea, pero la app no tiene su ficha completa para copiar los atributos.');
     validarAlcanceAlta(contextoUsuario, origen, origen.LICENCIA || 'SIN LICENCIA');
     if (codigoColor === origen.CODIGO_COLOR && codigoModulo === origen.CODIGO_MODULO) {
@@ -2681,7 +2702,7 @@ async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario) {
     }
     const datos = {
         codigoColor, codigoModulo, usuario: entrada.usuario,
-        codigoModelo: origen.CODIGO_MODELO, codigoProveedor: origen.CODIGO_PROVEEDOR,
+        codigoModelo: origen.CODIGO_MODELO, codigoProveedor: entrada.codigoProveedor || origen.CODIGO_PROVEEDOR,
         codigoGrupo: origen.CODIGO_GRUPO, codigoSubgrupo: origen.CODIGO_SUBGRUPO,
         codigoLinea: origen.CODIGO_LINEA, codigoDeporte: origen.CODIGO_DEPORTE,
         codigoEdad: origen.CODIGO_EDAD, sexo: origen.SEXO, codigoPais: origen.CODIGO_PAIS,

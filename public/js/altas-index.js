@@ -1361,7 +1361,7 @@ async function mostrarProductosAlta(idAlta) {
             <td><strong>${escapar(item.DETALLE_MODELO || item.CODIGO_MODELO || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_MODELO || '')}</div></td>
             <td><strong>${escapar(item.DETALLE_PROVEEDOR || item.CODIGO_PROVEEDOR || '-')}</strong><div class="altas-secondary-text">${escapar(item.CODIGO_PROVEEDOR || '')}</div></td>
             <td>${escapar(item.DETALLE_COLOR || item.CODIGO_COLOR || '-')}</td>
-            <td>${escapar(curvaTalle)}</td>
+            <td>${escapar(curvaTalle)}${tipo === 'MODULO' && item.DISTRIBUCION_CURVA ? `<div class="altas-secondary-text">${escapar(item.DISTRIBUCION_CURVA)}</div>` : ''}</td>
             <td>${escapar(tipo.replaceAll('_', ' ') || '-')}</td>
             <td><span class="badge ${inhabilitado ? 'text-bg-danger' : 'text-bg-success'}">${inhabilitado ? 'INHABILITADO' : 'HABILITADO'}</span></td>
             <td>${escapar(item.DETALLE_CLASIFICACION || item.CODIGO_CLASIFICACION || '-')}</td>

@@ -1,7 +1,7 @@
 const XLSX = require('xlsx');
 const altas = require('./altas.service');
 
-const columnas = ['COD_ALFA_ORIGEN', 'COD_COLOR_DESTINO', 'COD_CURVA_DESTINO'];
+const columnas = ['COD_ALFA_ORIGEN', 'COD_COLOR_DESTINO', 'COD_CURVA_DESTINO', 'COD_PROVEEDOR'];
 const texto = valor => String(valor ?? '').trim().toUpperCase();
 
 async function importar({ archivoBase64, idEmpresa, usuario, confirmar, contextoUsuario }) {
@@ -14,13 +14,18 @@ async function importar({ archivoBase64, idEmpresa, usuario, confirmar, contexto
   const grupos = new Map();
   const rechazadas = [];
   const vistos = new Set();
+  let fichas;
+  const cargarFichas = () => fichas ||= require('./productosErpSync.service').cargarFichasVariantes(idEmpresa);
 
   for (const [i, fila] of filas.entries()) {
     if (!fila.some(texto)) continue;
-    const [codigoAlfaOrigen, codigoColor, codigoModulo] = posiciones.map(p => texto(fila[p]));
+    const [codigoAlfaOrigen, codigoColor, codigoModulo, codigoProveedor] = posiciones.map(p => texto(fila[p]));
     const numero = i + 2;
     try {
-      const { origen, datos } = await altas.resolverVarianteModulo(idEmpresa, { codigoAlfaOrigen, codigoColor, codigoModulo, usuario }, contextoUsuario);
+      if (!/^PB[A-Z0-9]{4}$/.test(codigoProveedor)) throw new Error('Ingresá un COD_PROVEEDOR válido (PBXXXX).');
+      const { origen, datos } = await altas.resolverVarianteModulo(idEmpresa, {
+        codigoAlfaOrigen, codigoColor, codigoModulo, codigoProveedor, usuario
+      }, contextoUsuario, cargarFichas);
       const cabecera = {
         codigoMarca: origen.CODIGO_MARCA, codigoRubro: origen.CODIGO_RUBRO,
         codigoAno: origen.CODIGO_ANO, codigoTemporada: origen.CODIGO_TEMPORADA,

@@ -434,7 +434,8 @@ async function obtenerDetalleAlta(idAlta) {
         .query(`
           SELECT
             ID_DETALLE_PADRE,
-            ID_DETALLE_HIJO
+            ID_DETALLE_HIJO,
+            CANTIDAD
           FROM dbo.ALTAS_PRODUCTOS_FAMILIAS_DETALLE
           WHERE ID_ALTA = @ID_ALTA
           ORDER BY ID_DETALLE_PADRE, ID_DETALLE_HIJO;
@@ -442,8 +443,19 @@ async function obtenerDetalleAlta(idAlta) {
     ]);
 
   const padresPorHijo = new Map();
+  const distribucionPorPadre = new Map();
+  const filasPorId = new Map(resultadoDetalle.recordset.map(fila => [String(fila.ID_DETALLE), fila]));
 
   for (const relacion of resultadoRelaciones.recordset) {
+    const hijo = filasPorId.get(String(relacion.ID_DETALLE_HIJO));
+    const talle = hijo?.DETALLE_TALLE || hijo?.CODIGO_TALLE;
+    const cantidad = Number(relacion.CANTIDAD);
+    if (String(hijo?.DETALLE_CLASIFICACION || '').trim().toUpperCase() === 'PRIMERA' && talle && cantidad > 0) {
+      const padre = String(relacion.ID_DETALLE_PADRE);
+      if (!distribucionPorPadre.has(padre)) distribucionPorPadre.set(padre, new Map());
+      const talles = distribucionPorPadre.get(padre);
+      talles.set(talle, (talles.get(talle) || 0) + cantidad);
+    }
     const clave =
       String(relacion.ID_DETALLE_HIJO);
 
@@ -479,7 +491,10 @@ async function obtenerDetalleAlta(idAlta) {
 
     return {
       ...item,
-      FAMILIAS_PADRE: familiasPadre
+      FAMILIAS_PADRE: familiasPadre,
+      DISTRIBUCION_CURVA: [...(distribucionPorPadre.get(clave) || [])]
+        .sort(([a], [b]) => String(a).localeCompare(String(b), 'es', { numeric: true }))
+        .map(([talle, cantidad]) => `${talle}: ${cantidad}`).join(' · ')
     };
   });
 }

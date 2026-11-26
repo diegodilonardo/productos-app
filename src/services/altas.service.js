@@ -1560,6 +1560,8 @@ function construirDetalleProducto({
      si ya existe, se informa error.
    ============================================================ */
 
+const moduloERPReutilizado = Symbol('moduloERPReutilizado');
+
 async function prepararDetalleProducto(
     idAlta,
     datosEntrada,
@@ -2379,7 +2381,7 @@ async function prepararDetalleProducto(
     for (const color of colores) {
         if (tipoProducto === 'MODULO') {
             const codigoAlfaModulo =
-                construirCodigoAlfa({
+                datosEntrada[moduloERPReutilizado] || construirCodigoAlfa({
                     alta,
                     modelo,
                     clasificacion: clasificacionAplicada,
@@ -2443,12 +2445,24 @@ async function prepararDetalleProducto(
             );
 
             for (const talle of tallesAutomaticos) {
+                const historico = datosEntrada[moduloERPReutilizado];
+                const codigoTalleHistorico = normalizarTexto(talle.DETALLE_TALLE).toUpperCase();
+                const primeraHistorica = historico?.length === 14
+                    ? `${historico.slice(0, 10)}1${historico.slice(-4, -2)}${codigoTalleHistorico}` : null;
+                const segundaHistorica = historico?.length === 14
+                    ? `${historico.slice(0, 9)} 2${historico.slice(-4, -2)}${codigoTalleHistorico}` : null;
+                const codigoHistoricoExistente = async codigo => {
+                    if (!codigo) return null;
+                    const producto = await altasRepository.buscarProductoERP('PAR_SUELTO', codigo, idEmpresa);
+                    return producto?.ACTIVO ? normalizarTexto(producto.CODIGO_ALFA) : null;
+                };
                 await agregarAutomaticoSiCorresponde({
                     color,
                     talle,
                     clasificacion: clasificacionPrimera,
                     padreTemporal: claveModulo,
                     sufijoClave: 'PRI',
+                    codigoAlfaExacto: await codigoHistoricoExistente(primeraHistorica),
                     codigoRubroCodAlfa: codigoRubroHijosAplicable,
                     cantidadRelacion: talle.CANTIDAD_EN_MODULO
                 });
@@ -2461,7 +2475,7 @@ async function prepararDetalleProducto(
                     sufijoClave: 'SEG',
                     codigoRubroCodAlfa: codigoRubroHijosAplicable,
                     cantidadRelacion: talle.CANTIDAD_EN_MODULO,
-                    codigoAlfaExacto: (Array.isArray(datosEntrada.segundasHistoricas)
+                    codigoAlfaExacto: await codigoHistoricoExistente(segundaHistorica) || (Array.isArray(datosEntrada.segundasHistoricas)
                         ? datosEntrada.segundasHistoricas
                         : []).find(codigo => {
                         const historico = normalizarTexto(codigo).toUpperCase();
@@ -2697,9 +2711,6 @@ async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario, carga
     }
     if (!origen) throw new Error('El módulo existe en Presea, pero la app no tiene su ficha completa para copiar los atributos.');
     validarAlcanceAlta(contextoUsuario, origen, origen.LICENCIA || 'SIN LICENCIA');
-    if (codigoColor === origen.CODIGO_COLOR && codigoModulo === origen.CODIGO_MODULO) {
-        throw new Error('Elegí otro color o curva para generar una variante.');
-    }
     const datos = {
         codigoColor, codigoModulo, usuario: entrada.usuario,
         codigoModelo: origen.CODIGO_MODELO, codigoProveedor: entrada.codigoProveedor || origen.CODIGO_PROVEEDOR,
@@ -2708,6 +2719,10 @@ async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario, carga
         codigoEdad: origen.CODIGO_EDAD, sexo: origen.SEXO, codigoPais: origen.CODIGO_PAIS,
         codigoClasificacion: origen.CODIGO_CLASIFICACION
     };
+    if (codigoColor === normalizarTexto(origen.CODIGO_COLOR).toUpperCase() &&
+        codigoModulo === normalizarTexto(origen.CODIGO_MODULO).toUpperCase()) {
+        datos[moduloERPReutilizado] = alfaERP;
+    }
     return { origen, datos };
 }
 

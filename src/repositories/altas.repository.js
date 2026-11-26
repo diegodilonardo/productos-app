@@ -343,10 +343,9 @@ async function listarAltas(idEmpresa) {
                             NULLIF(NULLIF(LTRIM(RTRIM(CONVERT(VARCHAR(20), EX.EAN_ERP))), ''), '7792800015157')
                         ) AS EAN_ACTUAL
                     FROM dbo.ALTAS_PRODUCTOS_DETALLE DE
-                    INNER JOIN dbo.PRODUCTOS PE
+                    LEFT JOIN dbo.PRODUCTOS PE
                         ON PE.ID_EMPRESA = DE.ID_EMPRESA
                        AND PE.CODIGO_ALFA = DE.CODIGO_ALFA
-                       AND LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) <> '9'
                     LEFT JOIN dbo.ALTAS_PRODUCTOS_EXPORTADOS EX
                         ON EX.ID_EMPRESA = DE.ID_EMPRESA
                        AND EX.ID_ALTA = DE.ID_ALTA
@@ -372,6 +371,12 @@ async function listarAltas(idEmpresa) {
                     ) RE
                     WHERE DE.ID_EMPRESA = A.ID_EMPRESA
                       AND DE.ID_ALTA = A.ID_ALTA
+                      AND (
+                        (PE.ID_PRODUCTO IS NOT NULL AND LTRIM(RTRIM(ISNULL(PE.C_ESTADIO, ''))) <> '9')
+                        OR (PE.ID_PRODUCTO IS NULL
+                            AND DE.ESTADO_VALIDACION IN ('VALIDO', 'EXPORTADO')
+                            AND UPPER(LTRIM(RTRIM(ISNULL(DE.TIPO_PRODUCTO_DETALLE, '')))) = 'MODULO')
+                      )
                       AND (
                         (
                           UPPER(LTRIM(RTRIM(ISNULL(DE.TIPO_PRODUCTO_DETALLE, '')))) = 'MODULO'

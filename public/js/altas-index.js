@@ -17,6 +17,77 @@ const filtrosMultiplesAltas = {
 };
 
 document.addEventListener('DOMContentLoaded', iniciarPantallaAltas);
+document.addEventListener('DOMContentLoaded', () => {
+  const panel = document.getElementById('dialogoVariantesExcel');
+  const form = document.getElementById('formVariantesExcel');
+  const confirmar = document.getElementById('confirmarVariantesExcel');
+  const salida = document.getElementById('resultadoVariantesExcel');
+  let vista;
+  function limpiar() {
+    vista = null;
+    confirmar.disabled = true;
+    salida.replaceChildren();
+  }
+  document.getElementById('abrirVariantesExcel').onclick = () => {
+    form.reset();
+    limpiar();
+    panel.showModal();
+  };
+  document.getElementById('cerrarVariantesExcel').onclick = () => panel.close();
+  form.onchange = limpiar;
+  window.addEventListener('app:empresa-cambiada', limpiar);
+  async function enviar(importacion, guardar) {
+    const botones = [...form.elements];
+    botones.forEach(b => { b.disabled = true; });
+    vista = null;
+    salida.textContent = guardar ? 'Creando borradores…' : 'Revisando el Excel…';
+    try {
+      const respuesta = await fetch('/api/altas/variantes-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-id-empresa': String(importacion.empresa) },
+        body: JSON.stringify({ archivoBase64: await archivoComoBase64(importacion.archivo), confirmar: guardar })
+      });
+      const { datos, mensaje } = await respuesta.json();
+      if (!respuesta.ok) throw new Error(mensaje);
+      salida.replaceChildren();
+      for (const grupo of datos.grupos) {
+        const bloque = document.createElement('details');
+        const titulo = document.createElement('summary');
+        titulo.textContent = [grupo.marca, grupo.rubro, grupo.cabecera.codigoAno, grupo.temporada, grupo.licencia, grupo.codigoAlta, grupo.error].filter(Boolean).join(' · ');
+        bloque.append(titulo);
+        for (const fila of grupo.filas) {
+          for (const p of fila.productos) {
+            const linea = document.createElement('div');
+            linea.textContent = `Fila ${fila.numero} · ${p.codigo} · ${p.detalle} · ${p.estado === 'EXISTE_ERP' ? 'Ya existe en Presea' : 'Nuevo'}`;
+            bloque.append(linea);
+          }
+        }
+        salida.append(bloque);
+      }
+      for (const fila of datos.rechazadas) {
+        const error = document.createElement('div');
+        error.textContent = `Fila ${fila.numero} · ${fila.codigoAlfaOrigen} · ${fila.motivo}`;
+        salida.append(error);
+      }
+      if (!datos.grupos.length && !datos.rechazadas.length) salida.textContent = 'El archivo no contiene filas.';
+      if (!guardar && datos.grupos.length) vista = importacion;
+      if (guardar) await cargarAltas();
+    } catch (e) { salida.textContent = e.message; }
+    finally {
+      botones.forEach(b => { b.disabled = false; });
+      confirmar.disabled = !vista;
+    }
+  }
+  form.onsubmit = e => {
+    e.preventDefault();
+    const empresa = obtenerEmpresaActivaAltas();
+    if (!empresa) { salida.textContent = 'Seleccioná una empresa.'; return; }
+    enviar({ empresa, archivo: form.elements.archivo.files[0] }, false);
+  };
+  confirmar.onclick = () => {
+    if (vista && vista.empresa === obtenerEmpresaActivaAltas()) enviar(vista, true);
+  };
+});
 
 async function iniciarPantallaAltas() {
   window.addEventListener(

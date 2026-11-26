@@ -106,6 +106,18 @@ router.get('/reorden/template', requerirEmpresa, requerirEscrituraEmpresa, (req,
     }
 });
 
+router.post('/variantes-excel', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => {
+    try {
+        const datos = await require('../services/variantesExcel.service').importar({
+            archivoBase64: req.body?.archivoBase64, confirmar: req.body?.confirmar === true,
+            idEmpresa: req.idEmpresa, usuario: req.usuario.usuario, contextoUsuario: req.usuario
+        });
+        res.json({ ok: true, datos });
+    } catch (e) {
+        res.status(400).json({ ok: false, mensaje: e.message });
+    }
+});
+
 router.post('/reorden/preview', requerirEmpresa, requerirEscrituraEmpresa, async (req, res) => {
     try {
         const resultado = await reordenAltaService.simularReorden({

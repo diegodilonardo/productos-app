@@ -919,7 +919,8 @@ async function buscarModuloOrigen(idEmpresa, codigoAlfa) {
     .input('empresa', sql.Int, idEmpresa)
     .input('alfa', sql.VarChar(30), codigoAlfa)
     .query(`
-      SELECT TOP 1 D.*, A.CODIGO_MARCA, A.CODIGO_RUBRO, A.CODIGO_ANO, A.CODIGO_TEMPORADA
+      SELECT TOP 1 D.*, A.CODIGO_MARCA, A.DETALLE_MARCA, A.CODIGO_RUBRO, A.DETALLE_RUBRO,
+        A.CODIGO_ANO, A.CODIGO_TEMPORADA, A.DETALLE_TEMPORADA
       FROM dbo.ALTAS_PRODUCTOS_DETALLE D
       JOIN dbo.ALTAS_PRODUCTOS A ON A.ID_ALTA=D.ID_ALTA AND A.ID_EMPRESA=D.ID_EMPRESA
       WHERE D.ID_EMPRESA=@empresa AND D.CODIGO_ALFA=@alfa
@@ -1087,13 +1088,14 @@ async function buscarDetallePorCodigoAlfa(idAlta, codigoAlfa) {
    BUSCAR CODIGO ALFA EN OTRAS ALTAS ACTIVAS
    ============================================================ */
 
-async function buscarCodigoAlfaEnOtraAlta(idAltaActual, codigoAlfa) {
+async function buscarCodigoAlfaEnOtraAlta(idAltaActual, codigoAlfa, idEmpresaSimulacion = null) {
   const pool = await getConnection();
 
   const resultado = await pool
     .request()
 
     .input("ID_ALTA_ACTUAL", sql.BigInt, idAltaActual)
+    .input("ID_EMPRESA_SIMULACION", sql.Int, idEmpresaSimulacion)
 
     .input("CODIGO_ALFA", sql.VarChar(30), codigoAlfa).query(`
             SELECT TOP 1
@@ -1113,11 +1115,11 @@ async function buscarCodigoAlfaEnOtraAlta(idAltaActual, codigoAlfa) {
                 ON A.ID_ALTA = D.ID_ALTA
 
             WHERE
-                D.ID_EMPRESA = (
+                D.ID_EMPRESA = COALESCE(@ID_EMPRESA_SIMULACION, (
                   SELECT ID_EMPRESA
                   FROM dbo.ALTAS_PRODUCTOS
                   WHERE ID_ALTA = @ID_ALTA_ACTUAL
-                )
+                ))
                 AND D.CODIGO_ALFA = @CODIGO_ALFA
                 AND D.ID_ALTA <> @ID_ALTA_ACTUAL
                 AND ISNULL(A.ESTADO, '') <> 'ANULADO'

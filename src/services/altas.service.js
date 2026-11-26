@@ -1566,10 +1566,9 @@ async function prepararDetalleProducto(
     contexto = {}
 ) {
 
-    const id = validarId(idAlta);
+    const id = contexto.altaSimulada ? 0 : validarId(idAlta);
 
-    const alta =
-        await altasRepository.obtenerAltaPorId(id);
+    const alta = contexto.altaSimulada || await altasRepository.obtenerAltaPorId(id);
 
     if (!alta) {
         throw new Error('Alta no encontrada.');
@@ -2081,7 +2080,8 @@ async function prepararDetalleProducto(
         const existenteOtraAlta =
             await altasRepository.buscarCodigoAlfaEnOtraAlta(
                 id,
-                codigoAlfa
+                codigoAlfa,
+                contexto.altaSimulada ? idEmpresa : null
             );
 
         if (existenteOtraAlta) {
@@ -2173,7 +2173,8 @@ async function prepararDetalleProducto(
         const existenteOtraAlta =
             await altasRepository.buscarCodigoAlfaEnOtraAlta(
                 id,
-                codigoAlfa
+                codigoAlfa,
+                contexto.altaSimulada ? idEmpresa : null
             );
 
         if (existenteOtraAlta) {
@@ -2665,25 +2666,16 @@ function expandirCombinatoriaCurvas(datosEntrada) {
     };
 }
 
-async function generarDesdeModulo(idAlta, entrada, contextoUsuario, confirmar = false) {
-    const alta = await altasRepository.obtenerAltaPorId(validarId(idAlta));
-    if (!alta || alta.ESTADO !== 'BORRADOR' || normalizarTipoProducto(alta.TIPO_PRODUCTO) !== 'MODULO') {
-        throw new Error('Seleccioná un alta de módulos en borrador.');
-    }
+async function resolverVarianteModulo(idEmpresa, entrada, contextoUsuario) {
     const alfa = normalizarTexto(entrada.codigoAlfaOrigen).toUpperCase();
     const codigoColor = normalizarTexto(entrada.codigoColor).toUpperCase();
     const codigoModulo = normalizarTexto(entrada.codigoModulo).toUpperCase();
     if (!alfa || !codigoColor || !codigoModulo) throw new Error('Completá el código alfa, color y curva.');
-    const erp = await altasRepository.buscarProductoERP('MODULO', alfa, alta.ID_EMPRESA);
+    const erp = await altasRepository.buscarProductoERP('MODULO', alfa, idEmpresa);
     if (!erp?.ACTIVO) throw new Error('El módulo de origen no figura activo en Presea.');
-    const origen = await altasRepository.buscarModuloOrigen(alta.ID_EMPRESA, alfa);
+    const origen = await altasRepository.buscarModuloOrigen(idEmpresa, String(erp.CODIGO_ALFA).trim());
     if (!origen) throw new Error('El módulo existe en Presea, pero la app no tiene su ficha completa para copiar los atributos.');
-    validarAlcanceAlta(contextoUsuario, alta, origen.LICENCIA || 'SIN LICENCIA');
-    for (const campo of ['CODIGO_MARCA', 'CODIGO_RUBRO', 'CODIGO_ANO', 'CODIGO_TEMPORADA']) {
-        if (normalizarTexto(alta[campo]) !== normalizarTexto(origen[campo])) {
-            throw new Error('El alta debe coincidir con el módulo de origen en marca, rubro, año y temporada.');
-        }
-    }
+    validarAlcanceAlta(contextoUsuario, origen, origen.LICENCIA || 'SIN LICENCIA');
     if (codigoColor === origen.CODIGO_COLOR && codigoModulo === origen.CODIGO_MODULO) {
         throw new Error('Elegí otro color o curva para generar una variante.');
     }
@@ -2695,6 +2687,20 @@ async function generarDesdeModulo(idAlta, entrada, contextoUsuario, confirmar = 
         codigoEdad: origen.CODIGO_EDAD, sexo: origen.SEXO, codigoPais: origen.CODIGO_PAIS,
         codigoClasificacion: origen.CODIGO_CLASIFICACION
     };
+    return { origen, datos };
+}
+
+async function generarDesdeModulo(idAlta, entrada, contextoUsuario, confirmar = false) {
+    const alta = await altasRepository.obtenerAltaPorId(validarId(idAlta));
+    if (!alta || alta.ESTADO !== 'BORRADOR' || normalizarTipoProducto(alta.TIPO_PRODUCTO) !== 'MODULO') {
+        throw new Error('Seleccioná un alta de módulos en borrador.');
+    }
+    const { origen, datos } = await resolverVarianteModulo(alta.ID_EMPRESA, entrada, contextoUsuario);
+    for (const campo of ['CODIGO_MARCA', 'CODIGO_RUBRO', 'CODIGO_ANO', 'CODIGO_TEMPORADA']) {
+        if (normalizarTexto(alta[campo]) !== normalizarTexto(origen[campo])) {
+            throw new Error('El alta debe coincidir con el módulo de origen en marca, rubro, año y temporada.');
+        }
+    }
     const preparado = await prepararDetalleProducto(idAlta, datos, {
         contextoUsuario, codigosGenerados: new Set(), prefijoClave: 'P1'
     });
@@ -3547,6 +3553,8 @@ async function anularAlta(
    ============================================================ */
 
 module.exports = {
+    resolverVarianteModulo,
+    prepararDetalleProducto,
     generarDesdeModulo,
 
     crearAlta,

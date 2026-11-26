@@ -2180,7 +2180,8 @@ async function prepararDetalleProducto(
                 contexto.altaSimulada ? idEmpresa : null
             );
 
-        if (existenteOtraAlta) {
+        const existenteERP = await altasRepository.buscarProductoERP('PAR_SUELTO', codigoAlfa, idEmpresa);
+        if (existenteOtraAlta && !existenteERP?.ACTIVO) {
             omitidos.push({
                 codigoAlfa,
                 motivo: 'YA_EXISTE_EN_OTRA_ALTA',
@@ -2190,13 +2191,6 @@ async function prepararDetalleProducto(
             });
             return;
         }
-
-        const existenteERP =
-            await altasRepository.buscarProductoERP(
-                'PAR_SUELTO',
-                codigoAlfa,
-                idEmpresa
-            );
 
         codigosGenerados.add(codigoAlfa);
 
@@ -3321,7 +3315,9 @@ async function validarAlta(
               }
             : null;
 
-        if (existeOtraAlta) {
+        if (existeOtraAlta && !(estadoValidacion === 'EXISTE_ERP' &&
+            detalle.GENERADO_AUTOMATICO && detalle.TIPO_PRODUCTO_DETALLE === 'PAR_SUELTO' &&
+            validacionMasiva.ERP_ACTIVO)) {
             throw new Error(
                 `No se puede validar el alta. El producto ${codigoAlfa} ` +
                 `también se encuentra en el alta ${existeOtraAlta.CODIGO_ALTA} ` +

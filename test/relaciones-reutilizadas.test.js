@@ -9,8 +9,8 @@ test('RELACION incluye primeras reutilizadas de otra alta sin duplicarlas', asyn
   const inicio = fuente.indexOf('async function completarRelacionesReutilizadas');
   const fin = fuente.indexOf('\n\n/*', inicio);
   let consulta;
-  const existente = { COD_ALFA_MODULO:'MOD', COD_ALFA_INSUMO:'28' };
-  const nuevo = { COD_ALFA_MODULO:'MOD', COD_ALFA_INSUMO:'29' };
+  const existente = { COD_ALFA_MODULO:'MOD', COD_ALFA_INSUMO:'28', DETALLE_TALLE_INSUMO:'28' };
+  const nuevo = { COD_ALFA_MODULO:'MOD', COD_ALFA_INSUMO:'29', DETALLE_TALLE_INSUMO:'29' };
   const contexto = { sql:{ Int:'Int' }, JOIN_MAESTRO_MODULO_POR_EMPRESA:'M.ID_EMPRESA=P.ID_EMPRESA', getConnection:async () => ({request:() => ({ input() { return this; }, query:async texto => { consulta=texto;return {recordset:[existente,nuevo]}; } })}) };
   vm.createContext(contexto);
   vm.runInContext(fuente.slice(inicio, fin), contexto);

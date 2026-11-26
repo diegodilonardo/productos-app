@@ -19,7 +19,7 @@ async function completarRelacionesReutilizadas(idAlta, relaciones, prueba = fals
             H.ID_DETALLE ID_INSUMO, H.CODIGO_ALFA COD_ALFA_INSUMO,
             H.DETALLE_PRODUCTO DETALLE_PRODUCTO_INSUMO,
             H.CODIGO_TALLE CODIGO_TALLE_INSUMO, H.DETALLE_TALLE DETALLE_TALLE_INSUMO,
-            H.ESTADO_VALIDACION ESTADO_INSUMO, M.*
+            H.ESTADO_VALIDACION ESTADO_INSUMO, T.CANTIDAD AS CANTIDAD_RELACION, M.*
         FROM dbo.ALTAS_PRODUCTOS_DETALLE P
         JOIN dbo.ALTAS_PRODUCTOS A ON A.ID_ALTA=P.ID_ALTA
         JOIN dbo.MAESTRO_TALLES_MODULOS M ON ${JOIN_MAESTRO_MODULO_POR_EMPRESA}
@@ -45,9 +45,10 @@ async function completarRelacionesReutilizadas(idAlta, relaciones, prueba = fals
           AND UPPER(REPLACE(ISNULL(P.TIPO_PRODUCTO_DETALLE,''),' ','_'))='MODULO'
           ${prueba ? '' : "AND P.ESTADO_VALIDACION='VALIDO'"}
         ORDER BY P.ID_DETALLE,H.ID_DETALLE;`);
-    const claves = new Set(relaciones.map(r => `${r.COD_ALFA_MODULO}|${r.COD_ALFA_INSUMO}`));
+    const claveTalle = r => `${r.COD_ALFA_MODULO}|${r.DETALLE_TALLE_INSUMO || r.CODIGO_TALLE_INSUMO}`;
+    const claves = new Set(relaciones.map(claveTalle));
     for (const relacion of resultado.recordset) {
-        const clave = `${relacion.COD_ALFA_MODULO}|${relacion.COD_ALFA_INSUMO}`;
+        const clave = claveTalle(relacion);
         if (!claves.has(clave)) { relaciones.push(relacion); claves.add(clave); }
     }
     return relaciones;

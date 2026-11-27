@@ -432,7 +432,10 @@ async function listarProductosSeguimientoEan(idEmpresa) {
                     ON PR.ID_EMPRESA = X.ID_EMPRESA
                    AND PR.CODIGO_ALFA = X.CODIGO_ALFA
                 WHERE X.ID_EMPRESA = @ID_EMPRESA
-                  AND A0.ESTADO = 'SIN_NOVEDADES_ERP'
+                  AND (
+                    A0.ESTADO = 'SIN_NOVEDADES_ERP'
+                    OR (A0.ESTADO = 'GENERADO_OK_EN_ERP' AND X.ESTADO_VALIDACION = 'EXISTE_ERP')
+                  )
                   AND NOT EXISTS (
                       SELECT 1
                       FROM dbo.ALTAS_PRODUCTOS_EXPORTADOS EX0

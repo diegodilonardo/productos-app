@@ -51,10 +51,12 @@ test('Maestros presenta el control EAN como una sección independiente',()=>{
   assert.match(cliente,/panelReglasEan/);
 });
 
-test('el listado de solicitudes de maestros muestra marca y rubro',()=>{
+test('el listado de solicitudes de maestros muestra marca, rubro, licencia y autor',()=>{
   const vista=fs.readFileSync(path.join(__dirname,'../views/altas-maestros/index.hbs'),'utf8');
   const cliente=fs.readFileSync(path.join(__dirname,'../public/js/altas-maestros.js'),'utf8');
-  assert.match(vista,/Descripción<\/th><th[\s\S]*>Marca<\/th><th>Rubro<\/th><th>Usuario/);
+  assert.match(vista,/Descripción<\/th><th[\s\S]*>Marca<\/th><th>Rubro<\/th><th>Licencia<\/th><th>Creado por<\/th>/);
   assert.match(cliente,/x\.MARCA \|\| '-'/);
   assert.match(cliente,/x\.RUBRO \|\| '-'/);
+  assert.match(cliente,/x\.LICENCIA \|\| 'Sin licencia'/);
+  assert.match(cliente,/x\.USUARIO_CREACION \|\| '-'/);
 });

@@ -189,7 +189,7 @@ test('concilia modelos existentes en Presea y muestra quién realizó el alta', 
   const vista = fs.readFileSync(path.join(process.cwd(), 'views/altas-maestros/index.hbs'), 'utf8');
   const frontend = fs.readFileSync(path.join(process.cwd(), 'public/js/altas-maestros.js'), 'utf8');
   assert.match(repositorySource, /MAESTRO_MODELOS[\s\S]*CONFIRMADO_ERP/);
-  assert.match(vista, /<th\s*>Usuario<\/th>/);
+  assert.match(vista, /<th>Licencia<\/th><th>Creado por<\/th>/);
   assert.match(frontend, /USUARIO_CREACION/);
   assert.match(frontend, /REGISTRADO EN PRESEA/);
   assert.match(frontend, /FALTANTE EN PRESEA/);

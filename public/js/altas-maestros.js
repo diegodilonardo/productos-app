@@ -450,8 +450,8 @@ async function cargar() {
     $('tablaAltasMaestros').innerHTML = registros.map(x => {
       const estado = presentacionEstadoMaestro(x.ESTADO);
       const id = Number(x.ID_ALTA_MAESTRO);
-      return `<tr><td><button class="btn btn-sm btn-light border font-monospace fw-bold" type="button" data-copiar-id-maestro="${id}" title="Copiar ID ${id}">${id}</button></td><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.MARCA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`;
-    }).join('') || '<tr><td colspan="10" class="text-center text-secondary py-4">Todavía no hay solicitudes.</td></tr>';
+      return `<tr><td><button class="btn btn-sm btn-light border font-monospace fw-bold" type="button" data-copiar-id-maestro="${id}" title="Copiar ID ${id}">${id}</button></td><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.MARCA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td><td>${textoSeguro(x.LICENCIA || 'Sin licencia')}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`;
+    }).join('') || '<tr><td colspan="11" class="text-center text-secondary py-4">No hay solicitudes para tus permisos en esta empresa.</td></tr>';
   } catch (e) {
     alerta(e.message, 'danger');
   }

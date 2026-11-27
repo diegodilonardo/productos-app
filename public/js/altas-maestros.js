@@ -31,13 +31,14 @@ function ajustarDisciplina() { const selector = $('disciplinaModelo'), conLicenc
 function ajustarDisciplinaMasiva() { const selector = $('disciplinaModelosMasivos'), conLicencia = Boolean($('licenciaModelosMasivos').value) && $('licenciaModelosMasivos').value !== '__SIN_LICENCIA__'; if (conLicencia) selector.value = '__SIN_DISCIPLINA__'; selector.disabled = conLicencia; $('datosDisciplinaMasiva').classList.toggle('d-none', !disciplinaRequierePrefijo($('rubroModelosMasivos').value, $('licenciaModelosMasivos').value, selector.value)); vistaPreviaModelos = []; $('panelVistaPreviaModelos').classList.add('d-none'); }
 const tallesModuloPorRubro = {
   CALZADO: ['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','38.5','39','39.5','40','40.5','41','41.5','42','42.5','43','43.5','44','44.5','45','45.5','46','47','48','49','50'],
-  INDUMENTARIA: ['XS','S','M','L','XL','2XL','3XL']
+  INDUMENTARIA: ['XS','S','M','L','XL','2XL','3XL'],
+  ACCESORIOS: ['01','02','03','04','05','06','07']
 };
 function campoTalleModulo(talle) { return /^\d+\.5$/.test(talle) ? `T${talle.replace('.', '')}` : (/^\d+$/.test(talle) ? `T${talle}` : `T_${talle}`); }
 function actualizarTotalModulo() { $('paresModuloTotal').textContent = [...document.querySelectorAll('.cantidad-talle-modulo')].reduce((total, input) => total + Number(input.value || 0), 0); }
 function renderEditorModulo() {
   const talles = tallesModuloPorRubro[$('rubroModulo').value] || [];
-  $('tallesModuloEditor').innerHTML = talles.map(talle => `<div class="col-4 col-sm-3"><label class="form-label small mb-1">${textoSeguro(talle)}</label><input class="form-control form-control-sm cantidad-talle-modulo" type="number" min="0" max="99" step="1" value="0" data-campo-talle="${campoTalleModulo(talle)}"></div>`).join('') || '<div class="col-12 small text-secondary">Seleccione Calzado o Indumentaria para cargar la distribución.</div>';
+  $('tallesModuloEditor').innerHTML = talles.map(talle => `<div class="col-4 col-sm-3"><label class="form-label small mb-1">${textoSeguro(talle)}</label><input class="form-control form-control-sm cantidad-talle-modulo" type="number" min="0" max="99" step="1" value="0" data-campo-talle="${campoTalleModulo(talle)}"></div>`).join('') || '<div class="col-12 small text-secondary">Seleccioná un rubro para cargar la distribución.</div>';
   actualizarTotalModulo();
 }
 function ajustarCampos() { const t = $('tipoMaestro').value; const modulo = t === 'MODULO'; $('camposModeloPrevios').classList.toggle('d-none', t !== 'MODELO'); $('camposModeloPosteriores').classList.toggle('d-none', t !== 'MODELO'); $('editorModulo').classList.toggle('d-none', !modulo); $('nombreMaestro').classList.toggle('d-none', modulo); $('nombreMaestro').required = !modulo; $('codigoMaestro').maxLength = t === 'MODELO' ? 6 : 2; $('codigoMaestro').readOnly = t === 'MODELO'; if (modulo) renderEditorModulo(); }
@@ -527,7 +528,7 @@ function cuerpoSolicitudMaestro() {
     const activos = [...document.querySelectorAll('.cantidad-talle-modulo')].filter(input => Number(input.value) > 0).map(input => ({ campo: input.dataset.campoTalle, talle: input.previousElementSibling?.textContent || input.dataset.campoTalle, cantidad: Number(input.value) }));
     cuerpo.datos = { distribucion: Object.fromEntries(activos.map(item => [item.campo, item.cantidad])) };
     const pares = activos.reduce((total, item) => total + item.cantidad, 0);
-    if (!cuerpo.rubro) throw new Error('Seleccione si el módulo corresponde a Calzado o Indumentaria.');
+    if (!cuerpo.rubro) throw new Error('Seleccioná el rubro del módulo.');
     if (!pares) throw new Error('Ingrese al menos un talle con cantidad mayor a cero.');
     cuerpo.nombre = activos.length === 1 ? `${activos[0].talle} X ${pares} (${activos[0].cantidad})` : `${activos[0].talle} AL ${activos.at(-1).talle} X ${pares} (${activos.map(x => x.cantidad).join(',')})`;
   }

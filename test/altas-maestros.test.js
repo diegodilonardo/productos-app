@@ -218,7 +218,7 @@ test('solo permite eliminar solicitudes de maestros pendientes y conserva la tra
   assert.match(frontend, /El código volverá a quedar disponible/);
 });
 
-test('crea módulos solamente para calzado o indumentaria y calcula su distribución', async () => {
+test('crea módulos por rubro y calcula su distribución', async () => {
   const originalCrear = repository.crear;
   const originalSolicitudes = repository.listarSolicitudesModulosCompartidas;
   const originalModulos = repository.listarModulosMaestroCompartido;
@@ -230,6 +230,8 @@ test('crea módulos solamente para calzado o indumentaria y calcula su distribuc
     await service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: '0A', rubro: 'CALZADO', datos: { distribucion: { T35: 1, T36: 2, T37: 1 } } } });
     assert.equal(guardado.nombre, '35 AL 37 X 4 (1,2,1)');
     assert.deepEqual(JSON.parse(guardado.datosJson), { rubro: 'CALZADO', distribucion: { T35: 1, T36: 2, T37: 1 }, pares: 4 });
+    await service.crear({ idEmpresa: 2, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: '0B', rubro: 'ACCESORIOS', datos: { distribucion: { T01: 12 } } } });
+    assert.deepEqual(JSON.parse(guardado.datosJson), { rubro: 'ACCESORIOS', distribucion: { T01: 12 }, pares: 12 });
     await assert.rejects(() => service.crear({ idEmpresa: 1, usuario: 'DIEGO', cuerpo: { tipo: 'MODULO', codigo: '0B', rubro: 'INDUMENTARIA', datos: { distribucion: { T35: 1 } } } }), /no corresponde a INDUMENTARIA/);
   } finally {
     repository.crear = originalCrear;

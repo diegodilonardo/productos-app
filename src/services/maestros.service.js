@@ -683,7 +683,22 @@ async function buscarModelos({
 }
 
 async function consultarModelos({ idEmpresa, acceso }) {
-  return buscarModelos({ idEmpresa, acceso, marca: null, rubro: null, texto: null, licencia: null, sinLimite: true });
+  const [modelos, proveedores] = await Promise.all([
+    buscarModelos({ idEmpresa, acceso, marca: null, rubro: null, texto: null, licencia: null, sinLimite: true }),
+    repository.buscarProveedores({ idEmpresa })
+  ]);
+  const clave = valor => String(valor ?? '').trim().toUpperCase();
+  const porCodigo = new Map(proveedores.map(p => [clave(p.CODIGO), p]));
+  const porPresea = new Map();
+  for (const p of proveedores) {
+    const codigo = clave(p.PRESEA);
+    if (codigo) porPresea.set(codigo, porPresea.has(codigo) ? null : p);
+  }
+  return modelos.map(modelo => {
+    const codigo = clave(modelo.C_PROVEEDO);
+    const proveedor = porCodigo.get(codigo) || porPresea.get(codigo);
+    return { ...modelo, CODIGO_PROVEEDOR: proveedor?.CODIGO || codigo, DETALLE_PROVEEDOR: proveedor?.NVA_RAZON_SOCIAL || '' };
+  });
 }
 
 async function consultarProductos({ idEmpresa, acceso }) {
@@ -847,7 +862,7 @@ async function obtenerTallesModulosConsulta({ idEmpresa }) {
 function exportarConsultaMaestros(tipoEntrada, filasEntrada) {
   const tipo = String(tipoEntrada || '').trim().toUpperCase();
   const campos = {
-    MODELOS: ['CODIGO_MODELO','DETALLE_MODELO','MARCA_MODELO','RUBRO_MODELO','LICENCIA'],
+    MODELOS: ['CODIGO_MODELO','DETALLE_MODELO','MARCA_MODELO','RUBRO_MODELO','LICENCIA','CODIGO_PROVEEDOR','DETALLE_PROVEEDOR'],
     COLORES: ['CODIGO_COLOR','DETALLE_COLOR'],
     MODULOS: ['CODIGO_MODULO','DETALLE_MODULO','DESCRIPCION_CURVA','PARES','ES_CONSISTENTE','OBSERVACION'],
     DISCIPLINAS: ['CODIGO_DEPORTE','DETALLE_DEPORTE'],

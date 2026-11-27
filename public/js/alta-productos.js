@@ -3108,11 +3108,12 @@ function moduloSeleccionadoParaMixto() {
   return modulos.find(fila => obtenerDatosModulo(fila).codigo === codigosModulosSeleccionados[0]) || null;
 }
 
-function coloresSeleccionadosParaMixto() {
-  const seleccionados = new Set(
-    [...document.querySelectorAll('.color-check:checked')].map(input => String(input.value))
-  );
-  return colores.filter(fila => seleccionados.has(String(obtenerCampo(fila, ['CODIGO_COLOR','codigoColor']))));
+function coloresDisponiblesParaMixto() {
+  return colores.filter(fila => {
+    const codigo = String(obtenerCampo(fila, ['CODIGO_COLOR','codigoColor'])).trim();
+    const detalle = String(obtenerCampo(fila, ['DETALLE_COLOR','detalleColor'])).trim().toUpperCase();
+    return codigo && !['MIX', 'MIXED'].includes(detalle);
+  });
 }
 
 function renderizarDistribucionTallesMixtos() {
@@ -3125,7 +3126,7 @@ function renderizarDistribucionTallesMixtos() {
   if (!activado || !tabla) return;
 
   const modulo = moduloSeleccionadoParaMixto();
-  const listaColores = coloresSeleccionadosParaMixto();
+  const listaColores = coloresDisponiblesParaMixto();
   tabla.innerHTML = '';
   if (!modulo) {
     if (aviso) aviso.textContent = 'Seleccioná exactamente una curva para configurar talles mixtos.';
@@ -3133,7 +3134,7 @@ function renderizarDistribucionTallesMixtos() {
     return;
   }
   if (!listaColores.length) {
-    if (aviso) aviso.textContent = 'Seleccioná los colores que se asignarán a los talles.';
+    if (aviso) aviso.textContent = 'No hay colores disponibles para asignar a los sueltos.';
     if (resumen) resumen.textContent = '';
     return;
   }
@@ -3148,11 +3149,12 @@ function renderizarDistribucionTallesMixtos() {
     const guardado = distribucionTallesMixtos.get(item.talle);
     const anteriores = Array.isArray(guardado) ? guardado : guardado ? [guardado] : [];
     const asignaciones = anteriores
-      .filter(fila => codigosDisponibles.has(String(fila.codigoColor)))
+      .filter(fila => !fila.codigoColor || codigosDisponibles.has(String(fila.codigoColor)))
       .map(fila => ({ codigoColor: String(fila.codigoColor), pares: Number(fila.pares) || 0 }));
     if (!asignaciones.length) {
       asignaciones.push({
-        codigoColor: String(obtenerCampo(listaColores[0], ['CODIGO_COLOR','codigoColor'])),
+        codigoColor: [...document.querySelectorAll('.color-check:checked')]
+          .map(input => input.value).find(codigo => codigosDisponibles.has(codigo)) || '',
         pares: item.pares
       });
     }
@@ -3162,7 +3164,7 @@ function renderizarDistribucionTallesMixtos() {
       const tr = document.createElement('tr');
       tr.dataset.talle = item.talle;
       tr.dataset.indice = String(indice);
-      const opciones = listaColores.map(color => {
+      const opciones = '<option value="">Seleccioná un color…</option>' + listaColores.map(color => {
         const codigo = String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor']));
         const detalle = String(obtenerCampo(color, ['DETALLE_COLOR','detalleColor']) || codigo);
         return `<option value="${escapar(codigo)}" ${codigo === asignacion.codigoColor ? 'selected' : ''}>${escapar(codigo)} - ${escapar(detalle)}</option>`;
@@ -3202,7 +3204,7 @@ function agregarColorATalleMixto(event) {
   const talle = tr?.dataset.talle;
   const filas = distribucionTallesMixtos.get(talle) || [];
   const usados = new Set(filas.map(fila => String(fila.codigoColor)));
-  const disponible = coloresSeleccionadosParaMixto().find(color =>
+  const disponible = coloresDisponiblesParaMixto().find(color =>
     !usados.has(String(obtenerCampo(color, ['CODIGO_COLOR','codigoColor'])))
   );
   if (!disponible) {
@@ -3484,7 +3486,7 @@ async function agregarProducto(event) {
   }
 
   const codigosColor = [...document.querySelectorAll('.color-check:checked')].map(input => input.value);
-  if (!codigosColor.length) {
+  if (!codigosColor.length && !document.getElementById('tallesMixtos')?.checked) {
     mostrarAlerta('Debe seleccionar al menos un color.', 'warning');
     return;
   }
@@ -3578,6 +3580,7 @@ async function agregarProducto(event) {
       }
       payload.tallesMixtos = true;
       payload.distribucionTallesMixtos = filas;
+      payload.codigosColor = [...new Set(filas.map(fila => fila.codigoColor))];
     }
 
   } else {

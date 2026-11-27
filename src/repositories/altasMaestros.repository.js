@@ -99,6 +99,8 @@ async function conciliarModelosRegistrados(idEmpresa, usuario = 'SISTEMA') {
           WHERE ${alcanceMaestro('M', 'A.ID_EMPRESA')}
             AND M.ACTIVO=1
             AND UPPER(LTRIM(RTRIM(M.CODIGO_MODELO)))=UPPER(LTRIM(RTRIM(A.CODIGO)))
+            AND (ISNULL(JSON_VALUE(A.DATOS_JSON,'$.actualizarNombre'),'false') <> 'true'
+                 OR UPPER(LTRIM(RTRIM(M.DETALLE_MODELO)))=UPPER(LTRIM(RTRIM(A.NOMBRE))))
           ))
           OR (A.TIPO='COLOR' AND EXISTS (
             SELECT 1 FROM dbo.MAESTRO_COLORES C
@@ -333,7 +335,8 @@ async function anularPendiente(idEmpresa, idAltaMaestro, usuario) {
         INTO @ANULADOS(ID_ALTA_MAESTRO,TIPO,CODIGO,NOMBRE)
       WHERE ID_EMPRESA=@ID_EMPRESA
         AND ID_ALTA_MAESTRO=@ID_ALTA_MAESTRO
-        AND ESTADO='PENDIENTE_ENVIO';
+        AND ESTADO='PENDIENTE_ENVIO'
+        AND ISNULL(JSON_VALUE(DATOS_JSON,'$.actualizarNombre'),'false') <> 'true';
 
       INSERT dbo.ALTAS_MAESTROS_HISTORIAL
         (ID_ALTA_MAESTRO,ESTADO_ANTERIOR,ESTADO_NUEVO,OBSERVACION,USUARIO)
@@ -342,6 +345,50 @@ async function anularPendiente(idEmpresa, idAltaMaestro, usuario) {
 
       SELECT * FROM @ANULADOS;`);
   return r.recordset[0] || null;
+}
+
+const modeloSinTrazabilidad = `
+  NOT EXISTS (SELECT 1 FROM dbo.ALTAS_PRODUCTOS_DETALLE D
+    WHERE D.ID_EMPRESA=A.ID_EMPRESA AND D.CODIGO_MODELO=A.CODIGO)
+  AND NOT EXISTS (SELECT 1 FROM dbo.PRODUCTOS P
+    WHERE P.ID_EMPRESA=A.ID_EMPRESA AND (
+      SUBSTRING(P.CODIGO_ALFA,5,6)=RIGHT('000000'+A.CODIGO,6)
+      OR RTRIM(SUBSTRING(P.CODIGO_ALFA,5,6))=A.CODIGO
+      OR (LEN(P.CODIGO_ALFA)=14 AND LEN(A.CODIGO)=5 AND SUBSTRING(P.CODIGO_ALFA,5,5)=A.CODIGO)
+    ))
+`;
+
+async function editarNombreModelo(idEmpresa, id, nombre, usuario) {
+  const pool = await getConnection();
+  const resultado = await pool.request().input('empresa', sql.Int, idEmpresa).input('id', sql.Int, id)
+    .input('nombre', sql.VarChar(100), nombre).input('usuario', sql.VarChar(100), usuario).query(`
+      SET XACT_ABORT ON;
+      BEGIN TRAN;
+      DECLARE @cambio TABLE (id INT, anterior VARCHAR(100), estado VARCHAR(40));
+      UPDATE A SET NOMBRE=@nombre, ESTADO='PENDIENTE_ENVIO',
+        DATOS_JSON=CASE WHEN A.ESTADO='CONFIRMADO_ERP'
+          THEN JSON_MODIFY(COALESCE(A.DATOS_JSON,'{}'),'$.actualizarNombre',CONVERT(BIT,1))
+          ELSE A.DATOS_JSON END
+      OUTPUT INSERTED.ID_ALTA_MAESTRO, DELETED.NOMBRE, DELETED.ESTADO INTO @cambio
+      FROM dbo.ALTAS_MAESTROS A
+      WHERE A.ID_EMPRESA=@empresa AND A.ID_ALTA_MAESTRO=@id AND A.TIPO='MODELO'
+        AND A.ESTADO IN ('PENDIENTE_ENVIO','CONFIRMADO_ERP')
+        AND ${modeloSinTrazabilidad};
+      INSERT dbo.ALTAS_MAESTROS_HISTORIAL(ID_ALTA_MAESTRO,ESTADO_ANTERIOR,ESTADO_NUEVO,OBSERVACION,USUARIO)
+      SELECT id,estado,'PENDIENTE_ENVIO',CONCAT('Cambio de nombre: ',anterior,' → ',@nombre),@usuario FROM @cambio;
+      COMMIT;
+      SELECT id FROM @cambio;
+    `);
+  return resultado.recordset.length === 1;
+}
+
+async function puedeReenviarNombre(idEmpresa, id) {
+  const pool = await getConnection();
+  const r = await pool.request().input('empresa', sql.Int, idEmpresa).input('id', sql.Int, id).query(`
+    SELECT 1 AS permitido FROM dbo.ALTAS_MAESTROS A
+    WHERE A.ID_EMPRESA=@empresa AND A.ID_ALTA_MAESTRO=@id AND ${modeloSinTrazabilidad}
+  `);
+  return r.recordset.length === 1;
 }
 
 async function obtenerPendientesYConfiguracion(idEmpresa) {
@@ -422,4 +469,4 @@ async function eliminarReglaEan(idEmpresa, idRegla, usuario) {
   return r.recordset[0] || null;
 }
 
-module.exports = { listar, conciliarModelosRegistrados, codigosOcupados, buscarCodigoEnMaestro, listarModulosMaestroCompartido, listarSolicitudesModulosCompartidas, listarModelosParaSugerencia, buscarNombreDuplicado, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, obtenerConfiguracionEanEmpresa, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, alcanceMaestro };
+module.exports = { editarNombreModelo, puedeReenviarNombre, listar, conciliarModelosRegistrados, codigosOcupados, buscarCodigoEnMaestro, listarModulosMaestroCompartido, listarSolicitudesModulosCompartidas, listarModelosParaSugerencia, buscarNombreDuplicado, crear, anularPendiente, obtenerPendientesYConfiguracion, marcarEnviados, listarReglasEan, obtenerConfiguracionEanEmpresa, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, alcanceMaestro };

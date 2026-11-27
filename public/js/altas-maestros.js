@@ -439,6 +439,34 @@ function mostrarConfirmacionEnvioMaestros(resultado) {
   bootstrap.Modal.getOrCreateInstance($('modalEnvioMaestros')).show();
 }
 
+function accionesNombreModelo(registro) {
+  if (registro.TIPO !== 'MODELO' || !['PENDIENTE_ENVIO', 'CONFIRMADO_ERP'].includes(registro.ESTADO)) return '';
+  const id = Number(registro.ID_ALTA_MAESTRO);
+  let actualizacion = false;
+  try { actualizacion = JSON.parse(registro.DATOS_JSON || '{}').actualizarNombre === true; } catch {}
+  const editar = `<button class="btn btn-sm btn-outline-primary me-1" type="button" data-editar-nombre="${id}" data-nombre="${textoSeguro(registro.NOMBRE)}">Editar nombre</button>`;
+  const enviar = `<button class="btn btn-sm btn-primary me-1" type="button" data-enviar-nombre="${id}">Enviar cambio</button>`;
+  return editar + (actualizacion && registro.ESTADO === 'PENDIENTE_ENVIO' ? enviar : '');
+}
+
+async function gestionarNombreModelo(evento) {
+  const boton = evento.target.closest('[data-editar-nombre], [data-enviar-nombre]');
+  if (!boton) return;
+  const editar = Boolean(boton.dataset.editarNombre);
+  const id = Number(boton.dataset.editarNombre || boton.dataset.enviarNombre);
+  const nombre = editar ? prompt('Nuevo nombre del modelo', boton.dataset.nombre) : null;
+  if (editar ? nombre === null || nombre.trim() === boton.dataset.nombre : !confirm('¿Enviar este cambio de nombre a Presea?')) return;
+  boton.disabled = true;
+  try {
+    await api(`/api/altas-maestros/modelos/${id}/${editar ? 'nombre' : 'enviar-nombre'}`, {
+      method: editar ? 'PATCH' : 'POST', body: JSON.stringify(editar ? { nombre } : {})
+    });
+    alerta(editar ? 'Nombre actualizado. El cambio quedó pendiente de envío.' : 'Cambio enviado a Presea.');
+    await cargar();
+  } catch (e) { alerta(e.message, 'danger'); }
+  finally { boton.disabled = false; }
+}
+
 function accionEliminarSolicitudMaestro(registro) {
   if (String(registro.ESTADO || '').toUpperCase() !== 'PENDIENTE_ENVIO') return '';
   return `<button class="btn btn-sm btn-outline-danger" type="button" data-eliminar-solicitud-maestro="${Number(registro.ID_ALTA_MAESTRO)}" data-codigo-solicitud="${textoSeguro(registro.CODIGO)}">Eliminar</button>`;
@@ -451,7 +479,7 @@ async function cargar() {
     $('tablaAltasMaestros').innerHTML = registros.map(x => {
       const estado = presentacionEstadoMaestro(x.ESTADO);
       const id = Number(x.ID_ALTA_MAESTRO);
-      return `<tr><td><button class="btn btn-sm btn-light border font-monospace fw-bold" type="button" data-copiar-id-maestro="${id}" title="Copiar ID ${id}">${id}</button></td><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.MARCA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td><td>${textoSeguro(x.LICENCIA || 'Sin licencia')}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionEliminarSolicitudMaestro(x)}</td></tr>`;
+      return `<tr><td><button class="btn btn-sm btn-light border font-monospace fw-bold" type="button" data-copiar-id-maestro="${id}" title="Copiar ID ${id}">${id}</button></td><td>${textoSeguro(x.TIPO)}</td><td class="font-monospace fw-bold">${textoSeguro(x.CODIGO)}</td><td>${textoSeguro(x.NOMBRE)}</td><td>${textoSeguro(x.MARCA || '-')}</td><td>${textoSeguro(x.RUBRO || '-')}</td><td>${textoSeguro(x.LICENCIA || 'Sin licencia')}</td><td>${textoSeguro(x.USUARIO_CREACION || '-')}</td><td><span class="badge ${estado.clase}">${estado.etiqueta}</span></td><td>${new Date(x.FECHA_CREACION).toLocaleString('es-AR')}</td><td class="text-end">${accionesNombreModelo(x)}${accionEliminarSolicitudMaestro(x)}</td></tr>`;
     }).join('') || '<tr><td colspan="11" class="text-center text-secondary py-4">No hay solicitudes para tus permisos en esta empresa.</td></tr>';
   } catch (e) {
     alerta(e.message, 'danger');
@@ -751,6 +779,7 @@ async function iniciar() {
   $('btnConfirmarModelosMasivos').addEventListener('click', confirmarModelosMasivos);
   $('btnConfirmarSolicitudMaestro').addEventListener('click', confirmarSolicitudMaestro);
   $('tablaAltasMaestros').addEventListener('click', evento => {
+    gestionarNombreModelo(evento);
     eliminarSolicitudMaestro(evento);
     manejarSeleccionIdsMaestros(evento);
   });

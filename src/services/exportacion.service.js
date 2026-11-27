@@ -1003,7 +1003,21 @@ function armarRegistrosPRIMERAS_SEGUNDAS(alta, detalles, opciones = {}) {
   const registros = [];
 
   for (const [clave, primera] of primeras) {
-    const segunda = segundas.get(clave);
+    let segunda = segundas.get(clave);
+    if (!segunda) {
+      const alfa = texto(primera.CODIGO_ALFA).toUpperCase();
+      const modelo = texto(primera.CODIGO_MODELO).toUpperCase();
+      const color = texto(primera.CODIGO_COLOR).toUpperCase();
+      const talle = normalizarTalleCodigoAlfaRelacion(primera.CODIGO_TALLE);
+      const sexo = texto(primera.SEXO).toUpperCase();
+      // La primera histórica lleva la clasificación del módulo tras MTxxx.
+      // Su segunda conserva el modelo con espacio de relleno.
+      if (/^\d{4}MT\d{3}[678]1[A-Z0-9]{4}$/.test(alfa) && alfa.slice(4, 9) === modelo &&
+          alfa.slice(11) === color + talle) {
+        const base = normalizarBaseCodigoAlfaHistorico(alfa.slice(0, 9) + ' ');
+        segunda = segundas.get([base, color, talle, sexo].join('|'));
+      }
+    }
 
     if (!segunda) {
       throw new Error(

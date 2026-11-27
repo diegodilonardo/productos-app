@@ -68,6 +68,28 @@ router.post('/modelos/descargar-vista-previa', requerirEscrituraEmpresa, async (
     res.send(archivo);
   } catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message }); }
 });
+router.patch('/modelos/:id/nombre', requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    await service.editarNombreModelo({
+      idEmpresa: req.idEmpresa, id: Number(req.params.id), nombre: req.body?.nombre,
+      usuario: req.session?.usuario?.usuario || 'SISTEMA', acceso: req.accesoEmpresa
+    });
+    res.json({ ok: true });
+  } catch (e) { res.status(e.status || 500).json({ mensaje: e.message }); }
+});
+
+router.post('/modelos/:id/enviar-nombre', requerirEscrituraEmpresa, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const usuario = req.session?.usuario?.usuario || 'SISTEMA';
+    const registros = await service.listar(req.idEmpresa, usuario, req.accesoEmpresa);
+    if (!registros.some(r => Number(r.ID_ALTA_MAESTRO) === id && service.esActualizacionNombre(r))) {
+      return res.status(404).json({ mensaje: 'La actualización no está disponible.' });
+    }
+    res.json({ ok: true, ...(await service.enviarPresea({ idEmpresa: req.idEmpresa, usuario, idActualizacion: id })) });
+  } catch (e) { res.status(e.status || 500).json({ mensaje: e.message, destino: e.destino }); }
+});
+
 router.post('/enviar-presea', requerirEscrituraEmpresa, async (req, res) => {
   try { res.json({ ok: true, ...(await service.enviarPresea({ idEmpresa: req.idEmpresa, usuario: req.session?.usuario?.usuario })) }); }
   catch (e) { res.status(e.status || 500).json({ ok: false, mensaje: e.message, destino: e.destino }); }

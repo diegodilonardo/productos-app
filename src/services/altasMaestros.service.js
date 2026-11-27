@@ -352,6 +352,7 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
   }
   const cProveedor = tipo === 'MODELO' ? validarCodigoProveedor(cuerpo.cProveedor) : normalizar(cuerpo.cProveedor);
   const datos = tipo === 'MODELO' ? { ...(cuerpo.datos || {}), disciplina: disciplinaModelo, prefijoDisciplina: normalizar(cuerpo.prefijoDisciplina) || null } : (datosModulo || cuerpo.datos);
+  if (tipo === 'MODELO') delete datos.actualizarNombre;
   return repository.crear({ idEmpresa, tipo, codigo, nombre, cProveedor, licencia: licenciaModelo, marca: normalizar(cuerpo.marca), rubro: normalizar(cuerpo.rubro), datosJson: datos ? JSON.stringify(datos) : null, usuario: usuario || 'SISTEMA' });
 }
 
@@ -609,20 +610,48 @@ function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = 
 
 const enviosMaestrosEnCurso = new Set();
 
-async function enviarPresea({ idEmpresa, usuario }) {
+async function enviarPresea({ idEmpresa, usuario, idActualizacion }) {
   const empresa = String(idEmpresa);
   if (enviosMaestrosEnCurso.has(empresa)) {
     throw Object.assign(new Error('Ya hay un envío de maestros en curso para esta empresa.'), { status: 409 });
   }
   enviosMaestrosEnCurso.add(empresa);
   try {
-    return await enviarPendientesMaestros({ idEmpresa, usuario });
+    return await enviarPendientesMaestros({ idEmpresa, usuario, idActualizacion });
   } finally {
     enviosMaestrosEnCurso.delete(empresa);
   }
 }
 
-async function enviarPendientesMaestros({ idEmpresa, usuario }) {
+function esActualizacionNombre(registro) {
+  if (registro.TIPO !== 'MODELO') return false;
+  try { return JSON.parse(registro.DATOS_JSON || '{}')?.actualizarNombre === true; }
+  catch { return false; }
+}
+
+async function editarNombreModelo({ idEmpresa, id, nombre, usuario, acceso }) {
+  const nuevo = normalizarNombre(nombre);
+  if (!nuevo || nuevo.length > 50) throw Object.assign(new Error('Ingresá un nombre de hasta 50 caracteres para el DBI de Presea.'), { status: 400 });
+  const registro = (await listar(idEmpresa, usuario, acceso)).find(r => Number(r.ID_ALTA_MAESTRO) === id && r.TIPO === 'MODELO');
+  if (!registro) throw Object.assign(new Error('La solicitud no está disponible.'), { status: 404 });
+  const duplicado = await repository.buscarNombreDuplicado({ idEmpresa, tipo: 'MODELO', nombre: nuevo,
+    codigoExcluir: registro.CODIGO, marca: registro.MARCA, rubro: registro.RUBRO });
+  if (duplicado) throw Object.assign(new Error('Ya existe otro modelo con ese nombre en la marca y rubro.'), { status: 409 });
+  const empresa = String(idEmpresa);
+  if (enviosMaestrosEnCurso.has(empresa)) {
+    throw Object.assign(new Error('Ya hay un envío de maestros en curso para esta empresa.'), { status: 409 });
+  }
+  enviosMaestrosEnCurso.add(empresa);
+  try {
+    if (!await repository.editarNombreModelo(idEmpresa, id, nuevo, usuario)) {
+      throw Object.assign(new Error('El modelo tiene productos asociados o su estado no admite cambios.'), { status: 409 });
+    }
+  } finally {
+    enviosMaestrosEnCurso.delete(empresa);
+  }
+}
+
+async function enviarPendientesMaestros({ idEmpresa, usuario, idActualizacion }) {
   await repository.conciliarModelosRegistrados(idEmpresa, usuario || 'SISTEMA');
   const datos = await repository.obtenerPendientesYConfiguracion(idEmpresa);
   if (datos.enviadosSinConfirmar?.CANTIDAD > 0) {
@@ -631,12 +660,19 @@ async function enviarPendientesMaestros({ idEmpresa, usuario }) {
       `Hay ${CANTIDAD} solicitud(es) enviadas a Presea sin confirmar (primera: ID ${PRIMER_ID}). Actualizá los maestros y esperá a que figuren registradas antes de exportar otro lote de esta empresa.`
     ), { status: 409 });
   }
+  datos.registros = datos.registros.filter(r => idActualizacion
+    ? Number(r.ID_ALTA_MAESTRO) === idActualizacion && esActualizacionNombre(r)
+    : !esActualizacionNombre(r));
   const rutaDestino = resolverRutaDestinoMaestros(datos.rutaDestino);
   if (!rutaDestino) throw Object.assign(new Error('La empresa no tiene configurada la carpeta FTP de Altas de Maestros.'), { status: 409 });
   if (!datos.registros.length) throw Object.assign(new Error('No hay solicitudes pendientes para enviar.'), { status: 409 });
   for (const registro of datos.registros) {
     const existente = await repository.buscarCodigoEnMaestro(idEmpresa, normalizar(registro.TIPO), normalizar(registro.CODIGO));
-    if (existente) {
+    if (idActualizacion) {
+      if (!existente?.ACTIVO || !await repository.puedeReenviarNombre(idEmpresa, idActualizacion)) {
+        throw Object.assign(new Error('El modelo dejó de estar activo o ya tiene productos asociados.'), { status: 409 });
+      }
+    } else if (existente) {
       const estado = existente.ACTIVO ? 'activo' : 'inactivo';
       throw Object.assign(new Error(
         `No se enviaron los DBI: el código ${normalizar(registro.CODIGO)} de ${normalizar(registro.TIPO)} ya existe en Presea (${estado}) y podría ser sobrescrito. Genere la solicitud con un código libre.`
@@ -698,4 +734,4 @@ async function eliminarReglaEan({ idEmpresa, idRegla, usuario }) {
 
 function etiquetasTallesModuloExport(campo) { return etiquetasTallesModulo[campo] || campo; }
 
-module.exports = { listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, agruparArchivosMaestros, claveDestinoMaestro };
+module.exports = { editarNombreModelo, esActualizacionNombre, listar, eliminarPendiente, sugerirCodigo, sugerirCodigoModelo, sugerirPorMarcaYRubro, crear, previsualizarModelos, crearModelosMasivos, generarTemplateModelos, generarExcelVistaPreviaModelos, codigoBase36, enviarPresea, definicionesDbi, resolverRutaDestinoMaestros, tallesModuloCalzado, tallesModuloIndumentaria, etiquetasTallesModuloExport, listarReglasEan, guardarConfiguracionEanEmpresa, guardarReglaEan, eliminarReglaEan, agruparArchivosMaestros, claveDestinoMaestro };

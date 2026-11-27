@@ -772,7 +772,7 @@ async function buscarColorMix(idEmpresa) {
         AND ACTIVO = 1
         AND (
           UPPER(LTRIM(RTRIM(CODIGO_COLOR))) = 'MIX'
-          OR UPPER(LTRIM(RTRIM(DETALLE_COLOR))) = 'MIX'
+          OR UPPER(LTRIM(RTRIM(DETALLE_COLOR))) IN ('MIX', 'MIXED')
         )
       ORDER BY CASE WHEN UPPER(LTRIM(RTRIM(CODIGO_COLOR))) = 'MIX' THEN 0 ELSE 1 END,
                CODIGO_COLOR;

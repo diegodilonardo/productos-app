@@ -1896,7 +1896,7 @@ async function prepararDetalleProducto(
     if (tallesMixtos) {
         colorMix = await altasRepository.buscarColorMix(idEmpresa);
         if (!colorMix) {
-            throw new Error('No existe un color activo MIX en el maestro de colores de la empresa.');
+            throw new Error('No existe un color activo MIX o MIXED en el maestro de colores de la empresa.');
         }
     }
 

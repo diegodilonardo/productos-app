@@ -121,12 +121,19 @@ function resolverSegunda(codigoPrimera, existentes = new Set()) {
 
 function datosCodigoAlfa(codigoAlfa) {
   const codigo = texto(codigoAlfa).toUpperCase();
+  const historico = /^\d{4}MT\d{3}\d[A-Z0-9]{4}$/.test(codigo);
+  const posicionClasificacion = historico ? 9 : 10;
+  const modeloCrudo = codigo.slice(4, posicionClasificacion);
   return {
     ano: codigo.slice(0, 2),
     temporada: codigo.slice(2, 3),
     rubro: codigo.slice(3, 4),
-    modeloCrudo: codigo.slice(4, 10),
-    modeloAlternativo: codigo.slice(4, 10).replace(/^0/, '')
+    modeloCrudo,
+    modeloAlternativo: modeloCrudo.replace(/^0/, ''),
+    clasificacion: codigo[posicionClasificacion] || '',
+    color: codigo.slice(posicionClasificacion + 1, posicionClasificacion + 3),
+    curva: codigo.slice(posicionClasificacion + 3, posicionClasificacion + 5),
+    historico
   };
 }
 
@@ -326,7 +333,7 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
     if (!modelo) motivos.push('MODELO_NO_ENCONTRADO');
     const proveedor = buscarProveedor(fila.proveedor, catalogos.proveedores);
     if (!proveedor) motivos.push('PROVEEDOR_NO_RECONOCIDO');
-    const clasificacion = fila.codigoAlfa.slice(10, 11);
+    const clasificacion = datos.clasificacion;
     if (!sexoPorClasificacion[clasificacion]) motivos.push(`CLASIFICACION_${clasificacion || 'VACIA'}_NO_CONFIGURADA`);
     const marca = marcas.get(normalizar(modelo?.MARCA_MODELO));
     if (!marca) motivos.push('MARCA_NO_ENCONTRADA');
@@ -339,7 +346,7 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
       cabecera: { codigoMarca: marca.CODIGO_MARCA, codigoRubro: datos.rubro, tipoProducto: 'MODULO', codigoTemporada: datos.temporada, codigoAno: datos.ano },
       productos: []
     });
-    grupos.get(clave).productos.push({
+    const producto = {
       codigoModelo: modelo.CODIGO_MODELO,
       codigoProveedor: proveedor.CODIGO,
       codigoGrupo: atributos.CODIGO_GRUPO,
@@ -350,14 +357,18 @@ async function confirmarReorden({ idEmpresa, nombreArchivo, archivoBase64, usuar
       sexo: sexoPorClasificacion[clasificacion],
       codigoPais: '58',
       codigoClasificacion: clasificacion,
-      codigoColor: fila.codigoAlfa.slice(11, 13),
-      codigoModulo: fila.codigoAlfa.slice(13, 15),
+      codigoColor: datos.color,
+      codigoModulo: datos.curva,
       relacionesHistoricas: relaciones.get(fila.codigoAlfa) || [],
       segundasHistoricas: (relaciones.get(fila.codigoAlfa) || [])
         .map(codigo => resolverSegunda(codigo, catalogos.existentes))
         .filter(Boolean),
       usuario
-    });
+    };
+    if (datos.historico && catalogos.existentes.has(fila.codigoAlfa)) {
+      require('./altas.service').conservarModuloHistorico(producto, fila.codigoAlfa);
+    }
+    grupos.get(clave).productos.push(producto);
   }
 
   if (!grupos.size) {

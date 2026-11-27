@@ -1561,6 +1561,9 @@ function construirDetalleProducto({
    ============================================================ */
 
 const moduloERPReutilizado = Symbol('moduloERPReutilizado');
+function conservarModuloHistorico(datos, codigoAlfa) {
+    datos[moduloERPReutilizado] = codigoAlfa;
+}
 const sueltosERPRelacionados = Symbol('sueltosERPRelacionados');
 
 async function prepararDetalleProducto(
@@ -3607,6 +3610,7 @@ async function anularAlta(
    ============================================================ */
 
 module.exports = {
+    conservarModuloHistorico,
     resolverVarianteModulo,
     prepararDetalleProducto,
     generarDesdeModulo,

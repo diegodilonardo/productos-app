@@ -163,6 +163,9 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   const disciplina = licencia === 'SIN LICENCIA' ? normalizarDisciplina(filtros.disciplina) : 'SIN DISCIPLINA';
   const nuevaLicencia = filtros.nuevaLicencia === true || normalizar(filtros.nuevaLicencia) === 'TRUE';
   const prefijoNuevo = normalizar(filtros.prefijo);
+  if (nuevaLicencia && !/^[A-Z0-9]{2,3}$/.test(prefijoNuevo)) {
+    throw Object.assign(new Error('Para una licencia nueva indique un prefijo de 2 o 3 caracteres.'), { status: 400 });
+  }
   const prefijoDisciplina = normalizar(filtros.prefijoDisciplina);
   if (!marca || !rubro) throw Object.assign(new Error('Seleccione marca y rubro antes de sugerir el modelo.'), { status: 400 });
   const modelos = await repository.listarModelosParaSugerencia(idEmpresa);
@@ -180,7 +183,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
     if (normalizarLicencia(item.LICENCIA) !== licencia || ocupados.has(normalizar(item.CODIGO))) return false;
     if (licencia !== 'SIN LICENCIA') {
       const codigoAnuladoNormalizado = normalizar(item.CODIGO);
-      if (nuevaLicencia) return codigoAnuladoNormalizado.startsWith(prefijoNuevo);
+      if (nuevaLicencia) return new RegExp(`^${prefijoNuevo}\\d{${largos.MODELO - prefijoNuevo.length}}$`).test(codigoAnuladoNormalizado);
       const serieConfirmada = serieLicenciada;
       if (serieConfirmada) {
         return new RegExp(`^${serieConfirmada.prefijo}\\d{${serieConfirmada.largoCorrelativo}}$`).test(codigoAnuladoNormalizado);
@@ -198,7 +201,7 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
     }
   });
   if (codigoAnulado) return normalizar(codigoAnulado.CODIGO);
-  if (marca !== 'ATOMIK' && licencia === 'SIN LICENCIA') {
+  if (marca !== 'ATOMIK' && licencia === 'SIN LICENCIA' && !nuevaLicencia) {
     const serieConfigurada = seriesModeloPorMarca[marca];
     if (serieConfigurada) return sugerirPorSerieConfigurada(ocupados, serieConfigurada);
     return sugerirPorMarcaYRubro(modelosVigentes, ocupados, marca, rubro);
@@ -209,9 +212,9 @@ async function sugerirCodigoModelo(idEmpresa, filtros) {
   let correlativoSoloNumerico = false;
   let codigosParaCorrelativo = [...ocupados];
   if (nuevaLicencia) {
-    if (!/^[A-Z0-9]{2}$/.test(prefijoNuevo)) throw Object.assign(new Error('Para una licencia nueva indique sus 2 primeros caracteres.'), { status: 400 });
     if (modelosVigentes.some(x => normalizar(x.CODIGO).startsWith(prefijoNuevo))) throw Object.assign(new Error(`Los primeros caracteres ${prefijoNuevo} ya están utilizados por otra licencia.`), { status: 409 });
     prefijo = prefijoNuevo;
+    largoCorrelativo = largos.MODELO - prefijo.length;
     correlativoSoloNumerico = true;
   } else {
     const mismaLicencia = modelosVigentes.filter(x => normalizarLicencia(x.LICENCIA) === licencia);

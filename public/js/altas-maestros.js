@@ -645,7 +645,7 @@ async function previsualizarModelosMasivos() {
   const disciplina = $('disciplinaModelosMasivos').value;
   const prefijoDisciplina = $('prefijoDisciplinaMasiva').value.trim();
   if (!marca || !rubro || !licencia) { alerta('Seleccione marca, rubro y licencia.', 'warning'); return; }
-  if (marca.toUpperCase() === 'ATOMIK' && esLicenciaNuevaMasiva() && (!/^[A-Za-z0-9]{2}$/.test(prefijo) || !licencia)) { alerta('Para una licencia nueva indique su nombre y dos caracteres.', 'warning'); return; }
+  if (esLicenciaNuevaMasiva() && (!/^[A-Za-z0-9]{2,3}$/.test(prefijo) || !licencia)) { alerta('Ingresá el nombre de la licencia y un prefijo de 2 o 3 caracteres.', 'warning'); return; }
   const btn = $('btnPrevisualizarModelos'), original = btn.textContent;
   try {
     btn.disabled = true; btn.textContent = 'Procesando...';

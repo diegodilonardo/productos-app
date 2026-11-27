@@ -441,12 +441,13 @@ test('una licencia no reutiliza anulados de otra serie vigente', async () => {
   }
 });
 
-test('una licencia nueva exige dos caracteres todavía no utilizados', async () => {
+test('una licencia nueva admite un prefijo libre de dos o tres caracteres', async () => {
   const original = repository.listarModelosParaSugerencia;
   repository.listarModelosParaSugerencia = async () => [{ CODIGO: 'AB0000', MARCA: 'ATOMIK', RUBRO: '01', LICENCIA: 'MARVEL' }];
   try {
     await assert.rejects(() => service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: '01', licencia: 'NUEVA', nuevaLicencia: true, prefijo: 'AB' }), /ya están utilizados/);
     assert.equal(await service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: '01', licencia: 'NUEVA', nuevaLicencia: true, prefijo: 'XY' }), 'XY0000');
+    assert.equal(await service.sugerirCodigoModelo(1, { marca: 'ATOMIK', rubro: '01', licencia: 'NUEVA', nuevaLicencia: true, prefijo: 'XYZ' }), 'XYZ000');
   } finally { repository.listarModelosParaSugerencia = original; }
 });
 

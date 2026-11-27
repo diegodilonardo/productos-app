@@ -72,6 +72,7 @@ router.patch('/modelos/:id/nombre', requerirEscrituraEmpresa, async (req, res) =
   try {
     await service.editarNombreModelo({
       idEmpresa: req.idEmpresa, id: Number(req.params.id), nombre: req.body?.nombre,
+      rubro: req.body?.rubro,
       usuario: req.session?.usuario?.usuario || 'SISTEMA', acceso: req.accesoEmpresa
     });
     res.json({ ok: true });

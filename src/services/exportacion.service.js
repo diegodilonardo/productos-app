@@ -1016,6 +1016,14 @@ function armarRegistrosPRIMERAS_SEGUNDAS(alta, detalles, opciones = {}) {
           alfa.slice(11) === color + talle) {
         const base = normalizarBaseCodigoAlfaHistorico(alfa.slice(0, 9) + ' ');
         segunda = segundas.get([base, color, talle, sexo].join('|'));
+        if (!segunda) {
+          const alfaSegunda = `${alfa.slice(0, 9)} 2${color}${talle}`;
+          const alternativas = [...segundas.values()].filter(detalle =>
+            texto(detalle.CODIGO_ALFA).toUpperCase() === alfaSegunda &&
+            texto(detalle.ESTADO_VALIDACION).toUpperCase() === 'EXISTE_ERP'
+          );
+          if (alternativas.length === 1) [segunda] = alternativas;
+        }
       }
     }
 

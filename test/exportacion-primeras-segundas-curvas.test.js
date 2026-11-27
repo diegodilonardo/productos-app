@@ -101,3 +101,16 @@ test("empareja una segunda histórica que reemplaza el cero de relleno por un es
   assert.equal(registros[0].COD_ALFA, "26210MT50811040");
   assert.equal(registros[0].COD_ALFAR, "2621MT508 21040");
 });
+
+test("empareja primeras históricas con clasificación del módulo y segundas con espacio", () => {
+  const base = { ESTADO_VALIDACION: "EXISTE_ERP", TIPO_PRODUCTO_DETALLE: "PAR_SUELTO",
+    CODIGO_MODELO: "MT493", CODIGO_COLOR: "10", CODIGO_TALLE: "40", SEXO: "MAS" };
+  const detalles = [
+    { ...base, CODIGO_ALFA: "2721MT493711040", CODIGO_CLASIFICACION: "1" },
+    { ...base, CODIGO_ALFA: "2721MT493 21040", CODIGO_CLASIFICACION: "2" },
+  ];
+  assert.equal(armarRegistrosPRIMERAS_SEGUNDAS({}, detalles).length, 0);
+  const [relacion] = armarRegistrosPRIMERAS_SEGUNDAS({}, detalles, { incluirHistorico: true });
+  assert.equal(relacion.COD_ALFA, "2721MT493711040");
+  assert.equal(relacion.COD_ALFAR, "2721MT493 21040");
+});

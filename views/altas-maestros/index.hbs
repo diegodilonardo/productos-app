@@ -107,6 +107,17 @@
     type="button"
   >Control de EAN</button><button id="tabDestinos" class="nav-link d-none" type="button">Destinos de exportación</button></div>
 <div id="alertaAltasMaestros" class="alert d-none"></div>
+<dialog id="dialogoEditarModelo" class="border rounded p-4">
+  <form id="formEditarModelo" method="dialog" class="vstack gap-3">
+    <h2 class="h5 mb-0">Editar modelo</h2>
+    <label>Nombre <input class="form-control" name="nombre" maxlength="50" required></label>
+    <label>Rubro <select class="form-select" name="rubro" required></select></label>
+    <div class="d-flex gap-2 justify-content-end">
+      <button class="btn btn-outline-secondary" value="cancelar" formnovalidate>Cancelar</button>
+      <button class="btn btn-primary" value="guardar">Guardar cambios</button>
+    </div>
+  </form>
+</dialog>
 <section id="panelDestinos" class="card shadow-sm mb-4 d-none">
   <div class="card-body">
     <h2 class="h5">Destinos FTP de la empresa seleccionada</h2>

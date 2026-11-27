@@ -100,7 +100,8 @@ async function conciliarModelosRegistrados(idEmpresa, usuario = 'SISTEMA') {
             AND M.ACTIVO=1
             AND UPPER(LTRIM(RTRIM(M.CODIGO_MODELO)))=UPPER(LTRIM(RTRIM(A.CODIGO)))
             AND (ISNULL(JSON_VALUE(A.DATOS_JSON,'$.actualizarNombre'),'false') <> 'true'
-                 OR UPPER(LTRIM(RTRIM(M.DETALLE_MODELO)))=UPPER(LTRIM(RTRIM(A.NOMBRE))))
+                 OR (UPPER(LTRIM(RTRIM(M.DETALLE_MODELO)))=UPPER(LTRIM(RTRIM(A.NOMBRE)))
+                     AND UPPER(LTRIM(RTRIM(M.RUBRO_MODELO)))=UPPER(LTRIM(RTRIM(A.RUBRO)))))
           ))
           OR (A.TIPO='COLOR' AND EXISTS (
             SELECT 1 FROM dbo.MAESTRO_COLORES C
@@ -358,24 +359,25 @@ const modeloSinTrazabilidad = `
     ))
 `;
 
-async function editarNombreModelo(idEmpresa, id, nombre, usuario) {
+async function editarNombreModelo(idEmpresa, id, nombre, rubro, usuario) {
   const pool = await getConnection();
   const resultado = await pool.request().input('empresa', sql.Int, idEmpresa).input('id', sql.Int, id)
-    .input('nombre', sql.VarChar(100), nombre).input('usuario', sql.VarChar(100), usuario).query(`
+    .input('nombre', sql.VarChar(100), nombre).input('rubro', sql.VarChar(20), rubro)
+    .input('usuario', sql.VarChar(100), usuario).query(`
       SET XACT_ABORT ON;
       BEGIN TRAN;
-      DECLARE @cambio TABLE (id INT, anterior VARCHAR(100), estado VARCHAR(40));
-      UPDATE A SET NOMBRE=@nombre, ESTADO='PENDIENTE_ENVIO',
+      DECLARE @cambio TABLE (id INT, anterior VARCHAR(100), rubroAnterior VARCHAR(50), estado VARCHAR(40));
+      UPDATE A SET NOMBRE=@nombre, RUBRO=@rubro, ESTADO='PENDIENTE_ENVIO',
         DATOS_JSON=CASE WHEN A.ESTADO='CONFIRMADO_ERP'
           THEN JSON_MODIFY(COALESCE(A.DATOS_JSON,'{}'),'$.actualizarNombre',CONVERT(BIT,1))
           ELSE A.DATOS_JSON END
-      OUTPUT INSERTED.ID_ALTA_MAESTRO, DELETED.NOMBRE, DELETED.ESTADO INTO @cambio
+      OUTPUT INSERTED.ID_ALTA_MAESTRO, DELETED.NOMBRE, DELETED.RUBRO, DELETED.ESTADO INTO @cambio
       FROM dbo.ALTAS_MAESTROS A
       WHERE A.ID_EMPRESA=@empresa AND A.ID_ALTA_MAESTRO=@id AND A.TIPO='MODELO'
         AND A.ESTADO IN ('PENDIENTE_ENVIO','CONFIRMADO_ERP')
         AND ${modeloSinTrazabilidad};
       INSERT dbo.ALTAS_MAESTROS_HISTORIAL(ID_ALTA_MAESTRO,ESTADO_ANTERIOR,ESTADO_NUEVO,OBSERVACION,USUARIO)
-      SELECT id,estado,'PENDIENTE_ENVIO',CONCAT('Cambio de nombre: ',anterior,' → ',@nombre),@usuario FROM @cambio;
+      SELECT id,estado,'PENDIENTE_ENVIO',CONCAT('Modelo: ',anterior,' → ',@nombre,' | Rubro: ',rubroAnterior,' → ',@rubro),@usuario FROM @cambio;
       COMMIT;
       SELECT id FROM @cambio;
     `);

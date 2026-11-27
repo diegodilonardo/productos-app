@@ -629,13 +629,18 @@ function esActualizacionNombre(registro) {
   catch { return false; }
 }
 
-async function editarNombreModelo({ idEmpresa, id, nombre, usuario, acceso }) {
+async function editarNombreModelo({ idEmpresa, id, nombre, rubro, usuario, acceso }) {
   const nuevo = normalizarNombre(nombre);
   if (!nuevo || nuevo.length > 50) throw Object.assign(new Error('Ingresá un nombre de hasta 50 caracteres para el DBI de Presea.'), { status: 400 });
   const registro = (await listar(idEmpresa, usuario, acceso)).find(r => Number(r.ID_ALTA_MAESTRO) === id && r.TIPO === 'MODELO');
   if (!registro) throw Object.assign(new Error('La solicitud no está disponible.'), { status: 404 });
+  const nuevoRubro = normalizar(rubro ?? registro.RUBRO);
+  const rubrosPermitidos = await require('./maestros.service').obtenerRubros({ idEmpresa, acceso });
+  if (!rubrosPermitidos.some(r => normalizar(r.DETALLE_RUBRO) === nuevoRubro)) {
+    throw Object.assign(new Error('Seleccioná un rubro activo habilitado para tu usuario.'), { status: 403 });
+  }
   const duplicado = await repository.buscarNombreDuplicado({ idEmpresa, tipo: 'MODELO', nombre: nuevo,
-    codigoExcluir: registro.CODIGO, marca: registro.MARCA, rubro: registro.RUBRO });
+    codigoExcluir: registro.CODIGO, marca: registro.MARCA, rubro: nuevoRubro });
   if (duplicado) throw Object.assign(new Error('Ya existe otro modelo con ese nombre en la marca y rubro.'), { status: 409 });
   const empresa = String(idEmpresa);
   if (enviosMaestrosEnCurso.has(empresa)) {
@@ -643,7 +648,7 @@ async function editarNombreModelo({ idEmpresa, id, nombre, usuario, acceso }) {
   }
   enviosMaestrosEnCurso.add(empresa);
   try {
-    if (!await repository.editarNombreModelo(idEmpresa, id, nuevo, usuario)) {
+    if (!await repository.editarNombreModelo(idEmpresa, id, nuevo, nuevoRubro, usuario)) {
       throw Object.assign(new Error('El modelo tiene productos asociados o su estado no admite cambios.'), { status: 409 });
     }
   } finally {

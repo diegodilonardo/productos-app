@@ -444,9 +444,25 @@ function accionesNombreModelo(registro) {
   const id = Number(registro.ID_ALTA_MAESTRO);
   let actualizacion = false;
   try { actualizacion = JSON.parse(registro.DATOS_JSON || '{}').actualizarNombre === true; } catch {}
-  const editar = `<button class="btn btn-sm btn-outline-primary me-1" type="button" data-editar-nombre="${id}" data-nombre="${textoSeguro(registro.NOMBRE)}">Editar nombre</button>`;
+  const editar = `<button class="btn btn-sm btn-outline-primary me-1" type="button" data-editar-nombre="${id}" data-nombre="${textoSeguro(registro.NOMBRE)}" data-rubro="${textoSeguro(registro.RUBRO)}">Editar modelo</button>`;
   const enviar = `<button class="btn btn-sm btn-primary me-1" type="button" data-enviar-nombre="${id}">Enviar cambio</button>`;
   return editar + (actualizacion && registro.ESTADO === 'PENDIENTE_ENVIO' ? enviar : '');
+}
+
+function pedirCambiosModelo(boton) {
+  const dialogo = $('dialogoEditarModelo');
+  const form = $('formEditarModelo');
+  form.elements.nombre.value = boton.dataset.nombre;
+  const selector = form.elements.rubro;
+  selector.replaceChildren(...[...$('rubroModelo').options].map(opcion => opcion.cloneNode(true)));
+  selector.value = [...selector.options].find(o => o.value.trim().toUpperCase() === boton.dataset.rubro.trim().toUpperCase())?.value || '';
+  dialogo.returnValue = '';
+  return new Promise(resolve => {
+    dialogo.addEventListener('close', () => {
+      resolve(dialogo.returnValue === 'guardar' ? Object.fromEntries(new FormData(form)) : null);
+    }, { once: true });
+    dialogo.showModal();
+  });
 }
 
 async function gestionarNombreModelo(evento) {
@@ -454,14 +470,16 @@ async function gestionarNombreModelo(evento) {
   if (!boton) return;
   const editar = Boolean(boton.dataset.editarNombre);
   const id = Number(boton.dataset.editarNombre || boton.dataset.enviarNombre);
-  const nombre = editar ? prompt('Nuevo nombre del modelo', boton.dataset.nombre) : null;
-  if (editar ? nombre === null || nombre.trim() === boton.dataset.nombre : !confirm('¿Enviar este cambio de nombre a Presea?')) return;
+  const empresa = empresaValida();
+  const cambios = editar ? await pedirCambiosModelo(boton) : null;
+  if (empresa !== empresaValida()) return;
+  if (editar ? !cambios || (cambios.nombre.trim() === boton.dataset.nombre && cambios.rubro === boton.dataset.rubro) : !confirm('¿Enviar la actualización de este modelo a Presea?')) return;
   boton.disabled = true;
   try {
     await api(`/api/altas-maestros/modelos/${id}/${editar ? 'nombre' : 'enviar-nombre'}`, {
-      method: editar ? 'PATCH' : 'POST', body: JSON.stringify(editar ? { nombre } : {})
+      method: editar ? 'PATCH' : 'POST', body: JSON.stringify(cambios || {})
     });
-    alerta(editar ? 'Nombre actualizado. El cambio quedó pendiente de envío.' : 'Cambio enviado a Presea.');
+    alerta(editar ? 'Modelo actualizado. El cambio quedó pendiente de envío.' : 'Cambio enviado a Presea.');
     await cargar();
   } catch (e) { alerta(e.message, 'danger'); }
   finally { boton.disabled = false; }

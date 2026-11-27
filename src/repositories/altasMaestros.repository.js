@@ -346,12 +346,17 @@ async function anularPendiente(idEmpresa, idAltaMaestro, usuario) {
 
 async function obtenerPendientesYConfiguracion(idEmpresa) {
   const pool = await getConnection();
-  const [pendientes, configuracion, destinos] = await Promise.all([
+  const [pendientes, configuracion, destinos, enviados] = await Promise.all([
     pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`SELECT * FROM dbo.ALTAS_MAESTROS WHERE ID_EMPRESA=@ID_EMPRESA AND ESTADO='PENDIENTE_ENVIO' ORDER BY TIPO,CODIGO`),
     pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`SELECT RUTA_DESTINO FROM dbo.ALTAS_MAESTROS_CONFIGURACION WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1`),
-    pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`SELECT MARCA,LICENCIA,RUBRO,RUTA_DESTINO FROM dbo.ALTAS_MAESTROS_DESTINOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1`)
+    pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`SELECT MARCA,LICENCIA,RUBRO,RUTA_DESTINO FROM dbo.ALTAS_MAESTROS_DESTINOS WHERE ID_EMPRESA=@ID_EMPRESA AND ACTIVO=1`),
+    pool.request().input('ID_EMPRESA', sql.Int, idEmpresa).query(`
+      SELECT COUNT(*) AS CANTIDAD, MIN(ID_ALTA_MAESTRO) AS PRIMER_ID
+      FROM dbo.ALTAS_MAESTROS
+      WHERE ID_EMPRESA=@ID_EMPRESA AND ESTADO='ENVIADO_PRESEA'
+    `)
   ]);
-  return { registros: pendientes.recordset, rutaDestino: configuracion.recordset[0]?.RUTA_DESTINO || null, destinos: destinos.recordset };
+  return { registros: pendientes.recordset, rutaDestino: configuracion.recordset[0]?.RUTA_DESTINO || null, destinos: destinos.recordset, enviadosSinConfirmar: enviados.recordset[0] };
 }
 
 

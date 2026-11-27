@@ -18,12 +18,14 @@ function resolverRutaDestinoMaestros(rutaConfigurada) {
 
 const largos = { COLOR: 2, MODELO: 6, MODULO: 2 };
 const tallesModuloIndumentaria = ['T_XS','T_S','T_M','T_L','T_XL','T_2XL','T_3XL'];
+const tallesModuloAccesorios = ['T01','T02','T03','T04','T05','T06','T07'];
 const tallesModuloCalzado = [
   'T15','T16','T17','T18','T19','T20','T21','T22','T23','T24','T25','T26','T27','T28','T29','T30',
   'T31','T32','T33','T34','T35','T36','T37','T38','T385','T39','T395','T40','T405','T41','T415','T42',
   'T425','T43','T435','T44','T445','T45','T455','T46','T47','T48','T49','T50'
 ];
 const etiquetasTallesModulo = Object.fromEntries([
+  ...tallesModuloAccesorios.map(campo => [campo, campo.slice(1)]),
   ...tallesModuloCalzado.map(campo => [campo, campo.length === 4 && campo.endsWith('5') ? `${campo.slice(1, -1)}.5` : campo.slice(1)]),
   ['T_XS','XS'],['T_S','S'],['T_M','M'],['T_L','L'],['T_XL','XL'],['T_2XL','2XL'],['T_3XL','3XL']
 ]);
@@ -293,8 +295,12 @@ async function crear({ idEmpresa, usuario, cuerpo }) {
   let datosModulo = null;
   if (tipo === 'MODULO') {
     const rubroModulo = normalizar(cuerpo.rubro);
-    if (!['CALZADO', 'INDUMENTARIA'].includes(rubroModulo)) throw Object.assign(new Error('El módulo debe corresponder a Calzado o Indumentaria.'), { status: 400 });
-    const permitidos = rubroModulo === 'CALZADO' ? tallesModuloCalzado : tallesModuloIndumentaria;
+    const permitidos = {
+      CALZADO: tallesModuloCalzado,
+      INDUMENTARIA: tallesModuloIndumentaria,
+      ACCESORIOS: tallesModuloAccesorios
+    }[rubroModulo];
+    if (!Array.isArray(permitidos)) throw Object.assign(new Error('El módulo debe corresponder a Calzado, Indumentaria o Accesorios.'), { status: 400 });
     const distribucionEntrada = cuerpo.datos?.distribucion && typeof cuerpo.datos.distribucion === 'object' ? cuerpo.datos.distribucion : {};
     const distribucion = {};
     for (const [campo, valor] of Object.entries(distribucionEntrada)) {
@@ -536,7 +542,7 @@ const definicionesDbi = {
     map: x => {
       const datos = JSON.parse(x.DATOS_JSON || '{}');
       const cantidadesVacias = Object.fromEntries(definicionesDbi.MODULO.campos.filter(campo => campo.tipo === 'N').map(campo => [campo.nombre, 0]));
-      return { CODIGO: x.CODIGO, NOMBRE: x.NOMBRE, ...cantidadesVacias, ...Object.fromEntries([...tallesModuloCalzado, ...tallesModuloIndumentaria].map(campo => [campo, Number(datos.distribucion?.[campo] || 0)])), PARES: Number(datos.pares || 0), TALLE_COMP: false };
+      return { CODIGO: x.CODIGO, NOMBRE: x.NOMBRE, ...cantidadesVacias, ...Object.fromEntries([...tallesModuloCalzado, ...tallesModuloIndumentaria, ...tallesModuloAccesorios].map(campo => [campo, Number(datos.distribucion?.[campo] || 0)])), PARES: Number(datos.pares || 0), TALLE_COMP: false };
     }
   }
 };
@@ -617,7 +623,14 @@ async function enviarPresea({ idEmpresa, usuario }) {
 }
 
 async function enviarPendientesMaestros({ idEmpresa, usuario }) {
+  await repository.conciliarModelosRegistrados(idEmpresa, usuario || 'SISTEMA');
   const datos = await repository.obtenerPendientesYConfiguracion(idEmpresa);
+  if (datos.enviadosSinConfirmar?.CANTIDAD > 0) {
+    const { CANTIDAD, PRIMER_ID } = datos.enviadosSinConfirmar;
+    throw Object.assign(new Error(
+      `Hay ${CANTIDAD} solicitud(es) enviadas a Presea sin confirmar (primera: ID ${PRIMER_ID}). Actualizá los maestros y esperá a que figuren registradas antes de exportar otro lote de esta empresa.`
+    ), { status: 409 });
+  }
   const rutaDestino = resolverRutaDestinoMaestros(datos.rutaDestino);
   if (!rutaDestino) throw Object.assign(new Error('La empresa no tiene configurada la carpeta FTP de Altas de Maestros.'), { status: 409 });
   if (!datos.registros.length) throw Object.assign(new Error('No hay solicitudes pendientes para enviar.'), { status: 409 });

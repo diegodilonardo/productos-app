@@ -601,7 +601,22 @@ function agruparArchivosMaestros(registros, rutaEmpresa, destinosConfigurados = 
   return [...grupos.values()].sort((a, b) => orden[a.tipo] - orden[b.tipo] || a.ruta.localeCompare(b.ruta));
 }
 
+const enviosMaestrosEnCurso = new Set();
+
 async function enviarPresea({ idEmpresa, usuario }) {
+  const empresa = String(idEmpresa);
+  if (enviosMaestrosEnCurso.has(empresa)) {
+    throw Object.assign(new Error('Ya hay un envío de maestros en curso para esta empresa.'), { status: 409 });
+  }
+  enviosMaestrosEnCurso.add(empresa);
+  try {
+    return await enviarPendientesMaestros({ idEmpresa, usuario });
+  } finally {
+    enviosMaestrosEnCurso.delete(empresa);
+  }
+}
+
+async function enviarPendientesMaestros({ idEmpresa, usuario }) {
   const datos = await repository.obtenerPendientesYConfiguracion(idEmpresa);
   const rutaDestino = resolverRutaDestinoMaestros(datos.rutaDestino);
   if (!rutaDestino) throw Object.assign(new Error('La empresa no tiene configurada la carpeta FTP de Altas de Maestros.'), { status: 409 });
@@ -619,6 +634,12 @@ async function enviarPresea({ idEmpresa, usuario }) {
   fs.mkdirSync(carpetaLocal, { recursive: true });
   const archivos = [];
   const grupos = agruparArchivosMaestros(datos.registros, rutaDestino, datos.destinos);
+  for (const { tipo, ruta } of grupos) {
+    const nombre = definicionesDbi[tipo].archivo;
+    if (await ftpService.existeArchivo(ruta, nombre)) {
+      throw Object.assign(new Error(`Todavía hay un DBI pendiente en ${ruta}/${nombre}. Esperá a que Presea retire ese archivo antes de volver a exportar.`), { status: 409 });
+    }
+  }
   for (const { tipo, ruta, filas } of grupos) {
     const def = definicionesDbi[tipo];
     const carpetaGrupo = path.join(carpetaLocal, ...ruta.split('/').filter(Boolean));
@@ -626,7 +647,7 @@ async function enviarPresea({ idEmpresa, usuario }) {
     const destinoLocal = path.join(carpetaGrupo, def.archivo);
     escribirDBFGenerico(destinoLocal, filas.map(def.map), def.campos);
     try {
-      const resultadoFTP = await ftpService.subirArchivo(destinoLocal, def.archivo, def.archivo, ruta);
+      const resultadoFTP = await ftpService.subirArchivo(destinoLocal, def.archivo, def.archivo, ruta, { impedirSobrescritura: true });
       const archivo = { nombre: def.archivo, registros: filas.length, ruta: resultadoFTP.rutaRemota || `${ruta}/${def.archivo}` };
       await repository.marcarEnviados(idEmpresa, filas.map(x => x.ID_ALTA_MAESTRO), [archivo], usuario || 'SISTEMA');
       archivos.push(archivo);

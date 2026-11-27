@@ -783,7 +783,8 @@ async function subirArchivo(
     rutaLocal,
     nombreArchivo,
     nombreRemoto = null,
-    rutaRemota = null
+    rutaRemota = null,
+    { impedirSobrescritura = false } = {}
 ) {
 
     const config =
@@ -856,6 +857,12 @@ async function subirArchivo(
                         carpetaRemota
                     );
 
+                    if (impedirSobrescritura) {
+                        const archivos = await cliente.list();
+                        if (archivos.some(archivo => archivo.name.toUpperCase() === archivoRemoto.toUpperCase())) {
+                            throw Object.assign(new Error(`Ya existe ${carpetaRemota}/${archivoRemoto}. Esperá a que Presea retire el DBI anterior.`), { status: 409 });
+                        }
+                    }
 
                     await cliente.uploadFrom(
                         rutaLocal,

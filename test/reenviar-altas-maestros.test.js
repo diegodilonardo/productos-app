@@ -8,7 +8,8 @@ test('el script de recuperación de maestros exige selección explícita y vista
   assert.match(script, /Debe indicar --ids o --desde/);
   assert.match(script, /VISTA PREVIA - NO SE ENVIARA NADA/);
   assert.match(script, /opciones\.enviar/);
-  assert.match(script, /opciones\.sobrescribir/);
+  assert.match(script, /impedirSobrescritura: true/);
+  assert.doesNotMatch(script, /--sobrescribir/);
   assert.match(script, /ftpService\.existeArchivo/);
   assert.match(script, /ALTAS_MAESTROS_HISTORIAL/);
   assert.match(script, /ALTAS_MAESTROS_DESTINOS/);

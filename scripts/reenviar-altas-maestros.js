@@ -35,7 +35,6 @@ Opciones:
   --hasta AAAA-MM-DD     Fecha final de envío, inclusive.
   --tipo TIPO            COLOR, MODELO, MODULO o TODOS. Predeterminado: TODOS.
   --enviar               Realiza el envío. Sin esta opción solamente genera una vista previa.
-  --sobrescribir         Permite reemplazar un archivo que ya existe en el FTP.
   --ayuda                 Muestra esta ayuda.
 
 Debe indicarse --ids o --desde. Para evitar selecciones accidentales, no se
@@ -51,7 +50,6 @@ function argumentos(argv) {
     hasta: '',
     tipo: 'TODOS',
     enviar: false,
-    sobrescribir: false,
     ayuda: false
   };
 
@@ -60,7 +58,6 @@ function argumentos(argv) {
     const siguiente = argv[i + 1];
 
     if (actual === '--enviar') resultado.enviar = true;
-    else if (actual === '--sobrescribir') resultado.sobrescribir = true;
     else if (actual === '--ayuda' || actual === '-h') resultado.ayuda = true;
     else if (actual === '--empresa') { resultado.empresa = String(siguiente || '').trim(); i += 1; }
     else if (actual === '--ids') {
@@ -269,10 +266,10 @@ async function ejecutar() {
 
   for (const archivo of preparacion.archivos) {
     const existe = await ftpService.existeArchivo(archivo.ruta, archivo.nombre);
-    if (existe && !opciones.sobrescribir) {
+    if (existe) {
       throw new Error(
         `El archivo ${archivo.rutaFTP} ya existe en el FTP. No se reemplazó. ` +
-        'Si verificaste que corresponde sobrescribirlo, repetí el comando con --sobrescribir.'
+        'Esperá a que Presea retire el DBI anterior.'
       );
     }
 
@@ -280,7 +277,8 @@ async function ejecutar() {
       archivo.rutaLocal,
       archivo.nombre,
       archivo.nombre,
-      archivo.ruta
+      archivo.ruta,
+      { impedirSobrescritura: true }
     );
     await registrarAuditoria(pool, empresa, archivo);
     console.log(`ENVIADO: ${resultado.rutaRemota || archivo.rutaFTP} (${archivo.filas.length} registros)`);
